@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import ImageEditor from "./ImageEditor";
+import TourGuide from "./TourGuide";
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens (from the dark-technical login design)               */
@@ -11,22 +13,185 @@ import ImageEditor from "./ImageEditor";
 /*  border #2f5b75 · coral #f84f63 · text #f3f8f7 · muted #9fb9c4      */
 /* ------------------------------------------------------------------ */
 
-const STEPS = [
-  ["01", "Project", "Details & material"],
-  ["02", "Report", "Scope & evidence"],
-  ["03", "Layout", "Document styling"],
-  ["04", "Issue", "Preview & export"],
-];
-
 const MATERIAL_IDS = new Set(["material", "fu", "fy", "young", "nu", "rho"]);
 const DRAFT_KEY = "reportgenix-draft-v2";
 
+const STANDARD_SECTION_NARRATIVES = [
+  {
+    match: (title) => /background/i.test(title),
+    text: `Structural analysis and certification services are required for a new build chassis and internal carrying member's design and analysis of a trailer. The trailer requires certification as a Dual Axle trailer type [ ATM ]kg ATM.
+
+3D isometric images of an actual trailer from Autodesk Inventor software identify this product.`,
+  },
+  {
+    match: (title) => /geometry/i.test(title),
+    text: `ATT has provided the required 3D geometric data that was required for the structural analysis of the trailer. Shown following are the dimensions of the major structural members of the trailer which was used for the analysis.
+
+Overall length: [ Overall length ] mm
+Overall width: [ Overall width ] mm
+Coupling to suspension: [ Distance coupling to suspension ] mm`,
+  },
+  {
+    match: (title) => /requirements/i.test(title),
+    text: `The following requirements apply for the trailer structural compliance as selected in the Summary of Compliance.
+
+1.
+2.
+3.
+4.
+5.
+6.
+7.
+8.`,
+  },
+  {
+    match: (title) => /pre.?processing|analysis.*data|material.*meshing/i.test(title),
+    text: `The trailer is analyzed using the finite element analysis technique. The software used for analysis is ANSYS Workbench which is used in the automotive industry for over a decade. 3D elements have been used in modelling as these are the most appropriate for static structural analysis.
+
+Material
+The material used for the analysis with the following mechanical properties is given in the below table.
+
+Meshing
+The fine mesh was created with the number of nodes as [ Mesh nodes ] and the number of elements as [ Mesh elements ]. Shown below are some images of the finite element model that was used for the analysis.`,
+  },
+  {
+    match: (title) => /analysis\s*1|longitudinal tension/i.test(title),
+    text: `ANALYSIS 1 (ADR 62/02- 14.2.1.1.1) - Longitudinal Tension and Compression
+
+Trailer restraint and the force applied as shown in the below image. The applied force is [ 1.5 x 9.81 x ATM ] N as per clause 14.2.1.1.1 of ADR 62/02 i.e., 1.5 x 9.81 x [ ATM ] kg, applied on the coupling holes in the longitudinal direction. All hanger holes faces are fixed in all DOF.
+
+As per the result shown in the stress distribution plot, neglecting local stresses, the max stress of [ stress ] MPa was found on the Drawbar, which is compared with the yield strength of material [ Material ] which is [ Yield strength ] MPa.
+
+As shown above, the following is the deformation of the structure under the Analysis 1 loading condition. The maximum deformation is [ deformation ] mm.`,
+  },
+  {
+    match: (title) => /analysis\s*2|transverse thrust/i.test(title),
+    text: `ANALYSIS 2 (ADR 62/02- 14.2.1.2.1) - Transverse Thrust
+
+Trailer restraint and the force applied as shown in the below image. The applied force is [ 0.5 x 9.81 x ATM ] N as per clause 14.2.1.2.1 of ADR 62/02 i.e., 0.5 x 9.81 x [ ATM ] kg, applied on the coupling holes in the transverse direction. All hanger holes faces are fixed in all DOF.
+
+As per the result shown in the stress distribution plot, neglecting local stresses, the max stress of [ stress ] MPa was found on the Hanger, which is compared with the yield strength of material [ Material ] which is [ Yield strength ] MPa.
+
+As shown above, the following is the deformation of the structure under the Analysis 2 loading condition. The maximum deformation is [ deformation ] mm.`,
+  },
+  {
+    match: (title) => /analysis\s*3|vertical tension/i.test(title),
+    text: `ANALYSIS 3 (ADR 62/02- 14.2.1.3.1) - Vertical Tension and Compression
+
+Trailer restraint and the force applied as shown in the below image. The applied force is [ 0.5 x 9.81 x ATM ] N as per clause 14.2.1.3.1 of ADR 62/02 i.e., 0.5 x 9.81 x [ ATM ] kg, applied on the coupling holes in the vertical direction (with an equal downward force on the chassis). All hanger holes faces are fixed in all DOF.
+
+As per the result shown in the stress distribution plot, neglecting local stresses, the max stress of [ stress ] MPa was found on the Chassis, which is compared with the yield strength of material [ Material ] which is [ Yield strength ] MPa.
+
+As shown above, the following is the deformation of the structure under the Analysis 3 loading condition. The maximum deformation is [ deformation ] mm.`,
+  },
+  {
+    match: (title) => /analysis\s*4|drawbar dynamic/i.test(title),
+    text: `ANALYSIS 4 (ADR 62/02- 14.2.2.1) - Drawbar Dynamic Test
+
+The D-value for the trailer is [ D-value ] kN. The force applied is 0.6 x Coupling D-value = 0.6 x [ D-value ] x 103 = [ force ] N.
+
+D-value for this trailer is calculated as shown:
+DC = g . (T x C)/(T + C) (from AS2213.4:2008- 5.1)
+Here, T = maximum design total mass in tonnes of the towing vehicle = 2 t
+C = mass in tonnes transmitted to the ground by the axle of the centre-axle trailer loaded to its maximum design total mass = [ ATM/1000 ] t
+Therefore, DC = 9.81 x (2 x [ C ])/(2 + [ C ]) = [ D-value ] kN
+
+As per result, neglecting local stress the max stress induced in the drawbar of the trailer is [ stress ] MPa, which is lower than the allowable yield limit of [ Yield strength ] MPa. The fatigue limit of 2 million cycles for [ Material ] material as per AS4100-1998, clause 11.6, is 82 MPa. [ verdict ]
+
+As shown above, the following is the deformation of the structure under the Analysis 4 loading condition. The maximum deformation is [ deformation ] mm.`,
+  },
+  {
+    match: (title) => /analysis\s*5|structural strength/i.test(title),
+    text: `ANALYSIS 5 (AS4100-1998 2016) - Structural strength of the trailer
+
+For [ ATM ]kg ATM was used for this load case in the chassis. The structural members of the trailer are analyzed with 1G vertical load & 1G Horizontal load applied simultaneously to check the structural integrity of the trailer as per AS 4100-1998.
+
+As shown below following is the distributed loading applied to the trailer and the restraints. This loading is the worst-case scenario in practical application. 1G vertical load = [ load ] N; total forward & downward force (resultant of 1G vertical and 1G horizontal) = [ load ] N; braking force (0.8 x 9.81 x ATM) = [ load ] N.
+
+As per the result shown in the stress distribution plot, neglecting local stresses, the max stress of [ stress ] MPa was found on the Chassis, which is compared with the yield strength of material [ Material ] which is [ Yield strength ] MPa.
+
+As shown above, the following is the deformation of the structure under the Analysis 5 loading condition. The maximum deformation is [ deformation ] mm.`,
+  },
+  {
+    match: (title) => /analysis\s*6|safety chain/i.test(title),
+    text: `ANALYSIS 6 (ADR 62/02- 14.4) - 'Drawbar' Safety Chain Attachment Points
+
+The chain will be fitted on either side of the center line of the drawbar, which satisfies ADR62/02 - 14.4.1. The longitudinal tension of 9.81 x 'ATM' kg is [ force ] N (vertical tension 0.5 x 9.81 x 'ATM' = [ force ] N). As 2 bolt(s) will be supporting the safety chain, the force per bolt is [ force ] N. The plate thickness is 10mm.
+
+The compressive (bearing) stress induced per bolt = longitudinal force per bolt / (thickness x hole clearance) = [ force ] / (10 x 15) = [ stress ] MPa
+[ verdict ]`,
+  },
+  {
+    match: (title) => /analysis\s*7|coupling/i.test(title),
+    text: `ANALYSIS 7 - Coupling
+
+The pulling force at 1.5G (1.5 x 9.81 x 'ATM' kg) is [ force ] N. As there are 4 bolts, this force per bolt is [ force ] N. The thickness of the coupling plate is 6 mm and the bolt size is M14.
+
+The compressive stress induced per bolt = [ force ] / (Plate thickness x Hole clearance) = [ force ] / (6 x 15) = [ stress ] MPa
+[ verdict ]`,
+  },
+];
+
+function getStandardSectionNarrative(section) {
+  const title = String(section?.title || "");
+  return STANDARD_SECTION_NARRATIVES.find((entry) => entry.match(title))?.text || "";
+}
+
+
 const GLOBAL_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-.rg { font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+
+@keyframes rg-gradient-drift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes rg-soft-glow {
+  0%, 100% { box-shadow: 0 0 0 rgba(248,79,99,0); }
+  50% { box-shadow: 0 10px 34px rgba(248,79,99,.08); }
+}
+@keyframes rg-fade-up {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rg {
+  font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(ellipse at 12% 0%, rgba(41,111,145,.20), transparent 42%),
+    radial-gradient(ellipse at 92% 18%, rgba(248,79,99,.075), transparent 34%),
+    linear-gradient(135deg, #0a2744, #0b2d4b 48%, #0a2744);
+  background-size: 150% 150%;
+  animation: rg-gradient-drift 22s ease-in-out infinite;
+}
 .rg *:focus-visible { outline: 2px solid #f84f63; outline-offset: 2px; }
 .rg select { color-scheme: dark; }
-@media (prefers-reduced-motion: reduce) { .rg * { transition: none !important; animation: none !important; } }
+.rg button, .rg a, .rg input, .rg textarea, .rg select {
+  transition: color .2s ease, background-color .2s ease, border-color .2s ease,
+    box-shadow .2s ease, transform .2s ease, opacity .2s ease;
+}
+.rg button:not(:disabled):hover { filter: brightness(1.07); }
+.rg button:not(:disabled):active { transform: translateY(1px) scale(.985); }
+.rg a:hover { text-decoration-color: rgba(248,79,99,.65); }
+.rg section.rounded-2xl, .rg aside.rounded-2xl {
+  background-image: linear-gradient(145deg, rgba(255,255,255,.035), transparent 48%);
+  box-shadow: 0 12px 34px rgba(0,0,0,.10);
+}
+.rg .rg-dashboard-card { animation: rg-fade-up .45s both; }
+.rg .rg-dashboard-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(248,79,99,.65);
+  box-shadow: 0 16px 36px rgba(0,0,0,.22), 0 0 24px rgba(248,79,99,.08);
+}
+.rg input:focus, .rg textarea:focus, .rg select:focus {
+  box-shadow: 0 0 0 3px rgba(248,79,99,.12);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rg, .rg *, .rg *::before, .rg *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}
 `;
 
 const LABEL = "mb-1.5 block text-xs font-medium text-[#b9d0d8]";
@@ -215,7 +380,7 @@ function LoginScreen({ authMode, setAuthMode, authForm, setAuthForm, submit, sta
           <div className="relative z-10 px-10 pt-9 xl:px-14 xl:pt-11">
             <img src="/csa_logo.webp" alt="CSA Engineering" className="h-16 w-auto object-contain xl:h-20" />
             <h2 className="mt-14 text-[clamp(3.2rem,6.2vw,7rem)] font-semibold leading-none tracking-tight text-[#f3f8f7]">ReportGenix</h2>
-            <p className="mt-5 text-lg font-light text-[#a9ccc9] xl:text-xl">Engineering Reports Automated</p>
+            <div className="mt-5 flex items-center gap-2 xl:text-xl"><p className="text-lg font-light text-[#a9ccc9] flex items-center gap-2">Reimagining technical reporting with generative AI</p><img src="/ai (2).png" alt="AI" className="h-9 w-auto opacity-80" /></div>
           </div>
           <img
             src="/fea-trailer.webp"
@@ -616,6 +781,27 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
               />
             </Labeled>
           </div>
+
+          <div className={INSET}>
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[.14em] text-[#83c6c0]">Section narrative &amp; description</p>
+                <p className="mt-1 text-xs leading-5 text-[#9bbcc0]">
+                  Leave this blank to retain the standard generated wording. Enter text here to replace the section narrative in the preview and exported report.
+                </p>
+              </div>
+              <span className="rounded-full border border-[#2f5b75] bg-[#0a2744]/70 px-2.5 py-1 text-[10px] text-[#9bbcc0]">Draft auto-saved</span>
+            </div>
+            <Labeled label="Editable report content">
+              <textarea
+                className={`${INPUT} min-h-[190px] resize-y leading-7`}
+                value={data[`body__${section.id}`] ?? ""}
+                onChange={(event) => setData((current) => ({ ...current, [`body__${section.id}`]: event.target.value }))}
+                placeholder={`Add or replace the standard narrative for ${section.title}…`}
+              />
+            </Labeled>
+          </div>
+
           {section.fields.length > 0 && (
             <div className="grid gap-4 md:grid-cols-2">
               {section.fields.map((field) => (
@@ -1228,7 +1414,11 @@ const SidebarNav = ({ steps, extraLinks, completeness, sidebarOpen, setSidebarOp
       </div>
 
       {/* Steps */}
-      <nav className="flex-1 overflow-y-auto px-6 py-4" aria-label="Report steps">
+     <nav
+          data-tour="sidebar-steps"
+          className="flex-1 overflow-y-auto px-6 py-4"
+          aria-label="Report steps"
+        >
         <ol>
   {steps.map((step, index) => {
     const isLast = index === steps.length - 1;
@@ -1282,23 +1472,14 @@ const SidebarNav = ({ steps, extraLinks, completeness, sidebarOpen, setSidebarOp
   })}
 </ol>
 
-        <div className="mt-8 space-y-1 border-t border-[#2a5068]/60 pt-5">
-          {extraLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={close}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${link.active ? "bg-[#f84f63] text-[#0a1f36]" : "text-[#c8dfe1] hover:bg-white/5 hover:text-white"}`}
-            >
-              <span className="text-[11px]">{link.icon}</span>
-              <span>{link.label}</span>
-            </Link>
-          ))}
-        </div>
+
       </nav>
 
       {/* Completeness + profile */}
-      <div className="border-t border-[#2a5068]/60 px-6 py-5">
+     <div
+          data-tour="progress"
+          className="border-t border-[#2a5068]/60 px-6 py-5"
+        >
         <p className="text-sm font-semibold text-white">Report completeness:</p>
         <div className="mt-2 flex items-center gap-3">
           <div
@@ -1313,15 +1494,7 @@ const SidebarNav = ({ steps, extraLinks, completeness, sidebarOpen, setSidebarOp
           </div>
           <span className="w-9 text-right text-xs font-semibold text-[#c8dfe1]">{completeness}%</span>
         </div>
-        <button
-          onClick={() => { close(); openProfile(); }}
-          className="mt-5 flex w-full items-center gap-3 rounded-lg border border-[#2f5b75] bg-[#0e3250] px-4 py-3 text-sm text-[#c8dfe1] hover:bg-white/5"
-        >
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f84f63] text-xs font-bold text-[#0a1f36]">
-            {user?.initials || initials(user?.full_name || user?.email)}
-          </span>
-          <span className="truncate">Profile</span>
-        </button>
+
       </div>
     </aside>
   );
@@ -1356,6 +1529,7 @@ export default function ReportGenix() {
   const [removedSchemaImages, setRemovedSchemaImages] = useState({});
   const [step, setStep] = useState(1);
   const [previewUrl, setPreviewUrl] = useState("");
+  const [previewExpanded, setPreviewExpanded] = useState(false);
   const [busy, setBusy] = useState("");
   const [raeLookup, setRaeLookup] = useState({ status: "idle", message: "", matchType: null });
   const [profileModal, setProfileModal] = useState(false);
@@ -1376,6 +1550,40 @@ export default function ReportGenix() {
   const sessionMedia = useRef({}); /* { [reportId]: { files, originals, editorStates } } */
   const raeTimer = useRef(null);
 
+  useEffect(() => {
+    if (!previewExpanded) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setPreviewExpanded(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [previewExpanded]);
+
+  useEffect(() => {
+    if (!profileModal) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && !profileBusy) closeProfile();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [profileModal, profileBusy]);
+
+  /* Routes the user has opened (used for text-only section completion) */
+  const [visited, setVisited] = useState([]);
+  useEffect(() => {
+    setVisited((v) => (v.includes(pathname) ? v : [...v, pathname]));
+  }, [pathname]);
+  const [tourOpen, setTourOpen] = useState(false);
   /* Image editor + section preview state */
   const [editingImage, setEditingImage] = useState(null); /* { id, label, url, originalFile } */
   const [originals, setOriginals] = useState({}); /* { [imageId]: untouched original File } */
@@ -1414,7 +1622,16 @@ export default function ReportGenix() {
         nextSchema.general.map((field) => [field.id, saved.data?.[field.id] ?? current[field.id] ?? field.default ?? (field.type === "date" ? new Date().toISOString().slice(0, 10) : "")])
       )
     );
-    setData((current) => ({ ...current, ...(saved.data || {}) }));
+    const standardNarrativeDefaults = Object.fromEntries(
+      nextSchema.sections
+        .map((section) => {
+          const key = `body__${section.id}`;
+          const existing = saved.data?.[key];
+          return [key, existing !== undefined ? existing : getStandardSectionNarrative(section)];
+        })
+        .filter(([, value]) => Boolean(value))
+    );
+    setData((current) => ({ ...current, ...(saved.data || {}), ...standardNarrativeDefaults }));
     setStandards(Array.isArray(saved.standards) ? saved.standards : []);
     setSelected(Array.isArray(saved.selected) ? saved.selected : nextSchema.sections.map((section) => section.id));
     setLayout((current) => ({ ...current, ...(saved.layout || {}) }));
@@ -1549,33 +1766,33 @@ export default function ReportGenix() {
   }, [materialMode, data.material, data.fu, data.fy, data.young, data.nu, data.rho, materialMeta, csrf, request]);
 
   const submitAuth = async (event) => {
-      event.preventDefault();
-      setAuthStatus("");
-      setBusy("auth");
-      try {
-        // fresh token tied to the current session cookie
-        const tokenResponse = await fetch("/api/auth/csrf", { cache: "no-store", credentials: "same-origin" });
-        const { csrf_token: fresh } = await tokenResponse.json();
-        setCsrf(fresh);
+    event.preventDefault();
+    setAuthStatus("");
+    setBusy("auth");
+    try {
+      // fresh token tied to the current session cookie
+      const tokenResponse = await fetch("/api/auth/csrf", { cache: "no-store", credentials: "same-origin" });
+      const { csrf_token: fresh } = await tokenResponse.json();
+      setCsrf(fresh);
 
-        const response = await fetch(authMode === "signup" ? "/api/auth/signup" : "/api/auth/login", {
-          method: "POST",
-          credentials: "same-origin",
-          cache: "no-store",
-          headers: { "Content-Type": "application/json", "X-CSRF-Token": fresh },
-          body: JSON.stringify(authForm),
-        });
-        if (!response.ok) throw new Error(await messageFor(response));
-        const payload = await response.json();
-        setUser(payload.user);
-        setCsrf(payload.csrf_token || fresh);
-        setAuthForm((form) => ({ ...form, password: "" }));
-      } catch (error) {
-        setAuthStatus(error.message);
-      } finally {
-        setBusy("");
-      }
-    };
+      const response = await fetch(authMode === "signup" ? "/api/auth/signup" : "/api/auth/login", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": fresh },
+        body: JSON.stringify(authForm),
+      });
+      if (!response.ok) throw new Error(await messageFor(response));
+      const payload = await response.json();
+      setUser(payload.user);
+      setCsrf(payload.csrf_token || fresh);
+      setAuthForm((form) => ({ ...form, password: "" }));
+    } catch (error) {
+      setAuthStatus(error.message);
+    } finally {
+      setBusy("");
+    }
+  };
 
   const openProfile = () => {
     setProfileForm({ full_name: user.full_name || "", email: user.email || "", current_password: "", initials: user.initials || "" });
@@ -1716,6 +1933,7 @@ export default function ReportGenix() {
       setEditorStates({});
       setEditingImage(null);
       setPreviewUrl("");
+      setVisited([]);
       setStep(1);
       setReports([]);
       setFolders([]);
@@ -2151,6 +2369,23 @@ export default function ReportGenix() {
                   : activeSection
                     ? "section"
                     : "not-found";
+
+  // Build breadcrumb items from the resolved route. Always return an array so
+  // the breadcrumb renderer can safely call crumbs.map(...).
+  const routeCrumb = {
+    home: { label: "Project", href: null },
+    projects: { label: "Libraries", href: null },
+    layout: { label: "Layout", href: null },
+    issue: { label: "Preview and Download", href: null },
+    help: { label: "Help", href: null },
+    faq: { label: "FAQ", href: null },
+    dashboard: { label: "Dashboard", href: null },
+    "not-found": { label: "Page not found", href: null },
+  };
+  const crumbs = route === "section"
+    ? [{ label: "Sections", href: "/projects" }, { label: data[`heading__${activeSection.id}`] || activeSection.title, href: null }]
+    : [routeCrumb[route] || routeCrumb["not-found"]];
+
   const reportSections = schema.sections.filter((section) => section.id !== "summary");
   const navClass = (active) => `rounded-md px-3 py-2 text-sm font-medium transition ${active ? "bg-[#f84f63] text-[#0a1f36]" : "text-[#c6dce2] hover:bg-white/5 hover:text-white"}`;
 
@@ -2229,18 +2464,26 @@ const sidebarSteps = [
               <span className="border-l border-[#2f5b75] pl-3 text-base font-semibold">ReportGenix</span>
             </Link>
             <div className="ml-auto flex items-center gap-2">
-              <span className="hidden max-w-[220px] truncate text-sm text-[#b9d2d3] md:inline">{user.full_name || user.email}</span>
+              <div data-tour="help-tabs" className="hidden items-center gap-1 md:flex">
+                <Link href="/dashboard" className={navClass(route === "dashboard")}>Dashboard</Link>
+                <button onClick={() => setTourOpen(true)} className={navClass(false)}>Help</button>
+                <Link href="/faq" className={navClass(route === "faq")}>FAQ</Link>
+              </div>
               <button
-                onClick={openProfile}
-                className="relative rounded-full border border-[#2f5b75] bg-[#0e3250] px-2 py-1 text-xs font-semibold text-[#c8dfe1] hover:bg-white/10 focus:outline-none focus:border-[#f84f63]"
-                aria-label="Profile"
-              >
-                {user.avatar_url ? (
-                  <img src={user.avatar_url} alt="Profile" className="rounded-full w-6 h-6 object-cover" />
-                ) : (
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#f84f63] text-[#0a1f36] font-bold text-xs">{user.initials || initials(user.full_name || user.email)}</span>
-                )}
-              </button>
+  data-tour="profile"
+  onClick={openProfile}
+  className="group flex min-w-0 items-center gap-2 rounded-lg border border-[#2f5b75] bg-[#0e3250] px-2.5 py-2 text-xs text-[#c8dfe1] transition duration-200 hover:-translate-y-px hover:border-[#f84f63]/70 hover:bg-[#16415f] focus:outline-none focus:border-[#f84f63] sm:gap-3 sm:px-4 sm:text-sm"
+  aria-label="Profile"
+>
+  {user.avatar_url ? (
+    <img src={user.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+  ) : (
+    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f84f63] text-xs font-bold text-[#0a1f36]">
+      {user.initials || initials(user.full_name || user.email)}
+    </span>
+  )}
+  <span className="hidden max-w-[160px] truncate sm:inline">{user.full_name || user.email}</span>
+</button>
               <ActionButton variant="ghost" onClick={() => downloadTemplate("pdf")} className="hidden !px-4 !py-2 sm:inline-flex">Blank PDF</ActionButton>
               <ActionButton variant="ghost" onClick={logout} className="!px-4 !py-2">Sign out</ActionButton>
             </div>
@@ -2248,22 +2491,20 @@ const sidebarSteps = [
         </header>
 
         <div className={route === "dashboard" ? "px-4 py-4 sm:px-6" : "mx-auto max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10"}>
-          <div className={`${route === "dashboard" ? "hidden " : ""}mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7`}><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? (data[`heading__${activeSection.id}`] || activeSection.title) : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Issue</Link></div></div>
+          <div data-tour="page-header" className={`${route === "dashboard" ? "hidden " : ""}mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7`}><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? (data[`heading__${activeSection.id}`] || activeSection.title) : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Issue</Link></div></div>
 
           <nav className={`${route === "dashboard" ? "hidden " : ""}flex items-center gap-1 text-xs text-[#8fbcc0] mt-4 ml-2`} aria-label="Breadcrumb">
             <Link href="/" className="hover:text-[#c8dfe1]">Home</Link>
-            <span>/</span>
-            <Link href="/projects" className="hover:text-[#c8dfe1]">Project</Link>
-            {route === "home" ? null : <span>/</span>}
-            {route === "projects" ? null : <Link href="/projects" className="hover:text-[#c8dfe1]">Libraries</Link>}
-            {route === "projects" || route === "home" ? null : <span>/</span>}
-            {route === "section" ? <Link href={`/section/${activeSection.id}`} className="hover:text-[#c8dfe1]">{activeSection.title}</Link> : null}
-            {(route === "section" || route === "layout") ? <span>/</span> : null}
-            {route === "layout" ? <span className="text-[#c8dfe1]">Layout</span> : null}
-            {(route === "layout" || route === "section") ? <span>/</span> : null}
-            {route === "issue" ? <span className="text-[#c8dfe1]">Issue</span> : null}
-            {route === "help" ? <span className="text-[#c8dfe1]">Help</span> : null}
-            {route === "faq" ? <span className="text-[#c8dfe1]">RAQ</span> : null}
+            {crumbs.map((crumb, i) => (
+              <span key={`${crumb.label}-${i}`} className="flex items-center gap-1">
+                <span>/</span>
+                {crumb.href ? (
+                  <Link href={crumb.href} className="hover:text-[#c8dfe1]">{crumb.label}</Link>
+                ) : (
+                  <span className="text-[#c8dfe1]">{crumb.label}</span>
+                )}
+              </span>
+            ))}
           </nav>
           {route === "dashboard" && (
             <div>
@@ -2329,13 +2570,13 @@ const sidebarSteps = [
           {route === "projects" && <div className="space-y-6"><MaterialEditor catalog={materialsCatalog} mode={materialMode} setMode={setMaterialMode} selectedId={selectedMaterialId} setSelectedId={setSelectedMaterialId} data={data} setData={setData} materialMeta={materialMeta} setMaterialMeta={setMaterialMeta} status={materialStatus} /><ComplianceEditor rows={standards} setRows={setStandards} catalog={standardsCatalog} request={request} /></div>}
 
           {route === "section" && (
-            <div className="flex h-[calc(100vh-150px)] overflow-hidden border rounded-2xl border-[#2a5068] bg-[#0b2b47]">
-              <div className="w-1/2 flex flex-col overflow-y-auto bg-[#0b2b47]/60">
+            <div className="flex h-[calc(100dvh-150px)] min-h-[480px] max-h-[calc(100dvh-150px)] flex-col overflow-hidden rounded-2xl border border-[#2a5068] bg-[#0b2b47] lg:h-[calc(100dvh-150px)] lg:min-h-0 lg:flex-row">
+              <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-[#0b2b47]/60 [scrollbar-gutter:stable]">
                 <SectionEditor sections={schema.sections} section={activeSection} data={data} setData={setData} files={files} setFiles={setFiles} extraImages={extraImages} setExtraImages={setExtraImages} removedSchemaImages={removedSchemaImages} setRemovedSchemaImages={setRemovedSchemaImages} selected={selected} setSelected={setSelected} onOpenImageEditor={openImageEditor} editingImage={editingImage} onFileChange={handleFileChange} originals={originals}>{activeSection.id === "requirements" && <p className="text-sm text-[#b7d1d2]">Requirements are generated from the Summary of Compliance entries in <Link href="/projects" className="font-semibold text-[#81c9c2] underline">Project </Link>.</p>}{activeSection.id === "cert" && <p className="text-sm text-[#b7d1d2]">The certificate QR code and Australia watermark are applied automatically in preview and final documents.</p>}</SectionEditor>
               </div>
-              <div className="w-1/2 border-l border-[#2a5068]/60 flex flex-col overflow-hidden bg-[#0a2744]">
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-t border-[#2a5068]/60 bg-[#0a2744] lg:border-l lg:border-t-0">
                 {editingImage ? (
-                  <div className="min-h-0 flex-1 p-3">
+                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
                     <ImageEditor
                       key={editingImage.id}
                       imageUrl={editingImage.url}
@@ -2403,15 +2644,22 @@ const sidebarSteps = [
           )}
 
           {route === "issue" && (
-            <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <section className="grid min-w-0 gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
               <div className={CARD}>
-                <p className={EYEBROW}>Ready to issue</p>
+                <p className={EYEBROW}>Preview &amp; download</p>
                 <h2 className="mt-1 text-2xl font-semibold text-white">Review and export</h2>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-[#b6d3d4]">
                   Preview uses the same report engine as the final download. Check warnings and attached evidence before issuing the certification.
                 </p>
-                <div className="mt-7 flex flex-wrap gap-3">
-                  <ActionButton onClick={() => generate("preview")} disabled={Boolean(busy)} className="flex-1 sm:flex-none">
+                <div className="mt-7 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
+                  <ActionButton
+                    onClick={() => {
+                      setPreviewExpanded(true);
+                      generate("preview");
+                    }}
+                    disabled={Boolean(busy)}
+                    className="flex-1 sm:flex-none"
+                  >
                     {busy === "preview" ? "Creating preview…" : "Preview PDF"}
                   </ActionButton>
                   <ActionButton variant="secondary" onClick={() => generate("pdf")} disabled={Boolean(busy)} className="flex-1 sm:flex-none">
@@ -2422,15 +2670,67 @@ const sidebarSteps = [
                   </ActionButton>
                   <ActionButton variant="ghost" onClick={() => downloadTemplate("word")} className="flex-1 sm:flex-none">Blank Word</ActionButton>
                 </div>
-                {previewUrl && (
+                {previewUrl && !previewExpanded && (
                   <div className="mt-7 overflow-hidden rounded-xl border border-[#2a5068] bg-[#061d31]">
-                    <iframe title="Generated report preview" src={previewUrl} className="h-[70vh] min-h-[420px] w-full lg:h-[720px]" />
+                    <div className="flex items-center justify-between gap-3 border-b border-[#2a5068] bg-[#0b2b47] px-4 py-2">
+                      <span className="text-xs font-medium text-[#c8dfe1]">PDF preview</span>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewExpanded(true)}
+                        className="rounded-md border border-[#2f5b75] px-3 py-1.5 text-xs font-semibold text-[#c8dfe1] transition hover:border-[#f84f63] hover:text-white"
+                      >
+                        Expand preview
+                      </button>
+                    </div>
+                    <iframe title="Generated report preview" src={previewUrl} className="h-[55dvh] min-h-[320px] w-full sm:h-[70vh] sm:min-h-[420px] lg:h-[720px]" />
                   </div>
                 )}
+                <AnimatePresence>
+                  {previewUrl && previewExpanded && (
+                    <motion.div
+                      className="fixed inset-0 z-[100] flex flex-col bg-[#061523]/95 p-2 backdrop-blur-sm sm:p-4"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      role="dialog"
+                      aria-modal="true"
+                      aria-label="Expanded PDF preview"
+                    >
+                      <motion.div
+                        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#2f5b75] bg-[#0b2b47] shadow-2xl"
+                        initial={{ opacity: 0, y: 14, scale: 0.99 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.99 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      >
+                        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#2f5b75] px-3 py-2.5 sm:px-5">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-white">PDF Preview</p>
+                            <p className="text-[11px] text-[#9bbcc0]">Expanded view</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewExpanded(false)}
+                            className="shrink-0 rounded-md border border-[#2f5b75] px-3 py-2 text-xs font-semibold text-[#c8dfe1] transition hover:border-[#f84f63] hover:bg-[#f84f63]/10 hover:text-white"
+                            aria-label="Minimize PDF preview"
+                          >
+                            Minimize ✕
+                          </button>
+                        </div>
+                        <iframe
+                          title="Expanded generated report PDF preview"
+                          src={previewUrl}
+                          className="min-h-0 w-full flex-1 bg-[#202124]"
+                        />
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <aside className="h-fit rounded-2xl border border-[#2a5068] bg-[#0b2b47] p-6">
-                <h3 className="font-semibold text-white">Issue checklist</h3>
+                <h3 className="font-semibold text-white">Preview checklist</h3>
                 <div className="mt-5 space-y-4 text-sm text-[#bdd6d6]">
                   <p><b className="text-[#f84f63]">{selected.length}</b> sections included</p>
                   <p><b className="text-[#f84f63]">{reportRows.length}</b> compliance rows</p>
@@ -2500,13 +2800,13 @@ const sidebarSteps = [
             </section>
           )}
           {route === "not-found" && <section className={CARD}><p className="text-[#ff8e9c]">This report page does not exist.</p><Link href="/" className="mt-4 inline-block text-sm font-semibold text-[#8ed0c9] underline">Return to project details</Link></section>}
-          <div className={`${route === "dashboard" ? "hidden " : ""}mt-12 border-t border-[#2a5068]/40 pt-8 px-6`}>
+          <div data-tour="stage-nav" className={`${route === "dashboard" ? "hidden " : ""}mt-12 border-t border-[#2a5068]/40 pt-8 px-6`}>
             <div className="flex flex-wrap justify-between items-center gap-4">
               <div className="text-xs text-[#6b7c86] uppercase tracking-wider font-medium">Stage navigation</div>
               <div className="flex items-center gap-3 text-sm text-[#b9d2d3]">
                 <span className="text-[#6b7c86]">{route === "home" ? "1" : route === "projects" ? "2" : route === "section" ? "3" : "4"} / 4</span>
               </div>
-              <div className="flex gap-3">
+              <div className="flex w-full gap-3 sm:w-auto">
                 <button
                   onClick={() => {
                     if (route === "home") router.push("/");
@@ -2514,9 +2814,9 @@ const sidebarSteps = [
                     else if (route === "section") {
                       const idx = schema.sections.findIndex((s) => s.id === activeSection.id);
                       router.push(idx > 0 ? `/section/${schema.sections[idx - 1].id}` : "/projects");
-                    } else if (route === "issue") router.push("/section/" + (schema.sections.find((s) => s.id === "cert")?.id || schema.sections[0]?.id || ""));
+                    } else if (route === "issue") router.push("/section/" + (schema.sections[schema.sections.length - 1]?.id || ""));
                   }}
-                  className="rounded-md px-4 py-2 text-sm font-semibold border border-[#2f5b75] bg-transparent text-[#b9d2d3] hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="min-h-10 flex-1 rounded-md px-4 py-2 text-sm font-semibold border border-[#2f5b75] bg-transparent text-[#b9d2d3] hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed sm:flex-none"
                 >
                   Back
                 </button>
@@ -2532,7 +2832,7 @@ const sidebarSteps = [
                       router.push(idx < schema.sections.length - 1 ? `/section/${schema.sections[idx + 1].id}` : "/issue");
                     } else if (route === "issue") router.push("/issue");
                   }}
-                  className="rounded-md px-4 py-2 text-sm font-semibold border border-[#f84f63] bg-[#f84f63] text-[#0a1f36] hover:bg-[#ff667a] disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="min-h-10 flex-1 rounded-md px-4 py-2 text-sm font-semibold border border-[#f84f63] bg-[#f84f63] text-[#0a1f36] hover:bg-[#ff667a] disabled:opacity-30 disabled:cursor-not-allowed sm:flex-none"
                 >
                   Next
                 </button>
@@ -2542,12 +2842,33 @@ const sidebarSteps = [
         </div>
       </div>
 
+      <TourGuide open={tourOpen} onClose={() => setTourOpen(false)} />
+
+      <AnimatePresence>
       {profileModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-[#0a1f36]/60 backdrop-blur-sm" onClick={closeProfile} />
-          <div className="relative bg-[#0b2b47] border border-[#2a5068] rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-white">Manage Profile</h3>
+        <motion.div
+          className="fixed inset-x-0 bottom-0 top-[64px] z-[70] flex items-start justify-end overflow-y-auto px-3 pb-4 pt-2 sm:px-6 lg:px-10"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeProfile();
+          }}
+        >
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="manage-profile-title"
+            className="relative mt-0 max-h-[calc(100dvh-82px)] w-full max-w-[390px] overflow-y-auto rounded-xl border border-[#47718a] bg-gradient-to-br from-[#123b59] via-[#0b2b47] to-[#09243d] p-4 shadow-[0_22px_70px_rgba(0,0,0,.48)] ring-1 ring-white/5 sm:rounded-2xl sm:p-5"
+            initial={{ opacity: 0, y: 18, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 340, damping: 28, mass: 0.8 }}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h3 id="manage-profile-title" className="text-sm font-semibold text-white">Manage Profile</h3>
               <button onClick={closeProfile} className="rounded-full border border-[#2f5b75] bg-transparent px-2 py-1 text-xs text-[#c8dfe1] hover:bg-white/5">&times;</button>
             </div>
             {profileStatus && (
@@ -2555,7 +2876,7 @@ const sidebarSteps = [
             )}
             {resetMode ? (
               <form onChange={() => setProfileStatus("")} onSubmit={(e) => { e.preventDefault(); doResetPassword(); }}>
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <div>
                     <label className="block text-xs text-[#8fbcc0] mb-1">Forgot password — authenticate</label>
                     <p className="mb-2 text-xs text-[#8fbcc0]">Enter your current password to verify, then set a new password.</p>
@@ -2564,7 +2885,7 @@ const sidebarSteps = [
                     <label className="block text-xs text-[#8fbcc0] mb-1">Current password</label>
                     <div className="relative">
                       <input
-                        className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-sm text-white pr-10 focus:outline-none focus:border-[#f84f63]"
+                        className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-[13px] text-white pr-10 focus:outline-none focus:border-[#f84f63]"
                         type={passwordVisible ? "text" : "password"}
                         value={resetForm.current_password}
                         onChange={(e) => setResetForm((current) => ({ ...current, current_password: e.target.value }))}
@@ -2584,7 +2905,7 @@ const sidebarSteps = [
                     <label className="block text-xs text-[#8fbcc0] mb-1">New password</label>
                     <div className="relative">
                       <input
-                        className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-sm text-white pr-10 focus:outline-none focus:border-[#f84f63]"
+                        className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-[13px] text-white pr-10 focus:outline-none focus:border-[#f84f63]"
                         type={passwordVisible ? "text" : "password"}
                         value={resetForm.new_password}
                         onChange={(e) => setResetForm((current) => ({ ...current, new_password: e.target.value }))}
@@ -2602,7 +2923,7 @@ const sidebarSteps = [
                   </div>
                   <p className="text-xs text-[#8fbcc0]">Authentication required: your current password must be correct before the new password is saved.</p>
                 </div>
-                <div className="mt-6 flex gap-3">
+                <div className="mt-4 flex gap-2.5">
                   <button
                     type="button"
                     onClick={() => { setResetMode(false); setProfileStatus(""); }}
@@ -2622,11 +2943,11 @@ const sidebarSteps = [
               </form>
             ) : (
               <form onChange={() => setProfileStatus("")} onSubmit={(e) => { e.preventDefault(); updateProfile(); }}>
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <div>
                     <label className="block text-xs text-[#8fbcc0] mb-1">Full name</label>
                     <input
-                      className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#f84f63]"
+                      className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-[#f84f63]"
                       value={profileForm.full_name}
                       onChange={(e) => setProfileForm((current) => ({ ...current, full_name: e.target.value }))}
                       placeholder="Full name"
@@ -2635,7 +2956,7 @@ const sidebarSteps = [
                   <div>
                     <label className="block text-xs text-[#8fbcc0] mb-1">Email</label>
                     <input
-                      className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#f84f63]"
+                      className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-[#f84f63]"
                       type="email"
                       value={profileForm.email}
                       onChange={(e) => setProfileForm((current) => ({ ...current, email: e.target.value }))}
@@ -2645,7 +2966,7 @@ const sidebarSteps = [
                   <div>
                     <label className="block text-xs text-[#8fbcc0] mb-1">Initials</label>
                     <input
-                      className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#f84f63] text-uppercase"
+                      className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-[#f84f63] uppercase"
                       maxLength={5}
                       value={profileForm.initials}
                       onChange={(e) => setProfileForm((current) => ({ ...current, initials: e.target.value.toUpperCase() }))}
@@ -2658,7 +2979,7 @@ const sidebarSteps = [
                       <input
                         type="file"
                         accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
-                        className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#f84f63]"
+                        className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-[#f84f63]"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
@@ -2682,7 +3003,7 @@ const sidebarSteps = [
                       <label className="block text-xs text-[#8fbcc0] mb-1">Current password</label>
                       <div className="relative">
                         <input
-                          className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-sm text-white pr-10 focus:outline-none focus:border-[#f84f63]"
+                          className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-[13px] text-white pr-10 focus:outline-none focus:border-[#f84f63]"
                           type={passwordVisible ? "text" : "password"}
                           value={profileForm.current_password}
                           onChange={(e) => setProfileForm((current) => ({ ...current, current_password: e.target.value }))}
@@ -2708,7 +3029,7 @@ const sidebarSteps = [
                     Forgot password?
                   </button>
                 </div>
-                <div className="mt-6 flex gap-3">
+                <div className="mt-4 flex gap-2.5">
                   <button
                     type="button"
                     onClick={closeProfile}
@@ -2727,9 +3048,10 @@ const sidebarSteps = [
                 </div>
               </form>
             )}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </Shell>
   );
 }
