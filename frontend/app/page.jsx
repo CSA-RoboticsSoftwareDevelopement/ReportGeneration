@@ -2204,6 +2204,23 @@ export default function ReportGenix() {
   const preparedByField = schema.general.find((field) => field.id === "prepared_by");
   /* /faq and /raq are the same page (Raised and Answered Questions) */
   const route = pathname === "/dashboard" ? "dashboard" : pathname === "/" ? "home" : pathname === "/projects" ? "projects" : pathname === "/layout" ? "layout" : pathname === "/issue" ? "issue" : pathname === "/help" ? "help" : (pathname === "/faq" || pathname === "/raq") ? "faq" : activeSection ? "section" : "not-found";
+
+  // Build breadcrumb items from the resolved route. Always return an array so
+  // the breadcrumb renderer can safely call crumbs.map(...).
+  const routeCrumb = {
+    home: { label: "Project", href: null },
+    projects: { label: "Libraries", href: null },
+    layout: { label: "Layout", href: null },
+    issue: { label: "Preview and Download", href: null },
+    help: { label: "Help", href: null },
+    faq: { label: "FAQ", href: null },
+    dashboard: { label: "Dashboard", href: null },
+    "not-found": { label: "Page not found", href: null },
+  };
+  const crumbs = route === "section"
+    ? [{ label: "Sections", href: "/projects" }, { label: data[`heading__${activeSection.id}`] || activeSection.title, href: null }]
+    : [routeCrumb[route] || routeCrumb["not-found"]];
+
   const reportSections = schema.sections.filter((section) => section.id !== "summary");
   const navClass = (active) => `rounded-md px-3 py-2 text-sm font-medium transition ${active ? "bg-[#f84f63] text-[#0a1f36]" : "text-[#c6dce2] hover:bg-white/5 hover:text-white"}`;
 
