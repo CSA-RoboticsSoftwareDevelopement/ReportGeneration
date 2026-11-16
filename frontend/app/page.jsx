@@ -995,25 +995,6 @@ export default function ReportGenix() {
     setProfileBusy("save");
     setProfileStatus("");
     try {
-<<<<<<< HEAD
-      // fresh token tied to the current session cookie
-      const tokenResponse = await fetch("/api/auth/csrf", { cache: "no-store", credentials: "same-origin" });
-      const { csrf_token: fresh } = await tokenResponse.json();
-      setCsrf(fresh);
-
-      const response = await fetch(authMode === "signup" ? "/api/auth/signup" : "/api/auth/login", {
-        method: "POST",
-        credentials: "same-origin",
-        cache: "no-store",
-        headers: { "Content-Type": "application/json", "X-CSRF-Token": fresh },
-        body: JSON.stringify(authForm),
-      });
-      if (!response.ok) throw new Error(await messageFor(response));
-      const payload = await response.json();
-      setUser(payload.user);
-      setCsrf(payload.csrf_token || fresh);
-      setAuthForm((form) => ({ ...form, password: "" }));
-=======
       const payload = {};
       if (profileForm.full_name) payload.full_name = profileForm.full_name;
       if (profileForm.email) payload.email = profileForm.email;
@@ -1032,7 +1013,6 @@ export default function ReportGenix() {
       setCsrf(result.csrf_token || csrf);
       setProfileModal(false);
       setProfileStatus("Profile saved.");
->>>>>>> f51121d6b03485e3577df296dbb49dedfebd0aa8
     } catch (error) {
       setProfileStatus(error.message || "Profile update failed.");
     } finally {
@@ -1160,19 +1140,19 @@ export default function ReportGenix() {
     [standards]
   );
 
-  const sectionId = pathname.startsWith("/section/") ? decodeURIComponent(pathname.slice("/section/".length)) : "";
-  const activeSection = schema?.sections?.find((section) => section.id === sectionId);
+  const currentSectionId = pathname.startsWith("/section/") ? decodeURIComponent(pathname.slice("/section/".length)) : "";
+  const currentActiveSection = schema?.sections?.find((section) => section.id === currentSectionId);
 
   /* Safely resolve the preview page for the active section. */
   const previewPage = useMemo(() => {
-    if (!preview || !preview.pages?.length || !activeSection) return null;
-    const sectionPage = preview.section_pages?.[activeSection.id];
+    if (!preview || !preview.pages?.length || !currentActiveSection) return null;
+    const sectionPage = preview.section_pages?.[currentActiveSection.id];
     if (typeof sectionPage !== "number" || sectionPage < 1 || sectionPage > preview.pages.length) return null;
     return preview.pages[sectionPage - 1];
-  }, [preview, activeSection]);
+  }, [preview, currentActiveSection]);
 
   const loadPreview = useCallback(async () => {
-    if (!schema || !activeSection) return;
+    if (!schema || !currentActiveSection) return;
     const payload = {
       data,
       standards: reportRows,
@@ -1205,13 +1185,13 @@ export default function ReportGenix() {
     } finally {
       setPreviewLoading(false);
     }
-  }, [request, schema, activeSection, data, reportRows, selected, layout, extraImages, removedSchemaImages, files]);
+  }, [request, schema, currentActiveSection, data, reportRows, selected, layout, extraImages, removedSchemaImages, files]);
 
   useEffect(() => {
-    if (!schema || !activeSection) return;
+    if (!schema || !currentActiveSection) return;
     const timer = window.setTimeout(loadPreview, 700);
     return () => window.clearTimeout(timer);
-  }, [schema, activeSection, loadPreview]);
+  }, [schema, currentActiveSection, loadPreview]);
 
   const generate = async (output) => {
     setBusy(output);
@@ -1314,14 +1294,10 @@ export default function ReportGenix() {
 
   const generalFields = schema.general.filter((field) => !MATERIAL_IDS.has(field.id) && field.id !== "rae_no" && field.id !== "prepared_by");
   const raeField = schema.general.find((field) => field.id === "rae_no");
-<<<<<<< HEAD
-  const route = pathname === "/" ? "home" : pathname === "/projects" ? "projects" : pathname === "/layout" ? "layout" : pathname === "/issue" ? "issue" : activeSection ? "section" : "not-found";
-=======
   const preparedByField = schema.general.find((field) => field.id === "prepared_by");
   const sectionId = pathname.startsWith("/section/") ? decodeURIComponent(pathname.slice("/section/".length)) : "";
   const activeSection = schema.sections.find((section) => section.id === sectionId);
-  const route = pathname === "/" ? "home" : pathname === "/projects" ? "projects" : pathname === "/issue" ? "issue" : activeSection ? "section" : "not-found";
->>>>>>> f51121d6b03485e3577df296dbb49dedfebd0aa8
+  const route = pathname === "/" ? "home" : pathname === "/projects" ? "projects" : pathname === "/layout" ? "layout" : pathname === "/issue" ? "issue" : activeSection ? "section" : "not-found";
   const reportSections = schema.sections.filter((section) => section.id !== "summary");
   const navClass = (active) => `rounded-md px-3 py-2 text-sm font-medium transition ${active ? "bg-[#f84f63] text-[#0a1f36]" : "text-[#c6dce2] hover:bg-white/5 hover:text-white"}`;
 
@@ -1471,7 +1447,7 @@ export default function ReportGenix() {
               <p className={EYEBROW}>Ready to issue</p>
               <h2 className="mt-1 text-2xl font-semibold text-white">Review and export</h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[#b6d3d4]">
-                Preview uses the same report engine as the final download. Check warnings and attached evidence before issuing the certification.
+                Preview uses the same report engine as the final download. The Word file is a page-faithful visual companion of the controlled PDF; its pages are not independently editable. Check warnings and attached evidence before issuing the certification.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <ActionButton onClick={() => generate("preview")} disabled={Boolean(busy)} className="flex-1 sm:flex-none">
