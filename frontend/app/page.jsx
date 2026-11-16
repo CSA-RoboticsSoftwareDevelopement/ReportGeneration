@@ -892,28 +892,33 @@ export default function ReportGenix() {
   }, [materialMode, data.material, data.fu, data.fy, data.young, data.nu, data.rho, materialMeta, csrf, request]);
 
   const submitAuth = async (event) => {
-    event.preventDefault();
-    setAuthStatus("");
-    setBusy("auth");
-    try {
-      const response = await request(authMode === "signup" ? "/api/auth/signup" : "/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(authForm),
-      });
-      const payload = await response.json();
-      setUser(payload.user);
-      if (payload.user.initials) {
-        setData((current) => ({ ...current, prepared_by: payload.user.initials }));
+      event.preventDefault();
+      setAuthStatus("");
+      setBusy("auth");
+      try {
+        // fresh token tied to the current session cookie
+        const tokenResponse = await fetch("/api/auth/csrf", { cache: "no-store", credentials: "same-origin" });
+        const { csrf_token: fresh } = await tokenResponse.json();
+        setCsrf(fresh);
+
+        const response = await fetch(authMode === "signup" ? "/api/auth/signup" : "/api/auth/login", {
+          method: "POST",
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json", "X-CSRF-Token": fresh },
+          body: JSON.stringify(authForm),
+        });
+        if (!response.ok) throw new Error(await messageFor(response));
+        const payload = await response.json();
+        setUser(payload.user);
+        setCsrf(payload.csrf_token || fresh);
+        setAuthForm((form) => ({ ...form, password: "" }));
+      } catch (error) {
+        setAuthStatus(error.message);
+      } finally {
+        setBusy("");
       }
-      setCsrf(payload.csrf_token || csrf);
-      setAuthForm((form) => ({ ...form, password: "" }));
-    } catch (error) {
-      setAuthStatus(error.message);
-    } finally {
-      setBusy("");
-    }
-  };
+    };
 
   const openProfile = () => {
     setProfileForm({ full_name: user.full_name || "", email: user.email || "", current_password: "", initials: user.initials || "" });
