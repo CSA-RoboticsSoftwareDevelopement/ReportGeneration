@@ -994,45 +994,52 @@ export default function ReportGenix() {
   const updateProfile = async () => {
     setProfileBusy("save");
     setProfileStatus("");
-    try {
-<<<<<<< HEAD
-      // fresh token tied to the current session cookie
-      const tokenResponse = await fetch("/api/auth/csrf", { cache: "no-store", credentials: "same-origin" });
-      const { csrf_token: fresh } = await tokenResponse.json();
-      setCsrf(fresh);
 
-      const response = await fetch(authMode === "signup" ? "/api/auth/signup" : "/api/auth/login", {
-        method: "POST",
-        credentials: "same-origin",
-        cache: "no-store",
-        headers: { "Content-Type": "application/json", "X-CSRF-Token": fresh },
-        body: JSON.stringify(authForm),
-      });
-      if (!response.ok) throw new Error(await messageFor(response));
-      const payload = await response.json();
-      setUser(payload.user);
-      setCsrf(payload.csrf_token || fresh);
-      setAuthForm((form) => ({ ...form, password: "" }));
-=======
+    try {
       const payload = {};
-      if (profileForm.full_name) payload.full_name = profileForm.full_name;
-      if (profileForm.email) payload.email = profileForm.email;
-      if (profileForm.initials) payload.initials = profileForm.initials;
+
+      if (profileForm.full_name.trim()) {
+        payload.full_name = profileForm.full_name.trim();
+      }
+      if (profileForm.email.trim()) {
+        payload.email = profileForm.email.trim();
+      }
+      if (profileForm.initials.trim()) {
+        payload.initials = profileForm.initials.trim().toUpperCase();
+      }
+
       if (Object.keys(payload).length === 0) {
         setProfileStatus("Nothing to change.");
-        setProfileBusy("");
         return;
       }
-      const response = await request("/api/auth/profile", { method: "PUT", body: JSON.stringify(payload) });
+
+      const response = await request("/api/auth/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
       const result = await response.json();
-      setUser(result.user);
-      if (result.user.initials) {
-        setData((current) => ({ ...current, prepared_by: result.user.initials }));
+
+      if (!result.user) {
+        throw new Error("The server did not return the updated user profile.");
       }
-      setCsrf(result.csrf_token || csrf);
+
+      setUser(result.user);
+
+      if (result.user.initials) {
+        setData((current) => ({
+          ...current,
+          prepared_by: result.user.initials,
+        }));
+      }
+
+      if (result.csrf_token) {
+        setCsrf(result.csrf_token);
+      }
+
       setProfileModal(false);
       setProfileStatus("Profile saved.");
->>>>>>> f51121d6b03485e3577df296dbb49dedfebd0aa8
     } catch (error) {
       setProfileStatus(error.message || "Profile update failed.");
     } finally {
@@ -1314,14 +1321,8 @@ export default function ReportGenix() {
 
   const generalFields = schema.general.filter((field) => !MATERIAL_IDS.has(field.id) && field.id !== "rae_no" && field.id !== "prepared_by");
   const raeField = schema.general.find((field) => field.id === "rae_no");
-<<<<<<< HEAD
-  const route = pathname === "/" ? "home" : pathname === "/projects" ? "projects" : pathname === "/layout" ? "layout" : pathname === "/issue" ? "issue" : activeSection ? "section" : "not-found";
-=======
   const preparedByField = schema.general.find((field) => field.id === "prepared_by");
-  const sectionId = pathname.startsWith("/section/") ? decodeURIComponent(pathname.slice("/section/".length)) : "";
-  const activeSection = schema.sections.find((section) => section.id === sectionId);
-  const route = pathname === "/" ? "home" : pathname === "/projects" ? "projects" : pathname === "/issue" ? "issue" : activeSection ? "section" : "not-found";
->>>>>>> f51121d6b03485e3577df296dbb49dedfebd0aa8
+  const route = pathname === "/" ? "home" : pathname === "/projects" ? "projects" : pathname === "/layout" ? "layout" : pathname === "/issue" ? "issue" : activeSection ? "section" : "not-found";
   const reportSections = schema.sections.filter((section) => section.id !== "summary");
   const navClass = (active) => `rounded-md px-3 py-2 text-sm font-medium transition ${active ? "bg-[#f84f63] text-[#0a1f36]" : "text-[#c6dce2] hover:bg-white/5 hover:text-white"}`;
 
@@ -1650,7 +1651,7 @@ export default function ReportGenix() {
                     <label className="block text-xs text-[#8fbcc0] mb-1">Initials</label>
                     <input
                       className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#f84f63] text-uppercase"
-                      maxlength="5"
+                      maxLength={5}
                       value={profileForm.initials}
                       onChange={(e) => setProfileForm((current) => ({ ...current, initials: e.target.value.toUpperCase() }))}
                       placeholder="JD"
