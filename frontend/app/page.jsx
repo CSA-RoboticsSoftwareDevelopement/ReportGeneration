@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import ImageEditor from "./ImageEditor";
+import TourGuide from "./TourGuide";
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens (from the dark-technical login design)               */
@@ -11,22 +13,63 @@ import ImageEditor from "./ImageEditor";
 /*  border #2f5b75 · coral #f84f63 · text #f3f8f7 · muted #9fb9c4      */
 /* ------------------------------------------------------------------ */
 
-const STEPS = [
-  ["01", "Project", "Details & material"],
-  ["02", "Report", "Scope & evidence"],
-  ["03", "Layout", "Document styling"],
-  ["04", "Issue", "Preview & export"],
-];
-
 const MATERIAL_IDS = new Set(["material", "fu", "fy", "young", "nu", "rho"]);
 const DRAFT_KEY = "reportgenix-draft-v2";
 
 const GLOBAL_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-.rg { font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+
+@keyframes rg-gradient-drift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes rg-soft-glow {
+  0%, 100% { box-shadow: 0 0 0 rgba(248,79,99,0); }
+  50% { box-shadow: 0 10px 34px rgba(248,79,99,.08); }
+}
+@keyframes rg-fade-up {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rg {
+  font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(ellipse at 12% 0%, rgba(41,111,145,.20), transparent 42%),
+    radial-gradient(ellipse at 92% 18%, rgba(248,79,99,.075), transparent 34%),
+    linear-gradient(135deg, #0a2744, #0b2d4b 48%, #0a2744);
+  background-size: 150% 150%;
+  animation: rg-gradient-drift 22s ease-in-out infinite;
+}
 .rg *:focus-visible { outline: 2px solid #f84f63; outline-offset: 2px; }
 .rg select { color-scheme: dark; }
-@media (prefers-reduced-motion: reduce) { .rg * { transition: none !important; animation: none !important; } }
+.rg button, .rg a, .rg input, .rg textarea, .rg select {
+  transition: color .2s ease, background-color .2s ease, border-color .2s ease,
+    box-shadow .2s ease, transform .2s ease, opacity .2s ease;
+}
+.rg button:not(:disabled):hover { filter: brightness(1.07); }
+.rg button:not(:disabled):active { transform: translateY(1px) scale(.985); }
+.rg a:hover { text-decoration-color: rgba(248,79,99,.65); }
+.rg section.rounded-2xl, .rg aside.rounded-2xl {
+  background-image: linear-gradient(145deg, rgba(255,255,255,.035), transparent 48%);
+  box-shadow: 0 12px 34px rgba(0,0,0,.10);
+}
+.rg .rg-dashboard-card { animation: rg-fade-up .45s both; }
+.rg .rg-dashboard-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(248,79,99,.65);
+  box-shadow: 0 16px 36px rgba(0,0,0,.22), 0 0 24px rgba(248,79,99,.08);
+}
+.rg input:focus, .rg textarea:focus, .rg select:focus {
+  box-shadow: 0 0 0 3px rgba(248,79,99,.12);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rg, .rg *, .rg *::before, .rg *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}
 `;
 
 const LABEL = "mb-1.5 block text-xs font-medium text-[#b9d0d8]";
@@ -215,7 +258,7 @@ function LoginScreen({ authMode, setAuthMode, authForm, setAuthForm, submit, sta
           <div className="relative z-10 px-10 pt-9 xl:px-14 xl:pt-11">
             <img src="/csa_logo.webp" alt="CSA Engineering" className="h-16 w-auto object-contain xl:h-20" />
             <h2 className="mt-14 text-[clamp(3.2rem,6.2vw,7rem)] font-semibold leading-none tracking-tight text-[#f3f8f7]">ReportGenix</h2>
-            <p className="mt-5 text-lg font-light text-[#a9ccc9] xl:text-xl">Engineering Reports Automated</p>
+            <div className="mt-5 flex items-center gap-2 xl:text-xl"><p className="text-lg font-light text-[#a9ccc9] flex items-center gap-2">Reimagining technical reporting with generative AI</p><img src="/ai (2).png" alt="AI" className="h-9 w-auto opacity-80" /></div>
           </div>
           <img
             src="/fea-trailer.webp"
@@ -616,6 +659,27 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
               />
             </Labeled>
           </div>
+
+          <div className={INSET}>
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[.14em] text-[#83c6c0]">Section narrative &amp; description</p>
+                <p className="mt-1 text-xs leading-5 text-[#9bbcc0]">
+                  Leave this blank to retain the standard generated wording. Enter text here to replace the section narrative in the preview and exported report.
+                </p>
+              </div>
+              <span className="rounded-full border border-[#2f5b75] bg-[#0a2744]/70 px-2.5 py-1 text-[10px] text-[#9bbcc0]">Draft auto-saved</span>
+            </div>
+            <Labeled label="Editable report content">
+              <textarea
+                className={`${INPUT} min-h-[190px] resize-y leading-7`}
+                value={data[`body__${section.id}`] ?? ""}
+                onChange={(event) => setData((current) => ({ ...current, [`body__${section.id}`]: event.target.value }))}
+                placeholder={`Add or replace the standard narrative for ${section.title}…`}
+              />
+            </Labeled>
+          </div>
+
           {section.fields.length > 0 && (
             <div className="grid gap-4 md:grid-cols-2">
               {section.fields.map((field) => (
@@ -775,31 +839,27 @@ const SidebarNav = ({ steps, extraLinks, completeness, sidebarOpen, setSidebarOp
       </div>
 
       {/* Steps */}
-      <nav className="flex-1 overflow-y-auto px-6 py-4" aria-label="Report steps">
+     <nav
+          data-tour="sidebar-steps"
+          className="flex-1 overflow-y-auto px-6 py-4"
+          aria-label="Report steps"
+        >
         <ol>
           {steps.map((step, index) => {
             const isLast = index === steps.length - 1;
             const circle = step.active
               ? "border-[#f84f63] bg-[#f84f63] text-[#0a1f36] ring-4 ring-[#f84f63]/25"
               : step.done
-                ? "border-[#6fd08a] bg-[#6fd08a]/10 text-[#6fd08a]"
+                ? "border-[#6fd08a] bg-[#6fd08a] text-[#0a1f36]"
                 : "border-[#5b7f96] bg-transparent text-[#c8dfe1] group-hover:border-[#f84f63]";
             return (
               <li key={step.key} className={`relative ${isLast ? "" : "pb-7"}`}>
                 {!isLast && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute bottom-1 left-4 top-10 -translate-x-1/2 border-l-2 border-dashed border-[#2f5b75]"
-                  />
+                  <span aria-hidden="true" className="absolute bottom-1 left-4 top-10 -translate-x-1/2 border-l-2 border-dashed border-[#2f5b75]" />
                 )}
-                <Link
-                  href={step.href}
-                  onClick={close}
-                  aria-current={step.active ? "step" : undefined}
-                  className="group flex items-center gap-4"
-                >
+                <Link href={step.href} onClick={close} aria-current={step.active ? "step" : undefined} className="group relative flex items-center gap-4">
                   <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition ${circle}`}>
-                    {step.done && !step.active ? "✓" : index + 1}
+                    {step.done ? "✓" : index + 1}
                   </span>
                   <span className="min-w-0">
                     <span className={`block truncate text-[15px] ${step.active ? "font-semibold text-white" : "font-medium text-[#c8dfe1] group-hover:text-white"}`}>
@@ -808,28 +868,45 @@ const SidebarNav = ({ steps, extraLinks, completeness, sidebarOpen, setSidebarOp
                     {step.sub && <span className="block truncate text-[11px] text-[#7f9fae]">{step.sub}</span>}
                   </span>
                 </Link>
+
+                {step.children?.length > 0 && (
+                  <ul className="relative mt-5 space-y-4">
+                    {step.children.map((child) => {
+                      const dot = child.active
+                        ? "border-[#f84f63] bg-[#f84f63] text-[#0a1f36] ring-4 ring-[#f84f63]/25"
+                        : child.done
+                          ? "border-[#6fd08a] bg-[#6fd08a] text-[#0a1f36]"
+                          : "border-[#5b7f96] bg-[#0a2744] group-hover:border-[#f84f63]";
+                      return (
+                        <li key={child.key} className="relative">
+                          <Link href={child.href} onClick={close} aria-current={child.active ? "step" : undefined} className="group flex items-center gap-4">
+                            <span className="flex h-4 w-8 shrink-0 items-center justify-center">
+                              <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 text-[8px] font-bold leading-none transition ${dot}`}>
+                                {child.done ? "✓" : ""}
+                              </span>
+                            </span>
+                            <span className={`block truncate text-[13px] ${child.active ? "font-semibold text-white" : "text-[#c8dfe1] group-hover:text-white"}`}>
+                              {child.label}
+                            </span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </li>
             );
           })}
         </ol>
 
-        <div className="mt-8 space-y-1 border-t border-[#2a5068]/60 pt-5">
-          {extraLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={close}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${link.active ? "bg-[#f84f63] text-[#0a1f36]" : "text-[#c8dfe1] hover:bg-white/5 hover:text-white"}`}
-            >
-              <span className="text-[11px]">{link.icon}</span>
-              <span>{link.label}</span>
-            </Link>
-          ))}
-        </div>
+       
       </nav>
 
       {/* Completeness + profile */}
-      <div className="border-t border-[#2a5068]/60 px-6 py-5">
+     <div
+          data-tour="progress"
+          className="border-t border-[#2a5068]/60 px-6 py-5"
+        >
         <p className="text-sm font-semibold text-white">Report completeness:</p>
         <div className="mt-2 flex items-center gap-3">
           <div
@@ -844,15 +921,7 @@ const SidebarNav = ({ steps, extraLinks, completeness, sidebarOpen, setSidebarOp
           </div>
           <span className="w-9 text-right text-xs font-semibold text-[#c8dfe1]">{completeness}%</span>
         </div>
-        <button
-          onClick={() => { close(); openProfile(); }}
-          className="mt-5 flex w-full items-center gap-3 rounded-lg border border-[#2f5b75] bg-[#0e3250] px-4 py-3 text-sm text-[#c8dfe1] hover:bg-white/5"
-        >
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f84f63] text-xs font-bold text-[#0a1f36]">
-            {user?.initials || initials(user?.full_name || user?.email)}
-          </span>
-          <span className="truncate">Profile</span>
-        </button>
+        
       </div>
     </aside>
   );
@@ -887,6 +956,7 @@ export default function ReportGenix() {
   const [removedSchemaImages, setRemovedSchemaImages] = useState({});
   const [step, setStep] = useState(1);
   const [previewUrl, setPreviewUrl] = useState("");
+  const [previewExpanded, setPreviewExpanded] = useState(false);
   const [busy, setBusy] = useState("");
   const [raeLookup, setRaeLookup] = useState({ status: "idle", message: "", matchType: null });
   const [profileModal, setProfileModal] = useState(false);
@@ -900,6 +970,40 @@ export default function ReportGenix() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const raeTimer = useRef(null);
 
+  useEffect(() => {
+    if (!previewExpanded) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setPreviewExpanded(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [previewExpanded]);
+
+  useEffect(() => {
+    if (!profileModal) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && !profileBusy) closeProfile();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [profileModal, profileBusy]);
+
+  /* Routes the user has opened (used for text-only section completion) */
+  const [visited, setVisited] = useState([]);
+  useEffect(() => {
+    setVisited((v) => (v.includes(pathname) ? v : [...v, pathname]));
+  }, [pathname]);
+  const [tourOpen, setTourOpen] = useState(false);
   /* Image editor + section preview state */
   const [editingImage, setEditingImage] = useState(null); /* { id, label, url, originalFile } */
   const [originals, setOriginals] = useState({}); /* { [imageId]: untouched original File } */
@@ -1059,33 +1163,33 @@ export default function ReportGenix() {
   }, [materialMode, data.material, data.fu, data.fy, data.young, data.nu, data.rho, materialMeta, csrf, request]);
 
   const submitAuth = async (event) => {
-      event.preventDefault();
-      setAuthStatus("");
-      setBusy("auth");
-      try {
-        // fresh token tied to the current session cookie
-        const tokenResponse = await fetch("/api/auth/csrf", { cache: "no-store", credentials: "same-origin" });
-        const { csrf_token: fresh } = await tokenResponse.json();
-        setCsrf(fresh);
+    event.preventDefault();
+    setAuthStatus("");
+    setBusy("auth");
+    try {
+      // fresh token tied to the current session cookie
+      const tokenResponse = await fetch("/api/auth/csrf", { cache: "no-store", credentials: "same-origin" });
+      const { csrf_token: fresh } = await tokenResponse.json();
+      setCsrf(fresh);
 
-        const response = await fetch(authMode === "signup" ? "/api/auth/signup" : "/api/auth/login", {
-          method: "POST",
-          credentials: "same-origin",
-          cache: "no-store",
-          headers: { "Content-Type": "application/json", "X-CSRF-Token": fresh },
-          body: JSON.stringify(authForm),
-        });
-        if (!response.ok) throw new Error(await messageFor(response));
-        const payload = await response.json();
-        setUser(payload.user);
-        setCsrf(payload.csrf_token || fresh);
-        setAuthForm((form) => ({ ...form, password: "" }));
-      } catch (error) {
-        setAuthStatus(error.message);
-      } finally {
-        setBusy("");
-      }
-    };
+      const response = await fetch(authMode === "signup" ? "/api/auth/signup" : "/api/auth/login", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": fresh },
+        body: JSON.stringify(authForm),
+      });
+      if (!response.ok) throw new Error(await messageFor(response));
+      const payload = await response.json();
+      setUser(payload.user);
+      setCsrf(payload.csrf_token || fresh);
+      setAuthForm((form) => ({ ...form, password: "" }));
+    } catch (error) {
+      setAuthStatus(error.message);
+    } finally {
+      setBusy("");
+    }
+  };
 
   const openProfile = () => {
     setProfileForm({ full_name: user.full_name || "", email: user.email || "", current_password: "", initials: user.initials || "" });
@@ -1227,6 +1331,7 @@ export default function ReportGenix() {
       setEditorStates({});
       setEditingImage(null);
       setPreviewUrl("");
+      setVisited([]);
       setStep(1);
       window.sessionStorage.removeItem(DRAFT_KEY);
     }
@@ -1439,58 +1544,83 @@ export default function ReportGenix() {
   const raeField = schema.general.find((field) => field.id === "rae_no");
   const preparedByField = schema.general.find((field) => field.id === "prepared_by");
   /* /faq and /raq are the same page (Raised and Answered Questions) */
-  const route = pathname === "/" ? "home" : pathname === "/projects" ? "projects" : pathname === "/layout" ? "layout" : pathname === "/issue" ? "issue" : pathname === "/help" ? "help" : (pathname === "/faq" || pathname === "/raq") ? "faq" : activeSection ? "section" : "not-found";
+  const route = pathname === "/" ? "home" : pathname === "/dashboard" ? "dashboard" : pathname === "/projects" ? "projects" : pathname === "/issue" ? "issue" : pathname === "/help" ? "help" : (pathname === "/faq" || pathname === "/raq") ? "faq" : activeSection ? "section" : "not-found";
   const reportSections = schema.sections.filter((section) => section.id !== "summary");
   const navClass = (active) => `rounded-md px-3 py-2 text-sm font-medium transition ${active ? "bg-[#f84f63] text-[#0a1f36]" : "text-[#c6dce2] hover:bg-white/5 hover:text-white"}`;
 
   /* ---- Sidebar data: built from the app's own routes and state ---- */
   const filled = (value) => String(value ?? "").trim() !== "";
-  const sectionDone = (section) =>
-    section.fields.some((field) => filled(data[field.id])) || section.images.some((image) => Boolean(files[image.id]));
+
+  const sectionDone = (section) => {
+    const images = section.images.filter((img) => !removedSchemaImages[`${section.id}:${img.id}`]);
+    // text-only sections: done once opened
+    if (section.fields.length === 0 && images.length === 0) return visited.includes(`/section/${section.id}`);
+    return section.fields.every((f) => filled(data[f.id])) && images.every((img) => Boolean(files[img.id]));
+  };
+
+  const sectionChildren = reportSections.map((section) => ({
+    key: `section-${section.id}`,
+    href: `/section/${section.id}`,
+    label: section.title,
+    active: route === "section" && activeSection?.id === section.id,
+    done: sectionDone(section),
+  }));
 
   const sidebarSteps = [
     { key: "home", href: "/", label: "Project", sub: "Report details", active: route === "home", done: filled(data.rae_no) && filled(data.project_name) },
     { key: "projects", href: "/projects", label: "Libraries", sub: "Materials & compliance", active: route === "projects", done: standards.length > 0 && filled(data.material) },
-    ...reportSections.map((section) => ({
-      key: `section-${section.id}`,
-      href: `/section/${section.id}`,
-      label: section.title,
-      sub: "Report section",
-      active: route === "section" && activeSection?.id === section.id,
-      done: sectionDone(section),
-    })),
-    { key: "layout", href: "/layout", label: "Layout", sub: "Document styling", active: route === "layout", done: false },
-    { key: "issue", href: "/issue", label: "Issue", sub: "Preview & export", active: route === "issue", done: false },
+    {
+      key: "sections",
+      href: sectionChildren[0]?.href || "/projects",
+      label: "Section",
+      sub: "Report sections",
+      active: route === "section",
+      done: sectionChildren.length > 0 && sectionChildren.every((c) => c.done),
+      children: sectionChildren,
+    },
+    { key: "issue", href: "/issue", label: "Preview & Download", sub: "Review & export", active: route === "issue", done: previewUrl !== "" },
   ];
 
-  const sidebarExtraLinks = [
-    { href: "/help", label: "Help", icon: "❓", active: route === "help" },
-    { href: "/faq", label: "FAQ", icon: "❔", active: route === "faq" },
-  ];
 
-  /* Completeness: project fields filled, compliance rows added, evidence attached */
-  const projectRatio = schema.general.length ? schema.general.filter((field) => filled(data[field.id])).length / schema.general.length : 0;
-  const complianceRatio = reportRows.length > 0 ? 1 : 0;
-  const evidenceRatio = Object.values(files).some(Boolean) ? 1 : 0;
-  const completeness = Math.round(((projectRatio + complianceRatio + evidenceRatio) / 3) * 100);
+
+  /* Completeness: finished leaf steps (sections count individually) / total leaf steps */
+  const leafSteps = sidebarSteps.flatMap((s) => (s.children?.length ? s.children : [s]));
+  const completeness = leafSteps.length
+    ? Math.round((leafSteps.filter((s) => s.done).length / leafSteps.length) * 100)
+    : 0;
+
+  /* Breadcrumb trail after "Home" */
+  /* Breadcrumb trail after "Home" (mirrors the sidebar) */
+const crumbs =
+  route === "dashboard" ? [{ label: "Dashboard" }]
+  : route === "home" ? [{ label: "Project" }]
+  : route === "projects" ? [{ label: "Libraries" }]
+  : route === "section" ? [
+      { label: "Section", href: sectionChildren[0]?.href || "/projects" },
+      { label: data[`heading__${activeSection.id}`] || activeSection.title },
+    ]
+  : route === "issue" ? [{ label: "Preview & Download" }]
+  : route === "help" ? [{ label: "Help" }]
+  : route === "faq" ? [{ label: "FAQ" }]
+  : [];
 
   return (
     <Shell>
       {sidebarOpen && <div className="fixed inset-0 z-40 bg-[#0a1f36]/40 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
       <SidebarNav
         steps={sidebarSteps}
-        extraLinks={sidebarExtraLinks}
+       
         completeness={completeness}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
         user={user}
         openProfile={openProfile}
       />
-
+       <TourGuide open={tourOpen} onClose={() => setTourOpen(false)} />
       {/* Everything to the right of the fixed sidebar on large screens */}
       <div className="lg:pl-72">
         <header className="sticky top-0 z-30 border-b border-[#2a5068]/60 bg-[#0a2744]/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-10">
-          <div className="mx-auto flex max-w-[1600px] items-center gap-3">
+          <div className="mx-auto flex max-w-[1600px] items-center gap-2 sm:gap-3">
             <button
               onClick={() => setSidebarOpen((prev) => !prev)}
               className="rounded-md border border-[#2f5b75] bg-[#0e3250] px-3 py-1.5 text-base font-semibold text-[#c8dfe1] hover:bg-white/10 focus:outline-none focus:border-[#f84f63] lg:hidden"
@@ -1504,18 +1634,26 @@ export default function ReportGenix() {
               <span className="hidden border-l border-[#2f5b75] pl-3 text-base font-semibold sm:inline">ReportGenix</span>
             </Link>
             <div className="ml-auto flex items-center gap-2">
-              <span className="hidden max-w-[220px] truncate text-sm text-[#b9d2d3] md:inline">{user.full_name || user.email}</span>
+              <div data-tour="help-tabs" className="hidden items-center gap-1 md:flex">
+                <Link href="/dashboard" className={navClass(route === "dashboard")}>Dashboard</Link>
+                <button onClick={() => setTourOpen(true)} className={navClass(false)}>Help</button>
+                <Link href="/faq" className={navClass(route === "faq")}>FAQ</Link>
+              </div>
               <button
-                onClick={openProfile}
-                className="relative rounded-full border border-[#2f5b75] bg-[#0e3250] px-2 py-1 text-xs font-semibold text-[#c8dfe1] hover:bg-white/10 focus:outline-none focus:border-[#f84f63]"
-                aria-label="Profile"
-              >
-                {user.avatar_url ? (
-                  <img src={user.avatar_url} alt="Profile" className="rounded-full w-6 h-6 object-cover" />
-                ) : (
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#f84f63] text-[#0a1f36] font-bold text-xs">{user.initials || initials(user.full_name || user.email)}</span>
-                )}
-              </button>
+  data-tour="profile"
+  onClick={openProfile}
+  className="group flex min-w-0 items-center gap-2 rounded-lg border border-[#2f5b75] bg-[#0e3250] px-2.5 py-2 text-xs text-[#c8dfe1] transition duration-200 hover:-translate-y-px hover:border-[#f84f63]/70 hover:bg-[#16415f] focus:outline-none focus:border-[#f84f63] sm:gap-3 sm:px-4 sm:text-sm"
+  aria-label="Profile"
+>
+  {user.avatar_url ? (
+    <img src={user.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+  ) : (
+    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f84f63] text-xs font-bold text-[#0a1f36]">
+      {user.initials || initials(user.full_name || user.email)}
+    </span>
+  )}
+  <span className="hidden max-w-[160px] truncate sm:inline">{user.full_name || user.email}</span>
+</button>
               <ActionButton variant="ghost" onClick={() => downloadTemplate("pdf")} className="hidden !px-4 !py-2 sm:inline-flex">Blank PDF</ActionButton>
               <ActionButton variant="ghost" onClick={logout} className="!px-4 !py-2">Sign out</ActionButton>
             </div>
@@ -1523,23 +1661,82 @@ export default function ReportGenix() {
         </header>
 
         <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
-          <div className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7"><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? (data[`heading__${activeSection.id}`] || activeSection.title) : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Issue</Link></div></div>
+            <div
+              data-tour="page-header"
+              className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7"
+            >            
+            <div>
+              <p className={EYEBROW}>{route === "dashboard" ? "Workspace overview" : route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Preview & Download"}</p>
+              <h1 className="mt-1 text-2xl font-semibold text-white">{route === "dashboard" ? "Dashboard" : route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? (data[`heading__${activeSection.id}`] || activeSection.title) : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Preview and Download"}</h1>
+            </div>
+            <div data-tour="help-tabs" className="flex flex-wrap gap-2 lg:hidden">
+              <Link href="/dashboard" className={navClass(route === "dashboard")}>Dashboard</Link>
+              <Link href="/" className={navClass(route === "home")}>Project</Link>
+              <Link href="/projects" className={navClass(route === "projects")}>Libraries</Link>
+              <Link href="/help" className={navClass(route === "help")}>Help</Link>
+              <Link href="/faq" className={navClass(route === "faq")}>RAQ</Link>
+              <Link href="/issue" className={navClass(route === "issue")}>Preview &amp; Download</Link>
+            </div>
+          </div>
 
           <nav className="flex items-center gap-1 text-xs text-[#8fbcc0] mt-4 ml-2" aria-label="Breadcrumb">
             <Link href="/" className="hover:text-[#c8dfe1]">Home</Link>
-            <span>/</span>
-            <Link href="/projects" className="hover:text-[#c8dfe1]">Project</Link>
-            {route === "home" ? null : <span>/</span>}
-            {route === "projects" ? null : <Link href="/projects" className="hover:text-[#c8dfe1]">Libraries</Link>}
-            {route === "projects" || route === "home" ? null : <span>/</span>}
-            {route === "section" ? <Link href={`/section/${activeSection.id}`} className="hover:text-[#c8dfe1]">{activeSection.title}</Link> : null}
-            {(route === "section" || route === "layout") ? <span>/</span> : null}
-            {route === "layout" ? <span className="text-[#c8dfe1]">Layout</span> : null}
-            {(route === "layout" || route === "section") ? <span>/</span> : null}
-            {route === "issue" ? <span className="text-[#c8dfe1]">Issue</span> : null}
-            {route === "help" ? <span className="text-[#c8dfe1]">Help</span> : null}
-            {route === "faq" ? <span className="text-[#c8dfe1]">RAQ</span> : null}
+            {crumbs.map((crumb, i) => (
+              <span key={`${crumb.label}-${i}`} className="flex items-center gap-1">
+                <span>/</span>
+                {crumb.href ? (
+                  <Link href={crumb.href} className="hover:text-[#c8dfe1]">{crumb.label}</Link>
+                ) : (
+                  <span className="text-[#c8dfe1]">{crumb.label}</span>
+                )}
+              </span>
+            ))}
           </nav>
+
+          {route === "dashboard" && (
+            <section className="space-y-6">
+              <div className={CARD}>
+                <p className={EYEBROW}>Report workspace</p>
+                <h2 className="mt-1 text-xl font-semibold text-white">Welcome to ReportGenix</h2>
+                <p className="mt-2 text-sm leading-6 text-[#b6d3d4]">
+                  Access your report details, material and compliance libraries, report sections, and final document preview.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {[
+                  { label: "Report sections", value: schema.sections.length, detail: "Available sections", href: `/section/${schema.sections[0]?.id || ""}` },
+                  { label: "Included sections", value: selected.length, detail: "Selected for this report", href: "/issue" },
+                  { label: "Compliance rows", value: reportRows.length, detail: "Standards added", href: "/projects" },
+                  { label: "Evidence files", value: Object.values(files).filter(Boolean).length, detail: "Attached images", href: `/section/${schema.sections[0]?.id || ""}` },
+                ].map((item) => (
+                  <Link key={item.label} href={item.href} className="rg-dashboard-card rounded-xl border border-[#2a5068] bg-gradient-to-br from-[#16415f] to-[#0e3250] p-5 transition duration-200">
+                    <p className="text-xs font-medium text-[#9bbcc0]">{item.label}</p>
+                    <p className="mt-2 text-3xl font-semibold tabular-nums text-white">{item.value}</p>
+                    <p className="mt-1 text-xs text-[#80bfbe]">{item.detail}</p>
+                  </Link>
+                ))}
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Link href="/" className={`rg-dashboard-card ${INSET} transition`}>
+                  <h3 className="font-semibold text-white">Project details</h3>
+                  <p className="mt-1 text-sm text-[#a9c1ca]">Enter project information and look up the RAE ID.</p>
+                </Link>
+                <Link href="/projects" className={`rg-dashboard-card ${INSET} transition`}>
+                  <h3 className="font-semibold text-white">Materials &amp; compliance</h3>
+                  <p className="mt-1 text-sm text-[#a9c1ca]">Manage material properties and compliance standards.</p>
+                </Link>
+                <Link href={`/section/${schema.sections[0]?.id || ""}`} className={`rg-dashboard-card ${INSET} transition`}>
+                  <h3 className="font-semibold text-white">Report sections</h3>
+                  <p className="mt-1 text-sm text-[#a9c1ca]">Edit report content and attach evidence images.</p>
+                </Link>
+                <Link href="/issue" className={`rg-dashboard-card ${INSET} transition`}>
+                  <h3 className="font-semibold text-white">Preview &amp; Download</h3>
+                  <p className="mt-1 text-sm text-[#a9c1ca]">Review and export your PDF or Word report.</p>
+                </Link>
+              </div>
+            </section>
+          )}
+
           {route === "home" && (
             <section className={CARD}>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -1589,13 +1786,13 @@ export default function ReportGenix() {
           {route === "projects" && <div className="space-y-6"><MaterialEditor catalog={materialsCatalog} mode={materialMode} setMode={setMaterialMode} selectedId={selectedMaterialId} setSelectedId={setSelectedMaterialId} data={data} setData={setData} materialMeta={materialMeta} setMaterialMeta={setMaterialMeta} status={materialStatus} /><ComplianceEditor rows={standards} setRows={setStandards} catalog={standardsCatalog} request={request} /></div>}
 
           {route === "section" && (
-            <div className="flex h-[calc(100vh-150px)] overflow-hidden border rounded-2xl border-[#2a5068] bg-[#0b2b47]">
-              <div className="w-1/2 flex flex-col overflow-y-auto bg-[#0b2b47]/60">
+            <div className="flex h-[calc(100dvh-150px)] min-h-[480px] max-h-[calc(100dvh-150px)] flex-col overflow-hidden rounded-2xl border border-[#2a5068] bg-[#0b2b47] lg:h-[calc(100dvh-150px)] lg:min-h-0 lg:flex-row">
+              <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-[#0b2b47]/60 [scrollbar-gutter:stable]">
                 <SectionEditor sections={schema.sections} section={activeSection} data={data} setData={setData} files={files} setFiles={setFiles} extraImages={extraImages} setExtraImages={setExtraImages} removedSchemaImages={removedSchemaImages} setRemovedSchemaImages={setRemovedSchemaImages} selected={selected} setSelected={setSelected} onOpenImageEditor={openImageEditor} editingImage={editingImage} onFileChange={handleFileChange} originals={originals}>{activeSection.id === "requirements" && <p className="text-sm text-[#b7d1d2]">Requirements are generated from the Summary of Compliance entries in <Link href="/projects" className="font-semibold text-[#81c9c2] underline">Project </Link>.</p>}{activeSection.id === "cert" && <p className="text-sm text-[#b7d1d2]">The certificate QR code and Australia watermark are applied automatically in preview and final documents.</p>}</SectionEditor>
               </div>
-              <div className="w-1/2 border-l border-[#2a5068]/60 flex flex-col overflow-hidden bg-[#0a2744]">
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-t border-[#2a5068]/60 bg-[#0a2744] lg:border-l lg:border-t-0">
                 {editingImage ? (
-                  <div className="min-h-0 flex-1 p-3">
+                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
                     <ImageEditor
                       key={editingImage.id}
                       imageUrl={editingImage.url}
@@ -1635,15 +1832,22 @@ export default function ReportGenix() {
           )}
 
           {route === "issue" && (
-            <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <section className="grid min-w-0 gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
               <div className={CARD}>
-                <p className={EYEBROW}>Ready to issue</p>
+                <p className={EYEBROW}>Preview &amp; download</p>
                 <h2 className="mt-1 text-2xl font-semibold text-white">Review and export</h2>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-[#b6d3d4]">
                   Preview uses the same report engine as the final download. Check warnings and attached evidence before issuing the certification.
                 </p>
-                <div className="mt-7 flex flex-wrap gap-3">
-                  <ActionButton onClick={() => generate("preview")} disabled={Boolean(busy)} className="flex-1 sm:flex-none">
+                <div className="mt-7 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
+                  <ActionButton
+                    onClick={() => {
+                      setPreviewExpanded(true);
+                      generate("preview");
+                    }}
+                    disabled={Boolean(busy)}
+                    className="flex-1 sm:flex-none"
+                  >
                     {busy === "preview" ? "Creating preview…" : "Preview PDF"}
                   </ActionButton>
                   <ActionButton variant="secondary" onClick={() => generate("pdf")} disabled={Boolean(busy)} className="flex-1 sm:flex-none">
@@ -1654,15 +1858,67 @@ export default function ReportGenix() {
                   </ActionButton>
                   <ActionButton variant="ghost" onClick={() => downloadTemplate("word")} className="flex-1 sm:flex-none">Blank Word</ActionButton>
                 </div>
-                {previewUrl && (
+                {previewUrl && !previewExpanded && (
                   <div className="mt-7 overflow-hidden rounded-xl border border-[#2a5068] bg-[#061d31]">
-                    <iframe title="Generated report preview" src={previewUrl} className="h-[70vh] min-h-[420px] w-full lg:h-[720px]" />
+                    <div className="flex items-center justify-between gap-3 border-b border-[#2a5068] bg-[#0b2b47] px-4 py-2">
+                      <span className="text-xs font-medium text-[#c8dfe1]">PDF preview</span>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewExpanded(true)}
+                        className="rounded-md border border-[#2f5b75] px-3 py-1.5 text-xs font-semibold text-[#c8dfe1] transition hover:border-[#f84f63] hover:text-white"
+                      >
+                        Expand preview
+                      </button>
+                    </div>
+                    <iframe title="Generated report preview" src={previewUrl} className="h-[55dvh] min-h-[320px] w-full sm:h-[70vh] sm:min-h-[420px] lg:h-[720px]" />
                   </div>
                 )}
+                <AnimatePresence>
+                  {previewUrl && previewExpanded && (
+                    <motion.div
+                      className="fixed inset-0 z-[100] flex flex-col bg-[#061523]/95 p-2 backdrop-blur-sm sm:p-4"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      role="dialog"
+                      aria-modal="true"
+                      aria-label="Expanded PDF preview"
+                    >
+                      <motion.div
+                        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#2f5b75] bg-[#0b2b47] shadow-2xl"
+                        initial={{ opacity: 0, y: 14, scale: 0.99 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.99 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      >
+                        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#2f5b75] px-3 py-2.5 sm:px-5">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-white">PDF Preview</p>
+                            <p className="text-[11px] text-[#9bbcc0]">Expanded view</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewExpanded(false)}
+                            className="shrink-0 rounded-md border border-[#2f5b75] px-3 py-2 text-xs font-semibold text-[#c8dfe1] transition hover:border-[#f84f63] hover:bg-[#f84f63]/10 hover:text-white"
+                            aria-label="Minimize PDF preview"
+                          >
+                            Minimize ✕
+                          </button>
+                        </div>
+                        <iframe
+                          title="Expanded generated report PDF preview"
+                          src={previewUrl}
+                          className="min-h-0 w-full flex-1 bg-[#202124]"
+                        />
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <aside className="h-fit rounded-2xl border border-[#2a5068] bg-[#0b2b47] p-6">
-                <h3 className="font-semibold text-white">Issue checklist</h3>
+                <h3 className="font-semibold text-white">Preview checklist</h3>
                 <div className="mt-5 space-y-4 text-sm text-[#bdd6d6]">
                   <p><b className="text-[#f84f63]">{selected.length}</b> sections included</p>
                   <p><b className="text-[#f84f63]">{reportRows.length}</b> compliance rows</p>
@@ -1729,13 +1985,16 @@ export default function ReportGenix() {
             </section>
           )}
           {route === "not-found" && <section className={CARD}><p className="text-[#ff8e9c]">This report page does not exist.</p><Link href="/" className="mt-4 inline-block text-sm font-semibold text-[#8ed0c9] underline">Return to project details</Link></section>}
-          <div className="mt-12 border-t border-[#2a5068]/40 pt-8 px-6">
+          <div
+              data-tour="stage-nav"
+              className="mt-12 border-t border-[#2a5068]/40 pt-8 px-6"
+            >
             <div className="flex flex-wrap justify-between items-center gap-4">
               <div className="text-xs text-[#6b7c86] uppercase tracking-wider font-medium">Stage navigation</div>
               <div className="flex items-center gap-3 text-sm text-[#b9d2d3]">
                 <span className="text-[#6b7c86]">{route === "home" ? "1" : route === "projects" ? "2" : route === "section" ? "3" : "4"} / 4</span>
               </div>
-              <div className="flex gap-3">
+              <div className="flex w-full gap-3 sm:w-auto">
                 <button
                   onClick={() => {
                     if (route === "home") router.push("/");
@@ -1743,9 +2002,9 @@ export default function ReportGenix() {
                     else if (route === "section") {
                       const idx = schema.sections.findIndex((s) => s.id === activeSection.id);
                       router.push(idx > 0 ? `/section/${schema.sections[idx - 1].id}` : "/projects");
-                    } else if (route === "issue") router.push("/section/" + (schema.sections.find((s) => s.id === "cert")?.id || schema.sections[0]?.id || ""));
+                    } else if (route === "issue") router.push("/section/" + (schema.sections[schema.sections.length - 1]?.id || ""));
                   }}
-                  className="rounded-md px-4 py-2 text-sm font-semibold border border-[#2f5b75] bg-transparent text-[#b9d2d3] hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="min-h-10 flex-1 rounded-md px-4 py-2 text-sm font-semibold border border-[#2f5b75] bg-transparent text-[#b9d2d3] hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed sm:flex-none"
                 >
                   Back
                 </button>
@@ -1761,7 +2020,7 @@ export default function ReportGenix() {
                       router.push(idx < schema.sections.length - 1 ? `/section/${schema.sections[idx + 1].id}` : "/issue");
                     } else if (route === "issue") router.push("/issue");
                   }}
-                  className="rounded-md px-4 py-2 text-sm font-semibold border border-[#f84f63] bg-[#f84f63] text-[#0a1f36] hover:bg-[#ff667a] disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="min-h-10 flex-1 rounded-md px-4 py-2 text-sm font-semibold border border-[#f84f63] bg-[#f84f63] text-[#0a1f36] hover:bg-[#ff667a] disabled:opacity-30 disabled:cursor-not-allowed sm:flex-none"
                 >
                   Next
                 </button>
@@ -1771,12 +2030,31 @@ export default function ReportGenix() {
         </div>
       </div>
 
+      <AnimatePresence>
       {profileModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-[#0a1f36]/60 backdrop-blur-sm" onClick={closeProfile} />
-          <div className="relative bg-[#0b2b47] border border-[#2a5068] rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-white">Manage Profile</h3>
+        <motion.div
+          className="fixed inset-x-0 bottom-0 top-[64px] z-[70] flex items-start justify-end overflow-y-auto px-3 pb-4 pt-2 sm:px-6 lg:px-10"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeProfile();
+          }}
+        >
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="manage-profile-title"
+            className="relative mt-0 max-h-[calc(100dvh-82px)] w-full max-w-[390px] overflow-y-auto rounded-xl border border-[#47718a] bg-gradient-to-br from-[#123b59] via-[#0b2b47] to-[#09243d] p-4 shadow-[0_22px_70px_rgba(0,0,0,.48)] ring-1 ring-white/5 sm:rounded-2xl sm:p-5"
+            initial={{ opacity: 0, y: 18, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 340, damping: 28, mass: 0.8 }}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h3 id="manage-profile-title" className="text-sm font-semibold text-white">Manage Profile</h3>
               <button onClick={closeProfile} className="rounded-full border border-[#2f5b75] bg-transparent px-2 py-1 text-xs text-[#c8dfe1] hover:bg-white/5">&times;</button>
             </div>
             {profileStatus && (
@@ -1784,7 +2062,7 @@ export default function ReportGenix() {
             )}
             {resetMode ? (
               <form onChange={() => setProfileStatus("")} onSubmit={(e) => { e.preventDefault(); doResetPassword(); }}>
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <div>
                     <label className="block text-xs text-[#8fbcc0] mb-1">Forgot password — authenticate</label>
                     <p className="mb-2 text-xs text-[#8fbcc0]">Enter your current password to verify, then set a new password.</p>
@@ -1793,7 +2071,7 @@ export default function ReportGenix() {
                     <label className="block text-xs text-[#8fbcc0] mb-1">Current password</label>
                     <div className="relative">
                       <input
-                        className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-sm text-white pr-10 focus:outline-none focus:border-[#f84f63]"
+                        className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-[13px] text-white pr-10 focus:outline-none focus:border-[#f84f63]"
                         type={passwordVisible ? "text" : "password"}
                         value={resetForm.current_password}
                         onChange={(e) => setResetForm((current) => ({ ...current, current_password: e.target.value }))}
@@ -1813,7 +2091,7 @@ export default function ReportGenix() {
                     <label className="block text-xs text-[#8fbcc0] mb-1">New password</label>
                     <div className="relative">
                       <input
-                        className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-sm text-white pr-10 focus:outline-none focus:border-[#f84f63]"
+                        className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-[13px] text-white pr-10 focus:outline-none focus:border-[#f84f63]"
                         type={passwordVisible ? "text" : "password"}
                         value={resetForm.new_password}
                         onChange={(e) => setResetForm((current) => ({ ...current, new_password: e.target.value }))}
@@ -1831,7 +2109,7 @@ export default function ReportGenix() {
                   </div>
                   <p className="text-xs text-[#8fbcc0]">Authentication required: your current password must be correct before the new password is saved.</p>
                 </div>
-                <div className="mt-6 flex gap-3">
+                <div className="mt-4 flex gap-2.5">
                   <button
                     type="button"
                     onClick={() => { setResetMode(false); setProfileStatus(""); }}
@@ -1851,11 +2129,11 @@ export default function ReportGenix() {
               </form>
             ) : (
               <form onChange={() => setProfileStatus("")} onSubmit={(e) => { e.preventDefault(); updateProfile(); }}>
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <div>
                     <label className="block text-xs text-[#8fbcc0] mb-1">Full name</label>
                     <input
-                      className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#f84f63]"
+                      className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-[#f84f63]"
                       value={profileForm.full_name}
                       onChange={(e) => setProfileForm((current) => ({ ...current, full_name: e.target.value }))}
                       placeholder="Full name"
@@ -1864,7 +2142,7 @@ export default function ReportGenix() {
                   <div>
                     <label className="block text-xs text-[#8fbcc0] mb-1">Email</label>
                     <input
-                      className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#f84f63]"
+                      className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-[#f84f63]"
                       type="email"
                       value={profileForm.email}
                       onChange={(e) => setProfileForm((current) => ({ ...current, email: e.target.value }))}
@@ -1874,7 +2152,7 @@ export default function ReportGenix() {
                   <div>
                     <label className="block text-xs text-[#8fbcc0] mb-1">Initials</label>
                     <input
-                      className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#f84f63] text-uppercase"
+                      className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-[#f84f63] uppercase"
                       maxLength={5}
                       value={profileForm.initials}
                       onChange={(e) => setProfileForm((current) => ({ ...current, initials: e.target.value.toUpperCase() }))}
@@ -1887,7 +2165,7 @@ export default function ReportGenix() {
                       <input
                         type="file"
                         accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
-                        className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#f84f63]"
+                        className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-[#f84f63]"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
@@ -1911,7 +2189,7 @@ export default function ReportGenix() {
                       <label className="block text-xs text-[#8fbcc0] mb-1">Current password</label>
                       <div className="relative">
                         <input
-                          className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-sm text-white pr-10 focus:outline-none focus:border-[#f84f63]"
+                          className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-[13px] text-white pr-10 focus:outline-none focus:border-[#f84f63]"
                           type={passwordVisible ? "text" : "password"}
                           value={profileForm.current_password}
                           onChange={(e) => setProfileForm((current) => ({ ...current, current_password: e.target.value }))}
@@ -1937,7 +2215,7 @@ export default function ReportGenix() {
                     Forgot password?
                   </button>
                 </div>
-                <div className="mt-6 flex gap-3">
+                <div className="mt-4 flex gap-2.5">
                   <button
                     type="button"
                     onClick={closeProfile}
@@ -1956,9 +2234,10 @@ export default function ReportGenix() {
                 </div>
               </form>
             )}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </Shell>
   );
 }

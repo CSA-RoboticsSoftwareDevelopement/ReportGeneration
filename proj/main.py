@@ -88,6 +88,25 @@ async def security_headers(request: Request, call_next):
     return response
 
 
+def _normalise_report_data(payload):
+    """Keep editable section narratives in the same data object for preview and export."""
+    data = payload.get("data", {})
+    if not isinstance(data, dict):
+        data = {}
+    # body__<section-id> is the shared contract used by the browser editor,
+    # PDF builder, page preview and Word export (Word is rendered from the PDF).
+    for key, value in list(data.items()):
+        if key.startswith("body__"):
+            if not isinstance(value, str):
+                raise HTTPException(status_code=400, detail=f"Invalid section content for {key[6:]}.")
+            if len(value) > 50000:
+                raise HTTPException(status_code=413, detail=f"Section content for {key[6:]} exceeds 50,000 characters.")
+            data[key] = value
+    standards = payload.get("standards", [])
+    data["standards"] = standards if isinstance(standards, list) else []
+    return data
+
+
 def require_user(request: Request):
     user_id = request.session.get("user_id")
     if not user_id:
@@ -319,7 +338,7 @@ async def save_manual_material(request: Request):
 @app.get("/api/template")
 def template(request: Request):
     require_user(request)
-    pdf, _ = engine.build(template=True)
+    pdf, _, _ = engine.build(template=True)
     return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="Trailer_Report_TEMPLATE.pdf"'})
 
 @app.get("/api/template/word")
@@ -342,11 +361,8 @@ async def generate(request: Request):
             b = await v.read()
             if b: images[k[5:]] = b
     output = p.get("output", "pdf")
-    data, selected, layout = p.get("data", {}), p.get("selected"), p.get("layout", {})
-    if not isinstance(data, dict):
-        data = {}
-    standards = p.get("standards", [])
-    data["standards"] = standards if isinstance(standards, list) else []
+    data = _normalise_report_data(p)
+    selected, layout = p.get("selected"), p.get("layout", {})
     extras, removed = p.get("extra_images", {}), p.get("removed_images", [])
     stem = data.get("rae_no") or "Trailer"
     if output == "word":
@@ -376,11 +392,8 @@ async def preview_pages(request: Request):
         if k.startswith("img__") and hasattr(v, "read"):
             b = await v.read()
             if b: images[k[5:]] = b
-    data, selected, layout = p.get("data", {}), p.get("selected"), p.get("layout", {})
-    if not isinstance(data, dict):
-        data = {}
-    standards = p.get("standards", [])
-    data["standards"] = standards if isinstance(standards, list) else []
+    data = _normalise_report_data(p)
+    selected, layout = p.get("selected"), p.get("layout", {})
     extras, removed = p.get("extra_images", {}), p.get("removed_images", [])
     content, warns, section_pages = engine.build(data, images, selected, layout=layout, extras=extras, removed=removed)
 

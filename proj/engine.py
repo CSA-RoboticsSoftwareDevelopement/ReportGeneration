@@ -674,7 +674,8 @@ def build(data=None, images=None, selected=None, template=False, layout=None, ex
             # of a section's wording while retaining its editable figures.
             custom_body = c.raw("body__" + s["id"])
             if custom_body and not template:
-                section_story = [PageMarker(s["id"]), c.P(s["title"], "h1")]
+                section_heading = c.raw("heading__" + s["id"]) or s["title"]
+                section_story = [PageMarker(s["id"]), c.P(escape(section_heading), "h1")]
                 for paragraph in custom_body.replace("\r\n", "\n").split("\n\n"):
                     text = paragraph.strip()
                     if text:
@@ -684,6 +685,12 @@ def build(data=None, images=None, selected=None, template=False, layout=None, ex
                 section_story.append(PageBreak())
             else:
                 section_story = [PageMarker(s["id"])] + BUILD[s["id"]](c)
+                custom_heading = c.raw("heading__" + s["id"])
+                if custom_heading and not template:
+                    for flowable in section_story:
+                        if isinstance(flowable, Paragraph) and flowable.style.name == "h1":
+                            flowable.text = escape(custom_heading)
+                            break
             added_figures = c.extra_slots(s["id"])
             if added_figures:
                 ends_page = bool(section_story and isinstance(section_story[-1], PageBreak))
