@@ -922,6 +922,7 @@ export default function ReportGenix() {
   const [editorStates, setEditorStates] = useState({}); /* { [imageId]: saved layers } */
   const [preview, setPreview] = useState(null); /* { pages: [{page,dataUrl}], section_pages: {...} } */
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [sectionPreviewIndex, setSectionPreviewIndex] = useState(0);
 
   const request = useCallback(
     async (path, options = {}) => {
@@ -1301,13 +1302,28 @@ export default function ReportGenix() {
   const currentSectionId = pathname.startsWith("/section/") ? decodeURIComponent(pathname.slice("/section/".length)) : "";
   const currentActiveSection = schema?.sections?.find((section) => section.id === currentSectionId);
 
-  /* Safely resolve the preview page for the active section. */
-  const previewPage = useMemo(() => {
+  /*
+   * The API records where each section starts.  Its next section start is the
+   * end of this section's range, so retain every rendered page in between.
+   * This intentionally leaves the PDF/preview API and report engine untouched.
+   */
+  const sectionPreviewPages = useMemo(() => {
     if (!preview || !preview.pages?.length || !currentActiveSection) return null;
-    const sectionPage = preview.section_pages?.[currentActiveSection.id];
-    if (typeof sectionPage !== "number" || sectionPage < 1 || sectionPage > preview.pages.length) return null;
-    return preview.pages[sectionPage - 1];
+    const startPage = preview.section_pages?.[currentActiveSection.id];
+    if (typeof startPage !== "number" || startPage < 1 || startPage > preview.pages.length) return null;
+    const nextStart = Object.values(preview.section_pages || {})
+      .filter((page) => typeof page === "number" && page > startPage)
+      .sort((a, b) => a - b)[0];
+    const endPage = nextStart ? nextStart - 1 : preview.pages.length;
+    return preview.pages.slice(startPage - 1, endPage);
   }, [preview, currentActiveSection]);
+
+  const previewPage = sectionPreviewPages?.[sectionPreviewIndex] || null;
+
+  useEffect(() => {
+    // Always start at the first page when changing section or receiving a new render.
+    setSectionPreviewIndex(0);
+  }, [currentActiveSection?.id, preview]);
 
   const loadPreview = useCallback(async () => {
     if (!schema || !currentActiveSection) return;
@@ -1651,7 +1667,35 @@ const sidebarSteps = [
                     <div className="p-4 border-b border-[#2a5068]/40 bg-[#0a2744]/60">
                       <p className="text-xs font-medium text-[#f84f63]">PDF preview</p>
                       <h3 className="mt-1 text-sm font-semibold text-white">{activeSection.title}</h3>
-                      <p className="mt-1 text-xs text-[#9bbcc0]">Page {preview?.section_pages?.[activeSection.id] || "—"} of {preview?.pages?.length || 0}</p>
+                      <div className="mt-2 flex items-center justify-between gap-3 text-xs text-[#9bbcc0]">
+                        <p>
+                          {previewPage
+                            ? `Page ${previewPage.page} of ${preview?.pages?.length || 0} · section page ${sectionPreviewIndex + 1} of ${sectionPreviewPages.length}`
+                            : "No rendered pages"}
+                        </p>
+                        {sectionPreviewPages?.length > 1 && (
+                          <div className="flex shrink-0 gap-1">
+                            <button
+                              type="button"
+                              aria-label="Previous section preview page"
+                              onClick={() => setSectionPreviewIndex((index) => Math.max(0, index - 1))}
+                              disabled={sectionPreviewIndex === 0}
+                              className="rounded border border-[#2a5068] px-2 py-0.5 text-[#b7d1d2] disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              Prev
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="Next section preview page"
+                              onClick={() => setSectionPreviewIndex((index) => Math.min(sectionPreviewPages.length - 1, index + 1))}
+                              disabled={sectionPreviewIndex === sectionPreviewPages.length - 1}
+                              className="rounded border border-[#2a5068] px-2 py-0.5 text-[#b7d1d2] disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              Next
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex-1 overflow-auto p-4 bg-[#061d31] flex items-center justify-center">
                       {previewLoading ? (
@@ -1659,7 +1703,7 @@ const sidebarSteps = [
                       ) : previewPage ? (
                         <img
                           src={previewPage.dataUrl}
-                          alt="Section preview"
+                          alt={`${activeSection.title}, page ${previewPage.page}`}
                           className="max-w-full max-h-full object-contain border border-[#2a5068]/40 rounded-md bg-black"
                         />
                       ) : (
