@@ -16,6 +16,128 @@ import TourGuide from "./TourGuide";
 const MATERIAL_IDS = new Set(["material", "fu", "fy", "young", "nu", "rho"]);
 const DRAFT_KEY = "reportgenix-draft-v2";
 
+const STANDARD_SECTION_NARRATIVES = [
+  {
+    match: (title) => /background/i.test(title),
+    text: `Structural analysis and certification services are required for a new build chassis and internal carrying member's design and analysis of a trailer. The trailer requires certification as a Dual Axle trailer type [ ATM ]kg ATM.
+
+3D isometric images of an actual trailer from Autodesk Inventor software identify this product.`,
+  },
+  {
+    match: (title) => /geometry/i.test(title),
+    text: `ATT has provided the required 3D geometric data that was required for the structural analysis of the trailer. Shown following are the dimensions of the major structural members of the trailer which was used for the analysis.
+
+Overall length: [ Overall length ] mm
+Overall width: [ Overall width ] mm
+Coupling to suspension: [ Distance coupling to suspension ] mm`,
+  },
+  {
+    match: (title) => /requirements/i.test(title),
+    text: `The following requirements apply for the trailer structural compliance as selected in the Summary of Compliance.
+
+1.
+2.
+3.
+4.
+5.
+6.
+7.
+8.`,
+  },
+  {
+    match: (title) => /pre.?processing|analysis.*data|material.*meshing/i.test(title),
+    text: `The trailer is analyzed using the finite element analysis technique. The software used for analysis is ANSYS Workbench which is used in the automotive industry for over a decade. 3D elements have been used in modelling as these are the most appropriate for static structural analysis.
+
+Material
+The material used for the analysis with the following mechanical properties is given in the below table.
+
+Meshing
+The fine mesh was created with the number of nodes as [ Mesh nodes ] and the number of elements as [ Mesh elements ]. Shown below are some images of the finite element model that was used for the analysis.`,
+  },
+  {
+    match: (title) => /analysis\s*1|longitudinal tension/i.test(title),
+    text: `ANALYSIS 1 (ADR 62/02- 14.2.1.1.1) - Longitudinal Tension and Compression
+
+Trailer restraint and the force applied as shown in the below image. The applied force is [ 1.5 x 9.81 x ATM ] N as per clause 14.2.1.1.1 of ADR 62/02 i.e., 1.5 x 9.81 x [ ATM ] kg, applied on the coupling holes in the longitudinal direction. All hanger holes faces are fixed in all DOF.
+
+As per the result shown in the stress distribution plot, neglecting local stresses, the max stress of [ stress ] MPa was found on the Drawbar, which is compared with the yield strength of material [ Material ] which is [ Yield strength ] MPa.
+
+As shown above, the following is the deformation of the structure under the Analysis 1 loading condition. The maximum deformation is [ deformation ] mm.`,
+  },
+  {
+    match: (title) => /analysis\s*2|transverse thrust/i.test(title),
+    text: `ANALYSIS 2 (ADR 62/02- 14.2.1.2.1) - Transverse Thrust
+
+Trailer restraint and the force applied as shown in the below image. The applied force is [ 0.5 x 9.81 x ATM ] N as per clause 14.2.1.2.1 of ADR 62/02 i.e., 0.5 x 9.81 x [ ATM ] kg, applied on the coupling holes in the transverse direction. All hanger holes faces are fixed in all DOF.
+
+As per the result shown in the stress distribution plot, neglecting local stresses, the max stress of [ stress ] MPa was found on the Hanger, which is compared with the yield strength of material [ Material ] which is [ Yield strength ] MPa.
+
+As shown above, the following is the deformation of the structure under the Analysis 2 loading condition. The maximum deformation is [ deformation ] mm.`,
+  },
+  {
+    match: (title) => /analysis\s*3|vertical tension/i.test(title),
+    text: `ANALYSIS 3 (ADR 62/02- 14.2.1.3.1) - Vertical Tension and Compression
+
+Trailer restraint and the force applied as shown in the below image. The applied force is [ 0.5 x 9.81 x ATM ] N as per clause 14.2.1.3.1 of ADR 62/02 i.e., 0.5 x 9.81 x [ ATM ] kg, applied on the coupling holes in the vertical direction (with an equal downward force on the chassis). All hanger holes faces are fixed in all DOF.
+
+As per the result shown in the stress distribution plot, neglecting local stresses, the max stress of [ stress ] MPa was found on the Chassis, which is compared with the yield strength of material [ Material ] which is [ Yield strength ] MPa.
+
+As shown above, the following is the deformation of the structure under the Analysis 3 loading condition. The maximum deformation is [ deformation ] mm.`,
+  },
+  {
+    match: (title) => /analysis\s*4|drawbar dynamic/i.test(title),
+    text: `ANALYSIS 4 (ADR 62/02- 14.2.2.1) - Drawbar Dynamic Test
+
+The D-value for the trailer is [ D-value ] kN. The force applied is 0.6 x Coupling D-value = 0.6 x [ D-value ] x 103 = [ force ] N.
+
+D-value for this trailer is calculated as shown:
+DC = g . (T x C)/(T + C) (from AS2213.4:2008- 5.1)
+Here, T = maximum design total mass in tonnes of the towing vehicle = 2 t
+C = mass in tonnes transmitted to the ground by the axle of the centre-axle trailer loaded to its maximum design total mass = [ ATM/1000 ] t
+Therefore, DC = 9.81 x (2 x [ C ])/(2 + [ C ]) = [ D-value ] kN
+
+As per result, neglecting local stress the max stress induced in the drawbar of the trailer is [ stress ] MPa, which is lower than the allowable yield limit of [ Yield strength ] MPa. The fatigue limit of 2 million cycles for [ Material ] material as per AS4100-1998, clause 11.6, is 82 MPa. [ verdict ]
+
+As shown above, the following is the deformation of the structure under the Analysis 4 loading condition. The maximum deformation is [ deformation ] mm.`,
+  },
+  {
+    match: (title) => /analysis\s*5|structural strength/i.test(title),
+    text: `ANALYSIS 5 (AS4100-1998 2016) - Structural strength of the trailer
+
+For [ ATM ]kg ATM was used for this load case in the chassis. The structural members of the trailer are analyzed with 1G vertical load & 1G Horizontal load applied simultaneously to check the structural integrity of the trailer as per AS 4100-1998.
+
+As shown below following is the distributed loading applied to the trailer and the restraints. This loading is the worst-case scenario in practical application. 1G vertical load = [ load ] N; total forward & downward force (resultant of 1G vertical and 1G horizontal) = [ load ] N; braking force (0.8 x 9.81 x ATM) = [ load ] N.
+
+As per the result shown in the stress distribution plot, neglecting local stresses, the max stress of [ stress ] MPa was found on the Chassis, which is compared with the yield strength of material [ Material ] which is [ Yield strength ] MPa.
+
+As shown above, the following is the deformation of the structure under the Analysis 5 loading condition. The maximum deformation is [ deformation ] mm.`,
+  },
+  {
+    match: (title) => /analysis\s*6|safety chain/i.test(title),
+    text: `ANALYSIS 6 (ADR 62/02- 14.4) - 'Drawbar' Safety Chain Attachment Points
+
+The chain will be fitted on either side of the center line of the drawbar, which satisfies ADR62/02 - 14.4.1. The longitudinal tension of 9.81 x 'ATM' kg is [ force ] N (vertical tension 0.5 x 9.81 x 'ATM' = [ force ] N). As 2 bolt(s) will be supporting the safety chain, the force per bolt is [ force ] N. The plate thickness is 10mm.
+
+The compressive (bearing) stress induced per bolt = longitudinal force per bolt / (thickness x hole clearance) = [ force ] / (10 x 15) = [ stress ] MPa
+[ verdict ]`,
+  },
+  {
+    match: (title) => /analysis\s*7|coupling/i.test(title),
+    text: `ANALYSIS 7 - Coupling
+
+The pulling force at 1.5G (1.5 x 9.81 x 'ATM' kg) is [ force ] N. As there are 4 bolts, this force per bolt is [ force ] N. The thickness of the coupling plate is 6 mm and the bolt size is M14.
+
+The compressive stress induced per bolt = [ force ] / (Plate thickness x Hole clearance) = [ force ] / (6 x 15) = [ stress ] MPa
+[ verdict ]`,
+  },
+];
+
+function getStandardSectionNarrative(section) {
+  const title = String(section?.title || "");
+  return STANDARD_SECTION_NARRATIVES.find((entry) => entry.match(title))?.text || "";
+}
+
+
 const GLOBAL_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
@@ -1499,7 +1621,16 @@ export default function ReportGenix() {
         nextSchema.general.map((field) => [field.id, saved.data?.[field.id] ?? current[field.id] ?? field.default ?? (field.type === "date" ? new Date().toISOString().slice(0, 10) : "")])
       )
     );
-    setData((current) => ({ ...current, ...(saved.data || {}) }));
+    const standardNarrativeDefaults = Object.fromEntries(
+      nextSchema.sections
+        .map((section) => {
+          const key = `body__${section.id}`;
+          const existing = saved.data?.[key];
+          return [key, existing !== undefined ? existing : getStandardSectionNarrative(section)];
+        })
+        .filter(([, value]) => Boolean(value))
+    );
+    setData((current) => ({ ...current, ...(saved.data || {}), ...standardNarrativeDefaults }));
     setStandards(Array.isArray(saved.standards) ? saved.standards : []);
     setSelected(Array.isArray(saved.selected) ? saved.selected : nextSchema.sections.map((section) => section.id));
     setLayout((current) => ({ ...current, ...(saved.layout || {}) }));
@@ -2326,7 +2457,7 @@ const sidebarSteps = [
         </header>
 
         <div className={route === "dashboard" ? "px-4 py-4 sm:px-6" : "mx-auto max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10"}>
-          <div className={`${route === "dashboard" ? "hidden " : ""}mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7`}><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? (data[`heading__${activeSection.id}`] || activeSection.title) : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Issue</Link></div></div>
+          <div data-tour="page-header" className={`${route === "dashboard" ? "hidden " : ""}mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7`}><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? (data[`heading__${activeSection.id}`] || activeSection.title) : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Issue</Link></div></div>
 
           <nav className={`${route === "dashboard" ? "hidden " : ""}flex items-center gap-1 text-xs text-[#8fbcc0] mt-4 ml-2`} aria-label="Breadcrumb">
             <Link href="/" className="hover:text-[#c8dfe1]">Home</Link>
@@ -2604,7 +2735,7 @@ const sidebarSteps = [
             </section>
           )}
           {route === "not-found" && <section className={CARD}><p className="text-[#ff8e9c]">This report page does not exist.</p><Link href="/" className="mt-4 inline-block text-sm font-semibold text-[#8ed0c9] underline">Return to project details</Link></section>}
-          <div className={`${route === "dashboard" ? "hidden " : ""}mt-12 border-t border-[#2a5068]/40 pt-8 px-6`}>
+          <div data-tour="stage-nav" className={`${route === "dashboard" ? "hidden " : ""}mt-12 border-t border-[#2a5068]/40 pt-8 px-6`}>
             <div className="flex flex-wrap justify-between items-center gap-4">
               <div className="text-xs text-[#6b7c86] uppercase tracking-wider font-medium">Stage navigation</div>
               <div className="flex items-center gap-3 text-sm text-[#b9d2d3]">
@@ -2645,6 +2776,8 @@ const sidebarSteps = [
           </div>
         </div>
       </div>
+
+      <TourGuide open={tourOpen} onClose={() => setTourOpen(false)} />
 
       <AnimatePresence>
       {profileModal && (
