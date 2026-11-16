@@ -275,7 +275,7 @@ function MaterialEditor({ catalog, mode, setMode, selectedId, setSelectedId, dat
       </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-[200px_1fr]">
-        <Labeled label="Entry type">
+        <Labeled label="Select from Material">
           <select className={INPUT} value={mode} onChange={(e) => setMode(e.target.value)}>
             <option value="library">Library</option>
             <option value="manual">Manual / edit</option>
@@ -455,7 +455,7 @@ function ComplianceEditor({ rows, setRows, catalog, request }) {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[150px_minmax(0,1fr)_minmax(0,1fr)_190px]">
-              <Labeled label="Entry type">
+              <Labeled label="Select from Standard">
                 <select className={INPUT} value={row.source} onChange={(e) => update(row.id, { source: e.target.value })}>
                   <option value="library">Library</option>
                   <option value="manual">Manual</option>
@@ -746,6 +746,135 @@ const initials = (name) => {
 };
 
 /* ------------------------------------------------------------------ */
+/*  Sidebar: numbered step tracker (logo · steps · completeness)       */
+/*  Everything it needs is passed in as props because it lives         */
+/*  outside the ReportGenix component.                                 */
+/* ------------------------------------------------------------------ */
+
+const SidebarNav = ({ steps, extraLinks, completeness, sidebarOpen, setSidebarOpen, user, openProfile }) => {
+  const close = () => setSidebarOpen(false);
+
+  return (
+    <aside
+      className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-[#2a5068]/60 bg-[#0a2744] shadow-2xl transition-transform duration-300 lg:translate-x-0 lg:shadow-none ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+      aria-label="Report navigation"
+    >
+      {/* Brand */}
+      <div className="flex items-center justify-between px-6 pb-5 pt-6">
+        <Link href="/" onClick={close} className="flex items-center gap-3">
+          <img src="/csa_logo.webp" alt="CSA Engineering" className="h-9 w-auto object-contain" />
+          <span className="border-l border-[#2f5b75] pl-3 text-lg font-bold tracking-tight text-white">ReportGenix</span>
+        </Link>
+        <button
+          onClick={close}
+          className="rounded border border-[#2f5b75] bg-transparent px-2 py-1 text-xs text-[#c8dfe1] hover:bg-white/5 lg:hidden"
+          aria-label="Close sidebar"
+        >
+          &times;
+        </button>
+      </div>
+
+      {/* Steps */}
+      <nav className="flex-1 overflow-y-auto px-6 py-4" aria-label="Report steps">
+        <ol>
+  {steps.map((step, index) => {
+    const isLast = index === steps.length - 1;
+    const circle = step.active
+      ? "border-[#f84f63] bg-[#f84f63] text-[#0a1f36] ring-4 ring-[#f84f63]/25"
+      : step.done
+        ? "border-[#6fd08a] bg-[#6fd08a]/10 text-[#6fd08a]"
+        : "border-[#5b7f96] bg-transparent text-[#c8dfe1] group-hover:border-[#f84f63]";
+    return (
+      <li key={step.key} className={`relative ${isLast ? "" : "pb-7"}`}>
+        {!isLast && (
+          <span aria-hidden="true" className="absolute bottom-1 left-4 top-10 -translate-x-1/2 border-l-2 border-dashed border-[#2f5b75]" />
+        )}
+        <Link href={step.href} onClick={close} aria-current={step.active ? "step" : undefined} className="group relative flex items-center gap-4">
+          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition ${circle}`}>
+            {step.done && !step.active ? "✓" : index + 1}
+          </span>
+          <span className="min-w-0">
+            <span className={`block truncate text-[15px] ${step.active ? "font-semibold text-white" : "font-medium text-[#c8dfe1] group-hover:text-white"}`}>
+              {step.label}
+            </span>
+            {step.sub && <span className="block truncate text-[11px] text-[#7f9fae]">{step.sub}</span>}
+          </span>
+        </Link>
+
+        {step.children?.length > 0 && (
+          <ul className="relative mt-5 space-y-4">
+            {step.children.map((child) => {
+              const dot = child.active
+                ? "bg-[#f84f63] ring-4 ring-[#f84f63]/25"
+                : child.done
+                  ? "bg-[#6fd08a]"
+                  : "bg-[#5b7f96] group-hover:bg-[#f84f63]";
+              return (
+                <li key={child.key} className="relative">
+                  <Link href={child.href} onClick={close} aria-current={child.active ? "step" : undefined} className="group flex items-center gap-4">
+                    <span className="flex h-4 w-8 shrink-0 items-center justify-center">
+                      <span className={`h-2.5 w-2.5 rounded-full border-2 border-[#0a2744] transition ${dot}`} />
+                    </span>
+                    <span className={`block truncate text-[13px] ${child.active ? "font-semibold text-white" : "text-[#c8dfe1] group-hover:text-white"}`}>
+                      {child.label}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </li>
+    );
+  })}
+</ol>
+
+        <div className="mt-8 space-y-1 border-t border-[#2a5068]/60 pt-5">
+          {extraLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={close}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${link.active ? "bg-[#f84f63] text-[#0a1f36]" : "text-[#c8dfe1] hover:bg-white/5 hover:text-white"}`}
+            >
+              <span className="text-[11px]">{link.icon}</span>
+              <span>{link.label}</span>
+            </Link>
+          ))}
+        </div>
+      </nav>
+
+      {/* Completeness + profile */}
+      <div className="border-t border-[#2a5068]/60 px-6 py-5">
+        <p className="text-sm font-semibold text-white">Report completeness:</p>
+        <div className="mt-2 flex items-center gap-3">
+          <div
+            className="h-2 flex-1 overflow-hidden rounded-full bg-[#16405c]"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={completeness}
+            aria-label="Report completeness"
+          >
+            <div className="h-full rounded-full bg-[#f84f63] transition-all duration-500" style={{ width: `${completeness}%` }} />
+          </div>
+          <span className="w-9 text-right text-xs font-semibold text-[#c8dfe1]">{completeness}%</span>
+        </div>
+        <button
+          onClick={() => { close(); openProfile(); }}
+          className="mt-5 flex w-full items-center gap-3 rounded-lg border border-[#2f5b75] bg-[#0e3250] px-4 py-3 text-sm text-[#c8dfe1] hover:bg-white/5"
+        >
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f84f63] text-xs font-bold text-[#0a1f36]">
+            {user?.initials || initials(user?.full_name || user?.email)}
+          </span>
+          <span className="truncate">Profile</span>
+        </button>
+      </div>
+    </aside>
+  );
+};
+
+/* ------------------------------------------------------------------ */
 /*  App                                                                */
 /* ------------------------------------------------------------------ */
 
@@ -766,7 +895,6 @@ export default function ReportGenix() {
   const [selected, setSelected] = useState([]);
   const [files, setFiles] = useState({});
   const [layout, setLayout] = useState({ heading_align: "left", text_align: "justify", image_align: "center", caption_position: "below", caption_align: "center" });
-  const [sectionsDropdown, setSectionsDropdown] = useState("");
   const [materialMode, setMaterialMode] = useState("library");
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [materialMeta, setMaterialMeta] = useState({ material_type: "", category: "steel", source_standard_id: "", notes: "" });
@@ -785,6 +913,7 @@ export default function ReportGenix() {
   const [resetMode, setResetMode] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const raeTimer = useRef(null);
 
   /* Image editor + section preview state */
@@ -904,6 +1033,9 @@ export default function ReportGenix() {
 
   useEffect(() => { window.scrollTo({ top: 0 }); }, [pathname]);
 
+  /* Close the mobile sidebar whenever the route changes. */
+  useEffect(() => { setSidebarOpen(false); }, [pathname]);
+
   useEffect(() => {
     if (!schema) return;
     window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ data, standards, selected, layout, materialMode, selectedMaterialId, materialMeta }));
@@ -996,21 +1128,47 @@ export default function ReportGenix() {
     setProfileStatus("");
     try {
       const payload = {};
-      if (profileForm.full_name) payload.full_name = profileForm.full_name;
-      if (profileForm.email) payload.email = profileForm.email;
-      if (profileForm.initials) payload.initials = profileForm.initials;
+
+      if (profileForm.full_name.trim()) {
+        payload.full_name = profileForm.full_name.trim();
+      }
+      if (profileForm.email.trim()) {
+        payload.email = profileForm.email.trim();
+      }
+      if (profileForm.initials.trim()) {
+        payload.initials = profileForm.initials.trim().toUpperCase();
+      }
+
       if (Object.keys(payload).length === 0) {
         setProfileStatus("Nothing to change.");
-        setProfileBusy("");
         return;
       }
-      const response = await request("/api/auth/profile", { method: "PUT", body: JSON.stringify(payload) });
+
+      const response = await request("/api/auth/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
       const result = await response.json();
-      setUser(result.user);
-      if (result.user.initials) {
-        setData((current) => ({ ...current, prepared_by: result.user.initials }));
+
+      if (!result.user) {
+        throw new Error("The server did not return the updated user profile.");
       }
-      setCsrf(result.csrf_token || csrf);
+
+      setUser(result.user);
+
+      if (result.user.initials) {
+        setData((current) => ({
+          ...current,
+          prepared_by: result.user.initials,
+        }));
+      }
+
+      if (result.csrf_token) {
+        setCsrf(result.csrf_token);
+      }
+
       setProfileModal(false);
       setProfileStatus("Profile saved.");
     } catch (error) {
@@ -1297,231 +1455,366 @@ export default function ReportGenix() {
   const preparedByField = schema.general.find((field) => field.id === "prepared_by");
   const sectionId = pathname.startsWith("/section/") ? decodeURIComponent(pathname.slice("/section/".length)) : "";
   const activeSection = schema.sections.find((section) => section.id === sectionId);
-  const route = pathname === "/" ? "home" : pathname === "/projects" ? "projects" : pathname === "/layout" ? "layout" : pathname === "/issue" ? "issue" : activeSection ? "section" : "not-found";
+  /* /faq and /raq are the same page (Raised and Answered Questions) */
+  const route =
+    pathname === "/"
+      ? "home"
+      : pathname === "/projects"
+        ? "projects"
+        : pathname === "/layout"
+          ? "layout"
+          : pathname === "/issue"
+            ? "issue"
+            : pathname === "/help"
+              ? "help"
+              : pathname === "/faq" || pathname === "/raq"
+                ? "faq"
+                : activeSection
+                  ? "section"
+                  : "not-found";
   const reportSections = schema.sections.filter((section) => section.id !== "summary");
   const navClass = (active) => `rounded-md px-3 py-2 text-sm font-medium transition ${active ? "bg-[#f84f63] text-[#0a1f36]" : "text-[#c6dce2] hover:bg-white/5 hover:text-white"}`;
 
+  /* ---- Sidebar data: built from the app's own routes and state ---- */
+  const filled = (value) => String(value ?? "").trim() !== "";
+  const sectionDone = (section) =>
+    section.fields.some((field) => filled(data[field.id])) || section.images.some((image) => Boolean(files[image.id]));
+
+  const sectionChildren = reportSections.map((section) => ({
+  key: `section-${section.id}`,
+  href: `/section/${section.id}`,
+  label: section.title,
+  active: route === "section" && activeSection?.id === section.id,
+  done: sectionDone(section),
+}));
+
+const sidebarSteps = [
+  { key: "home", href: "/", label: "Project", sub: "Report details", active: route === "home", done: filled(data.rae_no) && filled(data.project_name) },
+  { key: "projects", href: "/projects", label: "Libraries", sub: "Materials & compliance", active: route === "projects", done: standards.length > 0 && filled(data.material) },
+  {
+    key: "sections",
+    href: sectionChildren[0]?.href || "/projects",
+    label: "Section",
+    sub: "Report sections",
+    active: route === "section",
+    done: sectionChildren.length > 0 && sectionChildren.every((c) => c.done),
+    children: sectionChildren,
+  },
+  { key: "layout", href: "/layout", label: "Layout", sub: "Document styling", active: route === "layout", done: false },
+  { key: "issue", href: "/issue", label: "Issue", sub: "Preview & export", active: route === "issue", done: false },
+];
+
+  const sidebarExtraLinks = [
+    { href: "/help", label: "Help", icon: "❓", active: route === "help" },
+    { href: "/faq", label: "FAQ", icon: "❔", active: route === "faq" },
+  ];
+
+  /* Completeness: project fields filled, compliance rows added, evidence attached */
+  const projectRatio = schema.general.length ? schema.general.filter((field) => filled(data[field.id])).length / schema.general.length : 0;
+  const complianceRatio = reportRows.length > 0 ? 1 : 0;
+  const evidenceRatio = Object.values(files).some(Boolean) ? 1 : 0;
+  const completeness = Math.round(((projectRatio + complianceRatio + evidenceRatio) / 3) * 100);
+
   return (
     <Shell>
-      <header className="sticky top-0 z-30 border-b border-[#2a5068]/60 bg-[#0a2744]/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-10">
-        <div className="mx-auto flex max-w-[1600px] items-center gap-3">
-          <Link href="/" className="flex shrink-0 items-center gap-3"><img src="/csa_logo.webp" alt="CSA Engineering" className="h-9 w-auto" /><span className="hidden border-l border-[#2f5b75] pl-3 text-base font-semibold sm:inline">ReportGenix</span></Link>
-          <nav className="ml-2 hidden items-center gap-1 lg:flex" aria-label="Workspace navigation">
-            <Link href="/" className={navClass(route === "home")}>Project</Link>
-            <Link href="/projects" className={navClass(route === "projects")}>Libraries</Link>
-            <select
-              value={sectionsDropdown}
-              onChange={(e) => {
-                const id = e.target.value;
-                if (id) router.push(`/section/${id}`);
-                setSectionsDropdown("");
-              }}
-              className={`rounded-md border border-[#2f5b75] bg-[#0a2744] px-3 py-1.5 text-sm text-[#c8dfe1] focus:outline-none focus:border-[#f84f63] ${route === "section" ? "border-[#f84f63] text-white" : ""}`}
-            >
-              <option value="" disabled className="text-[#6b7c86]">Sections</option>
-              {reportSections.map((section) => (
-                <option key={section.id} value={section.id}>{section.title}</option>
-              ))}
-            </select>
-            <Link href="/issue" className={navClass(route === "issue")}>Issue</Link>
-          </nav>
-          <div className="ml-auto flex items-center gap-2">
-            <span className="hidden max-w-[220px] truncate text-sm text-[#b9d2d3] md:inline">{user.full_name || user.email}</span>
+      {sidebarOpen && <div className="fixed inset-0 z-40 bg-[#0a1f36]/40 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      <SidebarNav
+        steps={sidebarSteps}
+        extraLinks={sidebarExtraLinks}
+        completeness={completeness}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        user={user}
+        openProfile={openProfile}
+      />
+
+      {/* Everything to the right of the fixed sidebar on large screens */}
+      <div className="lg:pl-72">
+        <header className="sticky top-0 z-30 border-b border-[#2a5068]/60 bg-[#0a2744]/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-10">
+          <div className="mx-auto flex max-w-[1600px] items-center gap-3">
             <button
-              onClick={openProfile}
-              className="relative rounded-full border border-[#2f5b75] bg-[#0e3250] px-2 py-1 text-xs font-semibold text-[#c8dfe1] hover:bg-white/10 focus:outline-none focus:border-[#f84f63]"
-              aria-label="Profile"
+              onClick={() => setSidebarOpen((prev) => !prev)}
+              className="rounded-md border border-[#2f5b75] bg-[#0e3250] px-3 py-1.5 text-base font-semibold text-[#c8dfe1] hover:bg-white/10 focus:outline-none focus:border-[#f84f63] lg:hidden"
+              aria-label="Toggle sidebar"
+              aria-expanded={sidebarOpen}
             >
-              {user.avatar_url ? (
-                <img src={user.avatar_url} alt="Profile" className="rounded-full w-6 h-6 object-cover" />
-              ) : (
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#f84f63] text-[#0a1f36] font-bold text-xs">{user.initials || initials(user.full_name || user.email)}</span>
-              )}
+              ≡
             </button>
-            <ActionButton variant="ghost" onClick={() => downloadTemplate("pdf")} className="hidden !px-4 !py-2 sm:inline-flex">Blank PDF</ActionButton>
-            <ActionButton variant="ghost" onClick={logout} className="!px-4 !py-2">Sign out</ActionButton>
+            <Link href="/" className="flex shrink-0 items-center gap-3 lg:hidden">
+              <img src="/csa_logo.webp" alt="CSA Engineering" className="h-9 w-auto" />
+              <span className="hidden border-l border-[#2f5b75] pl-3 text-base font-semibold sm:inline">ReportGenix</span>
+            </Link>
+            <div className="ml-auto flex items-center gap-2">
+              <span className="hidden max-w-[220px] truncate text-sm text-[#b9d2d3] md:inline">{user.full_name || user.email}</span>
+              <button
+                onClick={openProfile}
+                className="relative rounded-full border border-[#2f5b75] bg-[#0e3250] px-2 py-1 text-xs font-semibold text-[#c8dfe1] hover:bg-white/10 focus:outline-none focus:border-[#f84f63]"
+                aria-label="Profile"
+              >
+                {user.avatar_url ? (
+                  <img src={user.avatar_url} alt="Profile" className="rounded-full w-6 h-6 object-cover" />
+                ) : (
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#f84f63] text-[#0a1f36] font-bold text-xs">{user.initials || initials(user.full_name || user.email)}</span>
+                )}
+              </button>
+              <ActionButton variant="ghost" onClick={() => downloadTemplate("pdf")} className="hidden !px-4 !py-2 sm:inline-flex">Blank PDF</ActionButton>
+              <ActionButton variant="ghost" onClick={logout} className="!px-4 !py-2">Sign out</ActionButton>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
-        <div className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7"><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project libraries" : route === "section" ? "Report section" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? (data[`heading__${activeSection.id}`] || activeSection.title) : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/issue" className={navClass(route === "issue")}>Issue</Link></div></div>
+        <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+          <div className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7"><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? (data[`heading__${activeSection.id}`] || activeSection.title) : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Issue</Link></div></div>
 
-        {route === "home" && (
-          <section className={CARD}>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {raeField && (
-                <div className="xl:col-span-3">
-                  <Labeled label={raeField.label + (raeField.unit ? " (" + raeField.unit + ")" : "") + " Lookup"}>
-                    <div className="flex gap-2">
+          <nav className="flex items-center gap-1 text-xs text-[#8fbcc0] mt-4 ml-2" aria-label="Breadcrumb">
+            <Link href="/" className="hover:text-[#c8dfe1]">Home</Link>
+            <span>/</span>
+            <Link href="/projects" className="hover:text-[#c8dfe1]">Project</Link>
+            {route === "home" ? null : <span>/</span>}
+            {route === "projects" ? null : <Link href="/projects" className="hover:text-[#c8dfe1]">Libraries</Link>}
+            {route === "projects" || route === "home" ? null : <span>/</span>}
+            {route === "section" ? <Link href={`/section/${activeSection.id}`} className="hover:text-[#c8dfe1]">{activeSection.title}</Link> : null}
+            {(route === "section" || route === "layout") ? <span>/</span> : null}
+            {route === "layout" ? <span className="text-[#c8dfe1]">Layout</span> : null}
+            {(route === "layout" || route === "section") ? <span>/</span> : null}
+            {route === "issue" ? <span className="text-[#c8dfe1]">Issue</span> : null}
+            {route === "help" ? <span className="text-[#c8dfe1]">Help</span> : null}
+            {route === "faq" ? <span className="text-[#c8dfe1]">RAQ</span> : null}
+          </nav>
+          {route === "home" && (
+            <section className={CARD}>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {raeField && (
+                  <div className="xl:col-span-3">
+                    <Labeled label={raeField.label + (raeField.unit ? " (" + raeField.unit + ")" : "") + " Lookup"}>
+                      <div className="flex gap-2">
+                        <input
+                          className={INPUT}
+                          type="text"
+                          value={data.rae_no ?? ""}
+                          onChange={(e) => setData((current) => ({ ...current, rae_no: e.target.value }))}
+                        />
+                        {raeLookup.status === "loading" && (
+                          <span className="text-xs text-[#b9d2d3]">searching…</span>
+                        )}
+                        {raeLookup.status === "ok" && (
+                          <span className="text-xs text-[#6fd08a]">{raeLookup.message}</span>
+                        )}
+                        {raeLookup.status === "error" && (
+                          <span className="text-xs text-[#ff8e9c]">{raeLookup.message}</span>
+                        )}
+                      </div>
+                    </Labeled>
+                  </div>
+                )}
+                {preparedByField && (
+                  <div className="xl:col-span-3">
+                    <Labeled label={preparedByField.label + (preparedByField.unit ? " (" + preparedByField.unit + ")" : "")}>
                       <input
-                        className={INPUT}
+                        className="w-full rounded border border-[#2f5b75] bg-[#0a2744]/50 px-3 py-2 text-sm text-[#8fbcc0] focus:outline-none cursor-not-allowed"
                         type="text"
-                        value={data.rae_no ?? ""}
-                        onChange={(e) => setData((current) => ({ ...current, rae_no: e.target.value }))}
+                        value={data.prepared_by ?? user.initials ?? ""}
+                        readOnly
                       />
-                      {raeLookup.status === "loading" && (
-                        <span className="text-xs text-[#b9d2d3]">searching…</span>
-                      )}
-                      {raeLookup.status === "ok" && (
-                        <span className="text-xs text-[#6fd08a]">{raeLookup.message}</span>
-                      )}
-                      {raeLookup.status === "error" && (
-                        <span className="text-xs text-[#ff8e9c]">{raeLookup.message}</span>
+                      <span className="text-xs text-[#6b7c86]">Auto-filled from your profile initials</span>
+                    </Labeled>
+                  </div>
+                )}
+                {generalFields.map((field) => (
+                  <Field key={field.id} field={field} value={data[field.id]} onChange={(value) => setData((current) => ({ ...current, [field.id]: value }))} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {route === "projects" && <div className="space-y-6"><MaterialEditor catalog={materialsCatalog} mode={materialMode} setMode={setMaterialMode} selectedId={selectedMaterialId} setSelectedId={setSelectedMaterialId} data={data} setData={setData} materialMeta={materialMeta} setMaterialMeta={setMaterialMeta} status={materialStatus} /><ComplianceEditor rows={standards} setRows={setStandards} catalog={standardsCatalog} request={request} /></div>}
+
+          {route === "section" && (
+            <div className="flex h-[calc(100vh-150px)] overflow-hidden border rounded-2xl border-[#2a5068] bg-[#0b2b47]">
+              <div className="w-1/2 flex flex-col overflow-y-auto bg-[#0b2b47]/60">
+                <SectionEditor sections={schema.sections} section={activeSection} data={data} setData={setData} files={files} setFiles={setFiles} extraImages={extraImages} setExtraImages={setExtraImages} removedSchemaImages={removedSchemaImages} setRemovedSchemaImages={setRemovedSchemaImages} selected={selected} setSelected={setSelected} onOpenImageEditor={openImageEditor} editingImage={editingImage} onFileChange={handleFileChange} originals={originals}>{activeSection.id === "requirements" && <p className="text-sm text-[#b7d1d2]">Requirements are generated from the Summary of Compliance entries in <Link href="/projects" className="font-semibold text-[#81c9c2] underline">Project </Link>.</p>}{activeSection.id === "cert" && <p className="text-sm text-[#b7d1d2]">The certificate QR code and Australia watermark are applied automatically in preview and final documents.</p>}</SectionEditor>
+              </div>
+              <div className="w-1/2 border-l border-[#2a5068]/60 flex flex-col overflow-hidden bg-[#0a2744]">
+                {editingImage ? (
+                  <div className="min-h-0 flex-1 p-3">
+                    <ImageEditor
+                      key={editingImage.id}
+                      imageUrl={editingImage.url}
+                      initialState={editorStates[editingImage.id]}
+                      title={editingImage.label}
+                      onSave={handleEditorSave}
+                      onClose={closeImageEditor}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col border-b border-[#2a5068]/40 overflow-hidden">
+                    <div className="p-4 border-b border-[#2a5068]/40 bg-[#0a2744]/60">
+                      <p className="text-xs font-medium text-[#f84f63]">PDF preview</p>
+                      <h3 className="mt-1 text-sm font-semibold text-white">{activeSection.title}</h3>
+                      <p className="mt-1 text-xs text-[#9bbcc0]">Page {preview?.section_pages?.[activeSection.id] || "—"} of {preview?.pages?.length || 0}</p>
+                    </div>
+                    <div className="flex-1 overflow-auto p-4 bg-[#061d31] flex items-center justify-center">
+                      {previewLoading ? (
+                        <p className="text-xs text-[#9bbcc0]">Rendering preview…</p>
+                      ) : previewPage ? (
+                        <img
+                          src={previewPage.dataUrl}
+                          alt="Section preview"
+                          className="max-w-full max-h-full object-contain border border-[#2a5068]/40 rounded-md bg-black"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-xs text-[#5c7a86]">
+                          <p>No preview available</p>
+                          <p className="mt-1 text-[10px] text-[#6b7c86]">Generate a preview to see this section's PDF page.</p>
+                        </div>
                       )}
                     </div>
-                  </Labeled>
-                </div>
-              )}
-              {preparedByField && (
-                <div className="xl:col-span-3">
-                  <Labeled label={preparedByField.label + (preparedByField.unit ? " (" + preparedByField.unit + ")" : "")}>
-                    <input
-                      className="w-full rounded border border-[#2f5b75] bg-[#0a2744]/50 px-3 py-2 text-sm text-[#8fbcc0] focus:outline-none cursor-not-allowed"
-                      type="text"
-                      value={data.prepared_by ?? user.initials ?? ""}
-                      readOnly
-                    />
-                    <span className="text-xs text-[#6b7c86]">Auto-filled from your profile initials</span>
-                  </Labeled>
-                </div>
-              )}
-              {generalFields.map((field) => (
-                <Field key={field.id} field={field} value={data[field.id]} onChange={(value) => setData((current) => ({ ...current, [field.id]: value }))} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {route === "projects" && <div className="space-y-6"><MaterialEditor catalog={materialsCatalog} mode={materialMode} setMode={setMaterialMode} selectedId={selectedMaterialId} setSelectedId={setSelectedMaterialId} data={data} setData={setData} materialMeta={materialMeta} setMaterialMeta={setMaterialMeta} status={materialStatus} /><ComplianceEditor rows={standards} setRows={setStandards} catalog={standardsCatalog} request={request} /></div>}
-
-        {route === "section" && (
-          <div className="flex h-[calc(100vh-150px)] overflow-hidden border rounded-2xl border-[#2a5068] bg-[#0b2b47]">
-            <div className="w-1/2 flex flex-col overflow-y-auto bg-[#0b2b47]/60">
-              <SectionEditor sections={schema.sections} section={activeSection} data={data} setData={setData} files={files} setFiles={setFiles} extraImages={extraImages} setExtraImages={setExtraImages} removedSchemaImages={removedSchemaImages} setRemovedSchemaImages={setRemovedSchemaImages} selected={selected} setSelected={setSelected} onOpenImageEditor={openImageEditor} editingImage={editingImage} onFileChange={handleFileChange} originals={originals}>{activeSection.id === "requirements" && <p className="text-sm text-[#b7d1d2]">Requirements are generated from the Summary of Compliance entries in <Link href="/projects" className="font-semibold text-[#81c9c2] underline">Project libraries</Link>.</p>}{activeSection.id === "cert" && <p className="text-sm text-[#b7d1d2]">The certificate QR code and Australia watermark are applied automatically in preview and final documents.</p>}</SectionEditor>
-            </div>
-            <div className="w-1/2 border-l border-[#2a5068]/60 flex flex-col overflow-hidden bg-[#0a2744]">
-              {editingImage ? (
-                <div className="min-h-0 flex-1 p-3">
-                  <ImageEditor
-                    key={editingImage.id}
-                    imageUrl={editingImage.url}
-                    initialState={editorStates[editingImage.id]}
-                    title={editingImage.label}
-                    onSave={handleEditorSave}
-                    onClose={closeImageEditor}
-                  />
-                </div>
-              ) : (
-                <div className="flex-1 flex flex-col border-b border-[#2a5068]/40 overflow-hidden">
-                  <div className="p-4 border-b border-[#2a5068]/40 bg-[#0a2744]/60">
-                    <p className="text-xs font-medium text-[#f84f63]">PDF preview</p>
-                    <h3 className="mt-1 text-sm font-semibold text-white">{activeSection.title}</h3>
-                    <p className="mt-1 text-xs text-[#9bbcc0]">Page {preview?.section_pages?.[activeSection.id] || "—"} of {preview?.pages?.length || 0}</p>
                   </div>
-                  <div className="flex-1 overflow-auto p-4 bg-[#061d31] flex items-center justify-center">
-                    {previewLoading ? (
-                      <p className="text-xs text-[#9bbcc0]">Rendering preview…</p>
-                    ) : previewPage ? (
-                      <img
-                        src={previewPage.dataUrl}
-                        alt="Section preview"
-                        className="max-w-full max-h-full object-contain border border-[#2a5068]/40 rounded-md bg-black"
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-full text-xs text-[#5c7a86]">
-                        <p>No preview available</p>
-                        <p className="mt-1 text-[10px] text-[#6b7c86]">Generate a preview to see this section's PDF page.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {route === "issue" && (
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-            <div className={CARD}>
-              <p className={EYEBROW}>Ready to issue</p>
-              <h2 className="mt-1 text-2xl font-semibold text-white">Review and export</h2>
+          {route === "issue" && (
+            <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+              <div className={CARD}>
+                <p className={EYEBROW}>Ready to issue</p>
+                <h2 className="mt-1 text-2xl font-semibold text-white">Review and export</h2>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-[#b6d3d4]">
+                  Preview uses the same report engine as the final download. Check warnings and attached evidence before issuing the certification.
+                </p>
+                <div className="mt-7 flex flex-wrap gap-3">
+                  <ActionButton onClick={() => generate("preview")} disabled={Boolean(busy)} className="flex-1 sm:flex-none">
+                    {busy === "preview" ? "Creating preview…" : "Preview PDF"}
+                  </ActionButton>
+                  <ActionButton variant="secondary" onClick={() => generate("pdf")} disabled={Boolean(busy)} className="flex-1 sm:flex-none">
+                    {busy === "pdf" ? "Creating PDF…" : "Download PDF"}
+                  </ActionButton>
+                  <ActionButton variant="secondary" onClick={() => generate("word")} disabled={Boolean(busy)} className="flex-1 sm:flex-none">
+                    {busy === "word" ? "Creating Word…" : "Download Word"}
+                  </ActionButton>
+                  <ActionButton variant="ghost" onClick={() => downloadTemplate("word")} className="flex-1 sm:flex-none">Blank Word</ActionButton>
+                </div>
+                {previewUrl && (
+                  <div className="mt-7 overflow-hidden rounded-xl border border-[#2a5068] bg-[#061d31]">
+                    <iframe title="Generated report preview" src={previewUrl} className="h-[70vh] min-h-[420px] w-full lg:h-[720px]" />
+                  </div>
+                )}
+              </div>
+
+              <aside className="h-fit rounded-2xl border border-[#2a5068] bg-[#0b2b47] p-6">
+                <h3 className="font-semibold text-white">Issue checklist</h3>
+                <div className="mt-5 space-y-4 text-sm text-[#bdd6d6]">
+                  <p><b className="text-[#f84f63]">{selected.length}</b> sections included</p>
+                  <p><b className="text-[#f84f63]">{reportRows.length}</b> compliance rows</p>
+                  <p><b className="text-[#f84f63]">{Object.values(files).filter(Boolean).length}</b> evidence files attached</p>
+                </div>
+                <div className="mt-8 rounded-xl bg-[#77c2bd]/10 p-4 text-xs leading-5 text-[#cbe3df]">
+                  The certificate includes the standard verification QR and Australia watermark automatically.
+                </div>
+              </aside>
+            </section>
+          )}
+
+          {route === "help" && (
+            <section className={CARD}>
+              <p className={EYEBROW}>Help & documentation</p>
+              <h2 className="mt-1 text-2xl font-semibold text-white">Help & documentation</h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[#b6d3d4]">
-                Preview uses the same report engine as the final download. The Word file is a page-faithful visual companion of the controlled PDF; its pages are not independently editable. Check warnings and attached evidence before issuing the certification.
+                Learn how to create trailer certification reports, manage project libraries, and issue final documents.
+                Preview uses the same report engine as the final download. The Word file is a page-faithful visual
+                companion of the controlled PDF; its pages are not independently editable. Check warnings and attached
+                evidence before issuing the certification.
               </p>
-              <div className="mt-7 flex flex-wrap gap-3">
-                <ActionButton onClick={() => generate("preview")} disabled={Boolean(busy)} className="flex-1 sm:flex-none">
-                  {busy === "preview" ? "Creating preview…" : "Preview PDF"}
-                </ActionButton>
-                <ActionButton variant="secondary" onClick={() => generate("pdf")} disabled={Boolean(busy)} className="flex-1 sm:flex-none">
-                  {busy === "pdf" ? "Creating PDF…" : "Download PDF"}
-                </ActionButton>
-                <ActionButton variant="secondary" onClick={() => generate("word")} disabled={Boolean(busy)} className="flex-1 sm:flex-none">
-                  {busy === "word" ? "Creating Word…" : "Download Word"}
-                </ActionButton>
-                <ActionButton variant="ghost" onClick={() => downloadTemplate("word")} className="flex-1 sm:flex-none">Blank Word</ActionButton>
-              </div>
-              {previewUrl && (
-                <div className="mt-7 overflow-hidden rounded-xl border border-[#2a5068] bg-[#061d31]">
-                  <iframe title="Generated report preview" src={previewUrl} className="h-[70vh] min-h-[420px] w-full lg:h-[720px]" />
+              <div className="mt-7 space-y-4">
+                <div className="rounded-xl border border-[#2f5b75] bg-[#0a2744] p-4">
+                  <h4 className="font-semibold text-white mb-2">Getting started</h4>
+                  <ul className="text-sm text-[#c8dfe1] space-y-2 list-disc pl-5">
+                    <li>Enter RAE ID to look up project details automatically</li>
+                    <li>Add materials from the project library</li>
+                    <li>Complete compliance entries for each standard</li>
+                    <li>Attach evidence images to report sections</li>
+                    <li>Preview and export PDF or Word reports</li>
+                  </ul>
                 </div>
-              )}
-            </div>
+                <div className="rounded-xl border border-[#2f5b75] bg-[#0a2744] p-4">
+                  <h4 className="font-semibold text-white mb-2">Project libraries</h4>
+                  <ul className="text-sm text-[#c8dfe1] space-y-2 list-disc pl-5">
+                    <li>Standards library — browse applicable standards and clauses</li>
+                    <li>Materials library — manage steel, bolt, and welding material data</li>
+                    <li>Source standards — link compliance entries to source documents</li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+          )}
 
-            <aside className="h-fit rounded-2xl border border-[#2a5068] bg-[#0b2b47] p-6">
-              <h3 className="font-semibold text-white">Issue checklist</h3>
-              <div className="mt-5 space-y-4 text-sm text-[#bdd6d6]">
-                <p><b className="text-[#f84f63]">{selected.length}</b> sections included</p>
-                <p><b className="text-[#f84f63]">{reportRows.length}</b> compliance rows</p>
-                <p><b className="text-[#f84f63]">{Object.values(files).filter(Boolean).length}</b> evidence files attached</p>
+          {route === "faq" && (
+            <section className={CARD}>
+              <p className={EYEBROW}>FAQ</p>
+              <h2 className="mt-1 text-2xl font-semibold text-white">Raised and Answered Questions</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-[#b6d3d4]">
+                Common questions and answers about trailer certification reports.
+              </p>
+              <div className="mt-7 space-y-3">
+                <div className="rounded-xl border border-[#2f5b75] bg-[#0a2744] p-4">
+                  <h4 className="font-semibold text-white mb-2">How do I find my project by RAE ID?</h4>
+                  <p className="text-sm text-[#b6d3d4] mt-1">Enter the RAE ID in the Project information page and the project name will be filled in automatically using fuzzy matching.</p>
+                </div>
+                <div className="rounded-xl border border-[#2f5b75] bg-[#0a2744] p-4">
+                  <h4 className="font-semibold text-white mb-2">How do I set my profile initials?</h4>
+                  <p className="text-sm text-[#b6d3d4] mt-1">Open the profile menu from your avatar, enter initials (up to 5 characters), and they will appear on your Prepared By field automatically.</p>
+                </div>
+                <div className="rounded-xl border border-[#2f5b75] bg-[#0a2744] p-4">
+                  <h4 className="font-semibold text-white mb-2">Can I attach images to sections?</h4>
+                  <p className="text-sm text-[#b6d3d4] mt-1">Yes — use the + Add image button on any section card to upload evidence images. Captions and placement are configurable per image.</p>
+                </div>
               </div>
-              <div className="mt-8 rounded-xl bg-[#77c2bd]/10 p-4 text-xs leading-5 text-[#cbe3df]">
-                The certificate includes the standard verification QR and Australia watermark automatically.
+            </section>
+          )}
+          {route === "not-found" && <section className={CARD}><p className="text-[#ff8e9c]">This report page does not exist.</p><Link href="/" className="mt-4 inline-block text-sm font-semibold text-[#8ed0c9] underline">Return to project details</Link></section>}
+          <div className="mt-12 border-t border-[#2a5068]/40 pt-8 px-6">
+            <div className="flex flex-wrap justify-between items-center gap-4">
+              <div className="text-xs text-[#6b7c86] uppercase tracking-wider font-medium">Stage navigation</div>
+              <div className="flex items-center gap-3 text-sm text-[#b9d2d3]">
+                <span className="text-[#6b7c86]">{route === "home" ? "1" : route === "projects" ? "2" : route === "section" ? "3" : "4"} / 4</span>
               </div>
-            </aside>
-          </section>
-        )}
-        {route === "not-found" && <section className={CARD}><p className="text-[#ff8e9c]">This report page does not exist.</p><Link href="/" className="mt-4 inline-block text-sm font-semibold text-[#8ed0c9] underline">Return to project details</Link></section>}
-        <div className="mt-12 border-t border-[#2a5068]/40 pt-8 px-6">
-          <div className="flex flex-wrap justify-between items-center gap-4">
-            <div className="text-xs text-[#6b7c86] uppercase tracking-wider font-medium">Stage navigation</div>
-            <div className="flex items-center gap-3 text-sm text-[#b9d2d3]">
-              <span className="text-[#6b7c86]">{route === "home" ? "1" : route === "projects" ? "2" : route === "section" ? "3" : "4"} / 4</span>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  if (route === "home") router.push("/");
-                  else if (route === "projects") router.push("/");
-                  else if (route === "section") {
-                    const idx = schema.sections.findIndex((s) => s.id === activeSection.id);
-                    router.push(idx > 0 ? `/section/${schema.sections[idx - 1].id}` : "/projects");
-                  } else if (route === "issue") router.push("/section/" + (schema.sections.find((s) => s.id === "cert")?.id || schema.sections[0]?.id || ""));
-                }}
-                className="rounded-md px-4 py-2 text-sm font-semibold border border-[#2f5b75] bg-transparent text-[#b9d2d3] hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                Back
-              </button>
-              <button
-                onClick={() => {
-                  if (route === "home") router.push("/projects");
-                  else if (route === "projects") {
-                    const firstSection = schema.sections[0];
-                    router.push(firstSection ? `/section/${firstSection.id}` : "/issue");
-                  }
-                  else if (route === "section") {
-                    const idx = schema.sections.findIndex((s) => s.id === activeSection.id);
-                    router.push(idx < schema.sections.length - 1 ? `/section/${schema.sections[idx + 1].id}` : "/issue");
-                  } else if (route === "issue") router.push("/issue");
-                }}
-                className="rounded-md px-4 py-2 text-sm font-semibold border border-[#f84f63] bg-[#f84f63] text-[#0a1f36] hover:bg-[#ff667a] disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    if (route === "home") router.push("/");
+                    else if (route === "projects") router.push("/");
+                    else if (route === "section") {
+                      const idx = schema.sections.findIndex((s) => s.id === activeSection.id);
+                      router.push(idx > 0 ? `/section/${schema.sections[idx - 1].id}` : "/projects");
+                    } else if (route === "issue") router.push("/section/" + (schema.sections.find((s) => s.id === "cert")?.id || schema.sections[0]?.id || ""));
+                  }}
+                  className="rounded-md px-4 py-2 text-sm font-semibold border border-[#2f5b75] bg-transparent text-[#b9d2d3] hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={() => {
+                    if (route === "home") router.push("/projects");
+                    else if (route === "projects") {
+                      const firstSection = schema.sections[0];
+                      router.push(firstSection ? `/section/${firstSection.id}` : "/issue");
+                    }
+                    else if (route === "section") {
+                      const idx = schema.sections.findIndex((s) => s.id === activeSection.id);
+                      router.push(idx < schema.sections.length - 1 ? `/section/${schema.sections[idx + 1].id}` : "/issue");
+                    } else if (route === "issue") router.push("/issue");
+                  }}
+                  className="rounded-md px-4 py-2 text-sm font-semibold border border-[#f84f63] bg-[#f84f63] text-[#0a1f36] hover:bg-[#ff667a] disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
       {profileModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-[#0a1f36]/60 backdrop-blur-sm" onClick={closeProfile} />
@@ -1626,7 +1919,7 @@ export default function ReportGenix() {
                     <label className="block text-xs text-[#8fbcc0] mb-1">Initials</label>
                     <input
                       className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#f84f63] text-uppercase"
-                      maxlength="5"
+                      maxLength={5}
                       value={profileForm.initials}
                       onChange={(e) => setProfileForm((current) => ({ ...current, initials: e.target.value.toUpperCase() }))}
                       placeholder="JD"
