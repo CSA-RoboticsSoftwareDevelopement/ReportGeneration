@@ -278,9 +278,23 @@ class CellField(Flowable):
         self.canv.acroForm.textfield(name=self.name, value="", x=self.canv.absolutePosition(0, 0)[0], y=self.canv.absolutePosition(0, 0)[1], width=self.w, height=6 * mm, fontName="Helvetica", fontSize=8.5,
             textColor=colors.black, fillColor=colors.white, borderColor=colors.HexColor("#9AA5B5"), borderWidth=0.6, forceBorder=True)
 
+class PageMarker(Flowable):
+    """Marker flowable that records the page number a section starts on."""
+    def __init__(self, section_id):
+        super().__init__(); self.section_id = section_id
+    def wrap(self, aw, ah):
+        self.w = 0; self.h = 0; return 0, 0
+    def draw(self):
+        try:
+            self.canv._section_pages[self.section_id] = self.canv.getPageNumber()
+        except Exception:
+            pass
+
+
 class NumCanvas(rl_canvas.Canvas):
-    def __init__(self, *a, meta=None, **k):
+    def __init__(self, *a, meta=None, section_pages=None, **k):
         super().__init__(*a, **k); self._st = []; self.meta = meta or {}
+        self._section_pages = section_pages if section_pages is not None else {}
     def showPage(self):
         self._st.append(dict(self.__dict__)); self._startPage()
     def save(self):
@@ -651,6 +665,7 @@ def build(data=None, images=None, selected=None, template=False, layout=None, ex
     data = {} if template else (data or {})
     c = Ctx(data, images or {}, template, layout, extras, removed)
     ids = selected or [s["id"] for s in SECTIONS]
+    section_pages = {}
     story = []
     for s in SECTIONS:
         if s["id"] in ids:
@@ -659,7 +674,7 @@ def build(data=None, images=None, selected=None, template=False, layout=None, ex
             # of a section's wording while retaining its editable figures.
             custom_body = c.raw("body__" + s["id"])
             if custom_body and not template:
-                section_story = [c.P(s["title"], "h1")]
+                section_story = [PageMarker(s["id"]), c.P(s["title"], "h1")]
                 for paragraph in custom_body.replace("\r\n", "\n").split("\n\n"):
                     text = paragraph.strip()
                     if text:
@@ -668,7 +683,7 @@ def build(data=None, images=None, selected=None, template=False, layout=None, ex
                     section_story += c.slot(image_info["id"], image_info["label"], image_info["h"])
                 section_story.append(PageBreak())
             else:
-                section_story = BUILD[s["id"]](c)
+                section_story = [PageMarker(s["id"])] + BUILD[s["id"]](c)
             added_figures = c.extra_slots(s["id"])
             if added_figures:
                 ends_page = bool(section_story and isinstance(section_story[-1], PageBreak))
@@ -683,12 +698,13 @@ def build(data=None, images=None, selected=None, template=False, layout=None, ex
     doc = BaseDocTemplate(buf, pagesize=A4, title=c.raw("project_name") or "Trailer Certification Report", author="CSA Engineering")
     doc.addPageTemplates([PageTemplate("p", frames=[Frame(FX, 20 * mm, FW, H - 20 * mm - 38 * mm, leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)], onPage=first_page_watermark)])
     foot = f"{c.raw('rae_no') or 'RAE'} | {c.raw('report_title') or 'Trailer Certification Report'}"
-    doc.build(story, canvasmaker=functools.partial(NumCanvas, meta={"footer": foot}))
+    canvas = functools.partial(NumCanvas, meta={"footer": foot}, section_pages=section_pages)
+    doc.build(story, canvasmaker=canvas)
     out = buf.getvalue()
     if template:                                   # tidy the form PDF (removes duplicate /Font keys)
         from pypdf import PdfReader, PdfWriter
         w = PdfWriter(clone_from=PdfReader(io.BytesIO(out))); b2 = io.BytesIO(); w.write(b2); out = b2.getvalue()
-    return out, c.warn
+    return out, c.warn, section_pages
 
 
 def build_word(data=None, images=None, selected=None, template=False, layout=None, extras=None, removed=None):
@@ -712,7 +728,7 @@ def build_word(data=None, images=None, selected=None, template=False, layout=Non
     if template:
         return build_word_template(data, images, selected, layout, extras, removed)
 
-    pdf, warns = build(data, images, selected, template=template, layout=layout, extras=extras, removed=removed)
+    pdf, warns, _section_pages = build(data, images, selected, template=template, layout=layout, extras=extras, removed=removed)
     doc = Document()
     section = doc.sections[0]
     section.page_width, section.page_height = Mm(210), Mm(297)

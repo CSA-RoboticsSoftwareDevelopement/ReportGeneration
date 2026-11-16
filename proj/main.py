@@ -275,10 +275,47 @@ async def generate(request: Request):
         name = stem + "_Certification_Report.docx"
         media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     else:
-        content, warns = engine.build(data, images, selected, layout=layout, extras=extras, removed=removed)
+        content, warns, _section_pages = engine.build(data, images, selected, layout=layout, extras=extras, removed=removed)
         name = stem + "_Certification_Report.pdf"
         media_type = "application/pdf"
     return Response(content, media_type=media_type, headers={
         "Content-Disposition": f'attachment; filename="{name}"',
         "X-Warnings": urllib.parse.quote(json.dumps(warns)),
         "Access-Control-Expose-Headers": "X-Warnings, Content-Disposition"})
+
+
+@app.post("/api/preview/pages")
+async def preview_pages(request: Request):
+    """Render the report PDF and return every page as a base64 PNG, plus the
+    section -> page-number mapping so the frontend can show the right page."""
+    require_csrf(request)
+    require_user(request)
+    form = await request.form()
+    p = json.loads(form["payload"])
+    images = {}
+    for k, v in form.items():
+        if k.startswith("img__") and hasattr(v, "read"):
+            b = await v.read()
+            if b: images[k[5:]] = b
+    data, selected, layout = p.get("data", {}), p.get("selected"), p.get("layout", {})
+    if not isinstance(data, dict):
+        data = {}
+    standards = p.get("standards", [])
+    data["standards"] = standards if isinstance(standards, list) else []
+    extras, removed = p.get("extra_images", {}), p.get("removed_images", [])
+    content, warns, section_pages = engine.build(data, images, selected, layout=layout, extras=extras, removed=removed)
+
+    try:
+        import fitz  # PyMuPDF
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"PDF rendering unavailable: {exc}")
+
+    doc = fitz.open(stream=content, filetype="pdf")
+    pages = []
+    import base64
+    for i in range(len(doc)):
+        pix = doc[i].get_pixmap(matrix=fitz.Matrix(1.6, 1.6), alpha=False)
+        b64 = base64.b64encode(pix.tobytes("png")).decode()
+        pages.append({"page": i + 1, "dataUrl": "data:image/png;base64," + b64})
+    doc.close()
+    return JSONResponse({"pages": pages, "section_pages": section_pages})

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ImageEditor from "./ImageEditor";
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens (from the dark-technical login design)               */
@@ -542,7 +543,41 @@ function ComplianceEditor({ rows, setRows, catalog, request }) {
 /*  Report sections                                                    */
 /* ------------------------------------------------------------------ */
 
-function SectionEditor({ section, sections, data, setData, files, setFiles, extraImages, setExtraImages, removedSchemaImages, setRemovedSchemaImages, selected, setSelected, children }) {
+function EvidenceThumb({ file, onEdit }) {
+  const [url, setUrl] = useState("");
+  useEffect(() => {
+    if (!file) { setUrl(""); return; }
+    const next = URL.createObjectURL(file);
+    setUrl(next);
+    return () => URL.revokeObjectURL(next);
+  }, [file]);
+
+  return (
+    <div className="mt-3">
+      <p className="mb-1 text-xs font-medium text-[#8fa9b5]">Evidence image</p>
+      <div className="relative">
+        {url ? (
+          <>
+            <img src={url} alt="Preview" className="h-32 w-full rounded-md border border-[#2f5b75] bg-[#061d31] object-cover" />
+            <button
+              type="button"
+              onClick={onEdit}
+              className="absolute bottom-2 right-2 rounded-md bg-[#f84f63] px-2.5 py-1 text-xs font-semibold text-[#0a1f36] shadow hover:bg-[#ff667a]"
+            >
+              Open image in editor
+            </button>
+          </>
+        ) : (
+          <div className="flex h-32 w-full items-center justify-center rounded-md border border-dashed border-[#2f5b75]/50 bg-[#061d31]/50 text-xs text-[#5c7a86]">
+            No image attached
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SectionEditor({ section, sections, data, setData, files, setFiles, extraImages, setExtraImages, removedSchemaImages, setRemovedSchemaImages, selected, setSelected, children, onOpenImageEditor, editingImage, onFileChange, originals }) {
   const enabled = selected.includes(section.id);
   const headingId = `heading__${section.id}`;
   const router = useRouter();
@@ -593,17 +628,17 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
               {allImages.map((image) => {
                 const isSchema = image.source === "schema";
                 const cardKey = isSchema ? `schema_${image.id}` : `extra_${image.id}`;
-                const isRemoved = removedSchemaImages[`${section.id}:${image.id}`];
-                if (isRemoved) return null;
+                if (removedSchemaImages[`${section.id}:${image.id}`]) return null;
+                const isActive = editingImage?.id === image.id;
                 return (
-                  <div key={cardKey} className="rounded-xl border border-dashed border-[#2f5b75] bg-[#0a2744]/60 p-4 relative">
+                  <div
+                    key={cardKey}
+                    className={`relative rounded-xl border border-dashed p-4 ${isActive ? "border-[#f84f63] bg-[#f84f63]/5" : "border-[#2f5b75] bg-[#0a2744]/60"}`}
+                  >
                     <button
                       onClick={() => {
                         if (isSchema) {
-                          setRemovedSchemaImages((current) => ({
-                            ...current,
-                            [`${section.id}:${image.id}`]: true,
-                          }));
+                          setRemovedSchemaImages((current) => ({ ...current, [`${section.id}:${image.id}`]: true }));
                         } else {
                           setExtraImages((current) => ({
                             ...current,
@@ -621,7 +656,14 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
                     >
                       &#215;
                     </button>
-                    <p className="mb-3 text-sm font-medium text-[#d3e9e7]">Evidence image</p>
+
+                    <EvidenceThumb
+                      file={files[image.id]}
+                      onEdit={() =>
+                        onOpenImageEditor({ id: image.id, label: data[`cap__${image.id}`] || image.label || "Image" })
+                      }
+                    />
+
                     <Labeled label="Image heading / caption">
                       <input
                         className={INPUT}
@@ -649,29 +691,31 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
                       type="file"
                       accept="image/*"
                       className="mt-4 block w-full text-xs text-[#a8c9ca] file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-[#f84f63] file:px-3 file:py-2 file:text-xs file:font-semibold file:text-[#0a1f36]"
-                      onChange={(e) => setFiles((current) => ({ ...current, [image.id]: e.target.files?.[0] || null }))}
+                      onChange={(e) => onFileChange(image.id, e.target.files?.[0] || null)}
                     />
-                    {files[image.id] && <p className="mt-2 break-all text-xs text-[#8fd0c8]">Attached: {files[image.id].name}</p>}
+                    {files[image.id] && (
+                      <p className="mt-2 break-all text-xs text-[#8fd0c8]">
+                        {originals[image.id] ? "Edited in image editor" : `Attached: ${files[image.id].name}`}
+                      </p>
+                    )}
                   </div>
-                )
-              }
-              )}
-                <button
-                  onClick={() => {
-                    const newId = `extra_${section.id}_${Date.now()}`;
-                    setExtraImages((current) => ({
-                      ...current,
-                      [section.id]: [...(current[section.id] || []), { id: newId, label: "", h: 60 }],
-                    }));
-                    setData((current) => ({ ...current, [`cap__${newId}`]: "" }));
-                  }}
-                  className="flex-1 sm:flex-none rounded-md border border-[#2f5b75] bg-transparent text-[#b9d2d3] px-4 py-2 text-sm font-semibold hover:bg-white/5"
-                >
-                  + Add image
-                </button>
-              </div>
-            )
-          }
+                );
+              })}
+              <button
+                onClick={() => {
+                  const newId = `extra_${section.id}_${Date.now()}`;
+                  setExtraImages((current) => ({
+                    ...current,
+                    [section.id]: [...(current[section.id] || []), { id: newId, label: "", h: 60 }],
+                  }));
+                  setData((current) => ({ ...current, [`cap__${newId}`]: "" }));
+                }}
+                className="flex-1 sm:flex-none rounded-md border border-[#2f5b75] bg-transparent text-[#b9d2d3] px-4 py-2 text-sm font-semibold hover:bg-white/5"
+              >
+                + Add image
+              </button>
+            </div>
+          )}
         </div>
       )}
       <div className="border-t border-[#2a5068]/40 px-5 py-4 mt-6 flex flex-wrap justify-between gap-3 items-center">
@@ -726,6 +770,13 @@ export default function ReportGenix() {
   const [busy, setBusy] = useState("");
   const [raeLookup, setRaeLookup] = useState({ status: "idle", message: "", matchType: null });
   const raeTimer = useRef(null);
+
+  /* Image editor + section preview state */
+  const [editingImage, setEditingImage] = useState(null); /* { id, label, url, originalFile } */
+  const [originals, setOriginals] = useState({}); /* { [imageId]: untouched original File } */
+  const [editorStates, setEditorStates] = useState({}); /* { [imageId]: saved layers } */
+  const [preview, setPreview] = useState(null); /* { pages: [{page,dataUrl}], section_pages: {...} } */
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const request = useCallback(
     async (path, options = {}) => {
@@ -871,14 +922,22 @@ export default function ReportGenix() {
     setAuthStatus("");
     setBusy("auth");
     try {
-      const response = await request(authMode === "signup" ? "/api/auth/signup" : "/api/auth/login", {
+      // fresh token tied to the current session cookie
+      const tokenResponse = await fetch("/api/auth/csrf", { cache: "no-store", credentials: "same-origin" });
+      const { csrf_token: fresh } = await tokenResponse.json();
+      setCsrf(fresh);
+
+      const response = await fetch(authMode === "signup" ? "/api/auth/signup" : "/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": fresh },
         body: JSON.stringify(authForm),
       });
+      if (!response.ok) throw new Error(await messageFor(response));
       const payload = await response.json();
       setUser(payload.user);
-      setCsrf(payload.csrf_token || csrf);
+      setCsrf(payload.csrf_token || fresh);
       setAuthForm((form) => ({ ...form, password: "" }));
     } catch (error) {
       setAuthStatus(error.message);
@@ -895,35 +954,134 @@ export default function ReportGenix() {
       setSchema(null);
       setStandards([]);
       setFiles({});
+      setOriginals({});
+      setEditorStates({});
+      setEditingImage(null);
       setPreviewUrl("");
       setStep(1);
       window.sessionStorage.removeItem(DRAFT_KEY);
     }
   };
 
+  /* ---------------- Image editor handlers ---------------- */
+
+  const stopEditing = useCallback(() => {
+    if (editingImage?.url) URL.revokeObjectURL(editingImage.url);
+    setEditingImage(null);
+  }, [editingImage]);
+
+  const openImageEditor = useCallback(
+    (image) => {
+      // always edit from the untouched original so layers stay editable
+      const base = originals[image.id] || files[image.id];
+      if (!base) {
+        window.alert("Attach an image first, then open it in the editor.");
+        return;
+      }
+      if (editingImage?.url) URL.revokeObjectURL(editingImage.url);
+      setEditingImage({ id: image.id, label: image.label, url: URL.createObjectURL(base), originalFile: base });
+    },
+    [files, originals, editingImage]
+  );
+
+  const closeImageEditor = stopEditing;
+
+  const handleEditorSave = useCallback(
+    (file, state) => {
+      if (!editingImage) return;
+      const { id, originalFile } = editingImage;
+      setOriginals((current) => ({ ...current, [id]: current[id] || originalFile }));
+      setEditorStates((current) => ({ ...current, [id]: state }));
+      setFiles((current) => ({ ...current, [id]: file })); // flattened PNG replaces the slot image
+      stopEditing(); // right half returns to the PDF preview
+    },
+    [editingImage, stopEditing]
+  );
+
+  // Uploading a new file through the card's file input starts that slot fresh.
+  const handleFileChange = useCallback(
+    (id, file) => {
+      setFiles((current) => ({ ...current, [id]: file }));
+      setOriginals((current) => { const n = { ...current }; delete n[id]; return n; });
+      setEditorStates((current) => { const n = { ...current }; delete n[id]; return n; });
+      if (editingImage?.id === id) stopEditing();
+    },
+    [editingImage, stopEditing]
+  );
+
   const reportRows = useMemo(
     () => standards.filter((row) => row.standard || row.requirement).map(({ standard, requirement, conformity }) => ({ standard, requirement, conformity })),
     [standards]
   );
+
+  const sectionId = pathname.startsWith("/section/") ? decodeURIComponent(pathname.slice("/section/".length)) : "";
+  const activeSection = schema?.sections?.find((section) => section.id === sectionId);
+
+  /* Safely resolve the preview page for the active section. */
+  const previewPage = useMemo(() => {
+    if (!preview || !preview.pages?.length || !activeSection) return null;
+    const sectionPage = preview.section_pages?.[activeSection.id];
+    if (typeof sectionPage !== "number" || sectionPage < 1 || sectionPage > preview.pages.length) return null;
+    return preview.pages[sectionPage - 1];
+  }, [preview, activeSection]);
+
+  const loadPreview = useCallback(async () => {
+    if (!schema || !activeSection) return;
+    const payload = {
+      data,
+      standards: reportRows,
+      selected,
+      layout,
+      extra_images: {},
+      removed_images: Object.keys(removedSchemaImages)
+        .filter((key) => removedSchemaImages[key])
+        .map((key) => key.slice(key.indexOf(":") + 1)),
+    };
+    Object.entries(extraImages).forEach(([sid, images]) => {
+      payload.extra_images[sid] = images.map((img) => ({
+        id: img.id,
+        label: data[`cap__${img.id}`] || img.label || "",
+        h: Number(data[`img_height__${img.id}`] || img.h || 60),
+      }));
+    });
+    const form = new FormData();
+    form.append("payload", JSON.stringify(payload));
+    Object.entries(files).forEach(([key, file]) => {
+      if (file) form.append(`img__${key}`, file);
+    });
+    setPreviewLoading(true);
+    try {
+      const response = await request("/api/preview/pages", { method: "POST", body: form });
+      const result = await response.json();
+      setPreview(result);
+    } catch (error) {
+      console.error("Preview failed", error);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [request, schema, activeSection, data, reportRows, selected, layout, extraImages, removedSchemaImages, files]);
+
+  useEffect(() => {
+    if (!schema || !activeSection) return;
+    const timer = window.setTimeout(loadPreview, 700);
+    return () => window.clearTimeout(timer);
+  }, [schema, activeSection, loadPreview]);
 
   const generate = async (output) => {
     setBusy(output);
     try {
       const form = new FormData();
       const extraImagesPayload = {};
-      Object.entries(extraImages).forEach(([sectionId, images]) => {
-        extraImagesPayload[sectionId] = images.map((img) => ({
+      Object.entries(extraImages).forEach(([sid, images]) => {
+        extraImagesPayload[sid] = images.map((img) => ({
           id: img.id,
           label: data[`cap__${img.id}`] || img.label || "",
-          position: data[`img_align__${img.id}`] || "inherit",
-          caption_position: data[`cap_pos__${img.id}`] || "inherit",
-          height: data[`img_height__${img.id}`] || img.h || 60,
+          h: Number(data[`img_height__${img.id}`] || img.h || 60),
         }));
       });
-      const removedImagesPayload = Object.keys(removedSchemaImages).map((key) => {
-        const [sectionId, imageId] = key.split(":");
-        return { sectionId, imageId };
-      });
+      const removedImagesPayload = Object.keys(removedSchemaImages)
+        .filter((key) => removedSchemaImages[key])
+        .map((key) => key.slice(key.indexOf(":") + 1));
       form.append(
         "payload",
         JSON.stringify({
@@ -1010,8 +1168,6 @@ export default function ReportGenix() {
 
   const generalFields = schema.general.filter((field) => !MATERIAL_IDS.has(field.id) && field.id !== "rae_no");
   const raeField = schema.general.find((field) => field.id === "rae_no");
-  const sectionId = pathname.startsWith("/section/") ? decodeURIComponent(pathname.slice("/section/".length)) : "";
-  const activeSection = schema.sections.find((section) => section.id === sectionId);
   const route = pathname === "/" ? "home" : pathname === "/projects" ? "projects" : pathname === "/layout" ? "layout" : pathname === "/issue" ? "issue" : activeSection ? "section" : "not-found";
   const reportSections = schema.sections.filter((section) => section.id !== "summary");
   const layoutOptions = [
@@ -1081,7 +1237,51 @@ export default function ReportGenix() {
 
         {route === "projects" && <div className="space-y-6"><MaterialEditor catalog={materialsCatalog} mode={materialMode} setMode={setMaterialMode} selectedId={selectedMaterialId} setSelectedId={setSelectedMaterialId} data={data} setData={setData} materialMeta={materialMeta} setMaterialMeta={setMaterialMeta} status={materialStatus} /><ComplianceEditor rows={standards} setRows={setStandards} catalog={standardsCatalog} request={request} /></div>}
 
-        {route === "section" && <SectionEditor sections={schema.sections} section={activeSection} data={data} setData={setData} files={files} setFiles={setFiles} extraImages={extraImages} setExtraImages={setExtraImages} removedSchemaImages={removedSchemaImages} setRemovedSchemaImages={setRemovedSchemaImages} selected={selected} setSelected={setSelected}>{activeSection.id === "requirements" && <p className="text-sm text-[#b7d1d2]">Requirements are generated from the Summary of Compliance entries in <Link href="/projects" className="font-semibold text-[#81c9c2] underline">Project libraries</Link>.</p>}{activeSection.id === "cert" && <p className="text-sm text-[#b7d1d2]">The certificate QR code and Australia watermark are applied automatically in preview and final documents.</p>}</SectionEditor>}
+        {route === "section" && (
+          <div className="flex h-[calc(100vh-150px)] overflow-hidden border rounded-2xl border-[#2a5068] bg-[#0b2b47]">
+            <div className="w-1/2 flex flex-col overflow-y-auto bg-[#0b2b47]/60">
+              <SectionEditor sections={schema.sections} section={activeSection} data={data} setData={setData} files={files} setFiles={setFiles} extraImages={extraImages} setExtraImages={setExtraImages} removedSchemaImages={removedSchemaImages} setRemovedSchemaImages={setRemovedSchemaImages} selected={selected} setSelected={setSelected} onOpenImageEditor={openImageEditor} editingImage={editingImage} onFileChange={handleFileChange} originals={originals}>{activeSection.id === "requirements" && <p className="text-sm text-[#b7d1d2]">Requirements are generated from the Summary of Compliance entries in <Link href="/projects" className="font-semibold text-[#81c9c2] underline">Project libraries</Link>.</p>}{activeSection.id === "cert" && <p className="text-sm text-[#b7d1d2]">The certificate QR code and Australia watermark are applied automatically in preview and final documents.</p>}</SectionEditor>
+            </div>
+            <div className="w-1/2 border-l border-[#2a5068]/60 flex flex-col overflow-hidden bg-[#0a2744]">
+              {editingImage ? (
+                <div className="min-h-0 flex-1 p-3">
+                  <ImageEditor
+                    key={editingImage.id}
+                    imageUrl={editingImage.url}
+                    initialState={editorStates[editingImage.id]}
+                    title={editingImage.label}
+                    onSave={handleEditorSave}
+                    onClose={closeImageEditor}
+                  />
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col border-b border-[#2a5068]/40 overflow-hidden">
+                  <div className="p-4 border-b border-[#2a5068]/40 bg-[#0a2744]/60">
+                    <p className="text-xs font-medium text-[#f84f63]">PDF preview</p>
+                    <h3 className="mt-1 text-sm font-semibold text-white">{activeSection.title}</h3>
+                    <p className="mt-1 text-xs text-[#9bbcc0]">Page {preview?.section_pages?.[activeSection.id] || "—"} of {preview?.pages?.length || 0}</p>
+                  </div>
+                  <div className="flex-1 overflow-auto p-4 bg-[#061d31] flex items-center justify-center">
+                    {previewLoading ? (
+                      <p className="text-xs text-[#9bbcc0]">Rendering preview…</p>
+                    ) : previewPage ? (
+                      <img
+                        src={previewPage.dataUrl}
+                        alt="Section preview"
+                        className="max-w-full max-h-full object-contain border border-[#2a5068]/40 rounded-md bg-black"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-xs text-[#5c7a86]">
+                        <p>No preview available</p>
+                        <p className="mt-1 text-[10px] text-[#6b7c86]">Generate a preview to see this section's PDF page.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {route === "layout" && (
           <section className={CARD}>
@@ -1182,4 +1382,3 @@ export default function ReportGenix() {
     </Shell>
   );
 }
-
