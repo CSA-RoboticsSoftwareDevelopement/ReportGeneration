@@ -380,7 +380,7 @@ function LoginScreen({ authMode, setAuthMode, authForm, setAuthForm, submit, sta
           <div className="relative z-10 px-10 pt-9 xl:px-14 xl:pt-11">
             <img src="/csa_logo.webp" alt="CSA Engineering" className="h-16 w-auto object-contain xl:h-20" />
             <h2 className="mt-14 text-[clamp(3.2rem,6.2vw,7rem)] font-semibold leading-none tracking-tight text-[#f3f8f7]">ReportGenix</h2>
-            <div className="mt-5 flex items-center gap-2 xl:text-xl"><p className="text-lg font-light text-[#a9ccc9] flex items-center gap-2">Reimagining technical reporting with generative AI</p><img src="/ai (2).png" alt="AI" className="h-9 w-auto opacity-80" /></div>
+            <div className="mt-5 flex items-center gap-2 xl:text-xl"><p className="text-lg font-light text-[#a9ccc9] flex items-center gap-2">Reimagining technical reporting with generative AI</p><img src="/ai (3).png" alt="AI" className="h-9 w-auto opacity-80" /></div>
           </div>
           <img
             src="/fea-trailer.webp"
@@ -2334,14 +2334,13 @@ export default function ReportGenix() {
   const raeField = schema.general.find((field) => field.id === "rae_no");
   const preparedByField = schema.general.find((field) => field.id === "prepared_by");
   /* /faq and /raq are the same page (Raised and Answered Questions) */
-  const route = pathname === "/dashboard" ? "dashboard" : pathname === "/" ? "home" : pathname === "/projects" ? "projects" : pathname === "/layout" ? "layout" : pathname === "/issue" ? "issue" : pathname === "/help" ? "help" : (pathname === "/faq" || pathname === "/raq") ? "faq" : activeSection ? "section" : "not-found";
+  const route = pathname === "/dashboard" ? "dashboard" : pathname === "/" ? "home" : pathname === "/projects" ? "projects" : pathname === "/layout" ? "issue" : pathname === "/issue" ? "issue" : pathname === "/help" ? "help" : (pathname === "/faq" || pathname === "/raq") ? "faq" : activeSection ? "section" : "not-found";
 
   // Build breadcrumb items from the resolved route. Always return an array so
   // the breadcrumb renderer can safely call crumbs.map(...).
   const routeCrumb = {
     home: { label: "Project", href: null },
     projects: { label: "Libraries", href: null },
-    layout: { label: "Layout", href: null },
     issue: { label: "Preview and Download", href: null },
     help: { label: "Help", href: null },
     faq: { label: "FAQ", href: null },
@@ -2380,8 +2379,7 @@ const sidebarSteps = [
     done: sectionChildren.length > 0 && sectionChildren.every((c) => c.done),
     children: sectionChildren,
   },
-  { key: "layout", href: "/layout", label: "Layout", sub: "Document styling", active: route === "layout", done: false },
-  { key: "issue", href: "/issue", label: "Issue", sub: "Preview & export", active: route === "issue", done: false },
+  { key: "issue", href: "/issue", label: "Preview and Download", sub: "Preview & export", active: route === "issue", done: false },
 ];
 
   const sidebarExtraLinks = [
@@ -2413,8 +2411,8 @@ const sidebarSteps = [
 
       {/* Everything to the right of the fixed sidebar on large screens */}
         <div className={route === "dashboard" ? "" : "lg:pl-72"}>
-        <header className="sticky top-0 z-30 border-b border-[#2a5068]/60 bg-[#0a2744]/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-10">
-          <div className="mx-auto flex max-w-[1600px] items-center gap-3">
+        <header className="sticky top-0 z-30 border-b border-[#2a5068]/60 bg-[#0a2744]/95 px-4 pt-3 pb-6 backdrop-blur sm:px-6 lg:px-6">
+          <div className="flex w-full items-center justify-between gap-3">
             {route !== "dashboard" && (
               <button
                 onClick={() => setSidebarOpen((prev) => !prev)}
@@ -2457,7 +2455,7 @@ const sidebarSteps = [
         </header>
 
         <div className={route === "dashboard" ? "px-4 py-4 sm:px-6" : "mx-auto max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10"}>
-          <div data-tour="page-header" className={`${route === "dashboard" ? "hidden " : ""}mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7`}><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? (data[`heading__${activeSection.id}`] || activeSection.title) : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Issue</Link></div></div>
+          <div data-tour="page-header" className={`${route === "dashboard" ? "hidden " : ""}mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7`}><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? (data[`heading__${activeSection.id}`] || activeSection.title) : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Preview and Download</Link></div></div>
 
           <nav className={`${route === "dashboard" ? "hidden " : ""}flex items-center gap-1 text-xs text-[#8fbcc0] mt-4 ml-2`} aria-label="Breadcrumb">
             <Link href="/" className="hover:text-[#c8dfe1]">Home</Link>
