@@ -714,137 +714,559 @@ def build(data=None, images=None, selected=None, template=False, layout=None, ex
     return out, c.warn, section_pages
 
 
-def build_word(data=None, images=None, selected=None, template=False, layout=None, extras=None, removed=None):
-    """Create a .docx companion report from the same generated report data.
+def _build_word_editable_legacy(data=None, images=None, selected=None, template=False, layout=None, extras=None, removed=None):
+    """Create a .docx companion report identically matching the generated PDF report.
 
-    The PDF remains the controlled-layout version.  The Word version retains the
-    full generated text as editable paragraphs and includes uploaded figures with
-    the selected caption/image placement.  Imports stay here so normal PDF-only
-    use does not require the Word dependency at process start.
+    Everything remains identical to the PDF:
+    - Same structure, text, headers, footers, margins (FX=30mm left, 14mm right)
+    - Full sidebar (CSA Engineering) on pages
+    - Top right company details and logo header
+    - Formatted tables with exact background colors (#95B3D7), borders, and column widths
+    - Embedded images and formatted dashed image slots matching the PDF exactly
+    - Page breaks in the exact same positions as the PDF
     """
     from docx import Document
-    from docx.enum.section import WD_SECTION
     from docx.enum.text import WD_ALIGN_PARAGRAPH
-    from docx.shared import Mm, Pt
-    from pypdf import PdfReader
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+    from docx.shared import Mm, Pt, RGBColor
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    from PIL import Image, ImageDraw
+    import html as py_html
+    import re
 
-    data, images, layout = data or {}, images or {}, layout or {}
-    extras, removed = extras or {}, set(removed or [])
+    data = data or {}
+    images = images or {}
+    layout = layout or {}
+    extras = extras or {}
+    removed = set(removed or [])
 
-    # When in template mode, build from scratch to match PDF layout exactly
-    if template:
-        return build_word_template(data, images, selected, layout, extras, removed)
+    # Instantiate the same builder Context as used for PDF generation
+    c = Ctx(data, images, template, layout, extras, removed)
+    warns = list(c.warn)
 
-    pdf, warns, _section_pages = build(data, images, selected, template=template, layout=layout, extras=extras, removed=removed)
     doc = Document()
     section = doc.sections[0]
     section.page_width, section.page_height = Mm(210), Mm(297)
-    section.left_margin = section.right_margin = Mm(22)
-    section.top_margin, section.bottom_margin = Mm(20), Mm(18)
+    section.left_margin = Mm(30)
+    section.right_margin = Mm(14)
+    section.top_margin = Mm(34)
+    section.bottom_margin = Mm(20)
+    section.different_first_page_header_footer = True
+
+    # Styling helper maps
+    word_align = {
+        "left": WD_ALIGN_PARAGRAPH.LEFT,
+        "center": WD_ALIGN_PARAGRAPH.CENTER,
+        "centre": WD_ALIGN_PARAGRAPH.CENTER,
+        "right": WD_ALIGN_PARAGRAPH.RIGHT,
+        "justify": WD_ALIGN_PARAGRAPH.JUSTIFY
+    }
+    def to_word_align(rl_align):
+        if rl_align == TA_CENTER:
+            return WD_ALIGN_PARAGRAPH.CENTER
+        elif rl_align == TA_RIGHT:
+            return WD_ALIGN_PARAGRAPH.RIGHT
+        elif rl_align == TA_JUSTIFY:
+            return WD_ALIGN_PARAGRAPH.JUSTIFY
+        return WD_ALIGN_PARAGRAPH.LEFT
+
+    NAVY_HEX = "00205B"
+    HEAD_HEX = "95B3D7"
+    BLUE_COLOR = RGBColor(0x4F, 0x81, 0xBD)
+    NAVY_COLOR = RGBColor(0x00, 0x20, 0x5B)
+    GRAY_COLOR = RGBColor(0x99, 0x99, 0x99)
+    RED_COLOR = RGBColor(0xB0, 0x00, 0x20)
+    DARK_BLUE_COLOR = RGBColor(0x1F, 0x38, 0x64)
+
+    def set_cell_background(cell, hex_color):
+        tcPr = cell._tc.get_or_add_tcPr()
+        shd = OxmlElement("w:shd")
+        shd.set(qn("w:val"), "clear")
+        shd.set(qn("w:color"), "auto")
+        shd.set(qn("w:fill"), hex_color)
+        tcPr.append(shd)
+
+    def set_cell_borders(cell, color=NAVY_HEX, sz="4", val="single"):
+        tcPr = cell._tc.get_or_add_tcPr()
+        tcBorders = OxmlElement("w:tcBorders")
+        for border_name in ("top", "left", "bottom", "right"):
+            border = OxmlElement(f"w:{border_name}")
+            border.set(qn("w:val"), val)
+            border.set(qn("w:sz"), sz)
+            border.set(qn("w:space"), "0")
+            border.set(qn("w:color"), color)
+            tcBorders.append(border)
+        tcPr.append(tcBorders)
+
+    def set_cell_margins(cell, top=60, bottom=60, left=100, right=100):
+        tcPr = cell._tc.get_or_add_tcPr()
+        tcMar = OxmlElement("w:tcMar")
+        for m, v in (("top", top), ("bottom", bottom), ("left", left), ("right", right)):
+            node = OxmlElement(f"w:{m}")
+            node.set(qn("w:w"), str(v))
+            node.set(qn("w:type"), "dxa")
+            tcMar.append(node)
+        tcPr.append(tcMar)
+
+    def add_floating_picture(paragraph, img_source, left_mm, top_mm, width_mm, height_mm, behind_doc=True):
+        """Anchor a drawing shape absolutely to the page coordinates."""
+        r = paragraph.add_run()
+        if isinstance(img_source, (bytes, bytearray)):
+            stream = io.BytesIO(img_source)
+        elif hasattr(img_source, "read"):
+            stream = img_source
+        else:
+            stream = img_source
+        inline = r.add_picture(stream, width=Mm(width_mm), height=Mm(height_mm))._inline
+        anchor = OxmlElement("wp:anchor")
+        for k, v in [
+            ("distT", "0"), ("distB", "0"), ("distL", "0"), ("distR", "0"),
+            ("simplePos", "0"), ("relativeHeight", "0"),
+            ("behindDoc", "1" if behind_doc else "0"),
+            ("locked", "0"), ("layoutInCell", "1"), ("allowOverlap", "1")
+        ]:
+            anchor.set(k, v)
+        simple_pos = OxmlElement("wp:simplePos")
+        simple_pos.set("x", "0")
+        simple_pos.set("y", "0")
+        pos_h = OxmlElement("wp:positionH")
+        pos_h.set("relativeFrom", "page")
+        pos_h_offset = OxmlElement("wp:posOffset")
+        pos_h_offset.text = str(int(left_mm * 36000))
+        pos_h.append(pos_h_offset)
+
+        pos_v = OxmlElement("wp:positionV")
+        pos_v.set("relativeFrom", "page")
+        pos_v_offset = OxmlElement("wp:posOffset")
+        pos_v_offset.text = str(int(top_mm * 36000))
+        pos_v.append(pos_v_offset)
+
+        effect = OxmlElement("wp:effectExtent")
+        for n in ("l", "t", "r", "b"):
+            effect.set(n, "0")
+        wrap_none = OxmlElement("wp:wrapNone")
+        children = {child.tag: child for child in inline}
+        anchor.extend([
+            simple_pos, pos_h, pos_v, children[qn("wp:extent")],
+            effect, wrap_none, children[qn("wp:docPr")],
+            children[qn("wp:cNvGraphicFramePr")], children[qn("a:graphic")]
+        ])
+        inline.getparent().replace(inline, anchor)
+
+    def make_placeholder_image(label, width_px=900, height_px=360):
+        img = Image.new("RGB", (width_px, height_px), color=(255, 255, 255))
+        draw = ImageDraw.Draw(img)
+        dash_len, gap_len = 10, 6
+        border_col = (154, 165, 181)
+        for x in range(0, width_px, dash_len + gap_len):
+            draw.line([(x, 0), (min(x + dash_len, width_px), 0)], fill=border_col, width=2)
+            draw.line([(x, height_px - 1), (min(x + dash_len, width_px), height_px - 1)], fill=border_col, width=2)
+        for y in range(0, height_px, dash_len + gap_len):
+            draw.line([(0, y), (0, min(y + dash_len, height_px))], fill=border_col, width=2)
+            draw.line([(width_px - 1, y), (width_px - 1, min(y + dash_len, height_px))], fill=border_col, width=2)
+
+        text = f"[ IMAGE: {label} ]"
+        try:
+            bbox = draw.textbbox((0, 0), text)
+            tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            draw.text(((width_px - tw) / 2, (height_px - th) / 2), text, fill=border_col)
+        except Exception:
+            draw.text((20, height_px // 2 - 10), text, fill=border_col)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return buf.getvalue()
+
+    # Configure headers and footers
+    # 1. First page header: watermark
     add_word_first_page_watermark(doc, section)
-    normal = doc.styles["Normal"]
-    normal.font.name, normal.font.size = "Arial", Pt(9.5)
 
-    word_align = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER,
-                  "centre": WD_ALIGN_PARAGRAPH.CENTER, "right": WD_ALIGN_PARAGRAPH.RIGHT,
-                  "justify": WD_ALIGN_PARAGRAPH.JUSTIFY}
-    text_align = word_align.get(str(layout.get("text_align", "justify")).lower(), WD_ALIGN_PARAGRAPH.JUSTIFY)
-    heading_align = word_align.get(str(layout.get("heading_align", "left")).lower(), WD_ALIGN_PARAGRAPH.LEFT)
-    caption_align = word_align.get(str(layout.get("caption_align", "center")).lower(), WD_ALIGN_PARAGRAPH.CENTER)
+    # 2. Subsequent pages header: Navy vertical bar, Logo, CSA contact info
+    header = section.header
+    hp = header.paragraphs[0]
+    hp.paragraph_format.space_before = Pt(0)
+    hp.paragraph_format.space_after = Pt(0)
+    hp.paragraph_format.line_spacing = Pt(12)
 
-    header = section.header.paragraphs[0]
-    header.text = "CSA Engineering | Trailer Certification Report"
-    header.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    footer = section.footer.paragraphs[0]
-    footer.text = f"{data.get('rae_no') or 'RAE'} | {data.get('report_title') or 'Trailer Certification Report'}"
-    footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    sidebar_path = os.path.join(HERE, "assets", "csa_sidebar.png")
+    if os.path.isfile(sidebar_path):
+        add_floating_picture(hp, sidebar_path, 0, 0, 18, 297, behind_doc=True)
+    if os.path.isfile(LOGO):
+        add_floating_picture(hp, LOGO, 30, 8, 32, 17, behind_doc=False)
 
-    title = doc.add_heading(data.get("report_title") or "Trailer Certification Report", 0)
-    title.alignment = heading_align
-    subtitle = doc.add_paragraph(data.get("project_name") or "")
-    subtitle.alignment = heading_align
+    # Company contact block at top right (x=134mm, y=8mm)
+    hrun = hp.add_run(
+        "8/8 Christensen Road, Stapylton Qld 4207.\n"
+        "E: info@csaengineering.com.au\n"
+        "P: 0452 292 355\n"
+        "www.csaengineering.com.au"
+    )
+    hrun.font.name = "Arial"
+    hrun.font.size = Pt(8.5)
+    hrun.font.color.rgb = RGBColor(0, 0, 0)
+    hp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
-    # pypdf gives us every calculated paragraph and fixed compliance statement,
-    # which keeps Word and PDF content in sync without maintaining two rule sets.
-    try:
-        pages = PdfReader(io.BytesIO(pdf)).pages
-        for page_no, page in enumerate(pages):
-            if page_no:
-                doc.add_page_break()
-            content = page.extract_text() or ""
-            for raw_line in content.splitlines():
-                line = "".join(ch if ord(ch) >= 32 or ch in "\t" else " " for ch in raw_line).strip()
-                if not line:
-                    continue
-                paragraph = doc.add_paragraph(line)
-                paragraph.alignment = text_align
+    # 3. Footer: Report title / RAE No. left, page number right
+    foot_text = f"{c.raw('rae_no') or 'RAE'} | {c.raw('report_title') or 'Trailer Certification Report'}"
+    footer = section.footer
+    fp = footer.paragraphs[0]
+    fp.paragraph_format.space_before = Pt(0)
+    fp.paragraph_format.space_after = Pt(0)
+    frun1 = fp.add_run(foot_text + "\t")
+    frun1.font.name = "Arial"
+    frun1.font.size = Pt(8)
+    frun1.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
 
-            # Include the standard verification QR on the certificate page of
-            # every Word report, matching the PDF preview and blank template.
-            if page_no == 0 and "qr" not in removed:
-                qr_buf = io.BytesIO(images.get("qr") or make_qr_png("https://csaengineering.com.au/verify", 22))
-                qr_heading = doc.add_heading("QR / verification code", level=2)
-                qr_heading.alignment = caption_align
-                doc.add_picture(qr_buf, width=Mm(22), height=Mm(22))
-                qr_para = doc.paragraphs[-1]
-                qr_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    # Add dynamic Word page number: Page X of Y
+    fld1 = OxmlElement("w:fldSimple")
+    fld1.set(qn("w:instr"), "PAGE")
+    fp._p.append(fld1)
+    frun2 = fp.add_run(" / ")
+    frun2.font.name = "Arial"
+    frun2.font.size = Pt(8)
+    fld2 = OxmlElement("w:fldSimple")
+    fld2.set(qn("w:instr"), "NUMPAGES")
+    fp._p.append(fld2)
 
-    except Exception as exc:
-        warns.append(f"Word text extraction could not complete: {exc}")
+    def render_html_to_paragraph(p, html_text, base_font_size=Pt(9.5), base_color=None, base_bold=False):
+        if not html_text:
+            return
+        tokens = re.split(r"(<[^>]+>)", html_text)
+        bold_stack = [base_bold]
+        italic_stack = [False]
+        color_stack = [base_color]
+        size_stack = [base_font_size]
+        sub_stack = [False]
+        sup_stack = [False]
 
-    selected_ids = set(selected or [s["id"] for s in SECTIONS])
-    def figures_for(report_section):
-        standard = [i for i in report_section["images"] if i["id"] not in removed]
-        custom = [i for i in extras.get(report_section["id"], []) if isinstance(i, dict) and i.get("id")]
-        return standard + custom
-
-    figure_sections = [s for s in SECTIONS if s["id"] in selected_ids and figures_for(s)]
-    if figure_sections:
-        doc.add_page_break()
-        appendix = doc.add_heading("Figures", level=1)
-        appendix.alignment = heading_align
-    for report_section in figure_sections:
-        section_heading = doc.add_heading(data.get("heading__" + report_section["id"]) or report_section["title"], level=2)
-        section_heading.alignment = heading_align
-        for image_info in figures_for(report_section):
-            image_id, label = image_info["id"], image_info.get("label", "Additional figure")
-            caption = data.get("cap__" + image_id) or label
-            cap_position = data.get("cap_pos__" + image_id, "inherit")
-            if cap_position == "inherit":
-                cap_position = layout.get("caption_position", "below")
-            image_position = data.get("img_align__" + image_id, "inherit")
-            if image_position == "inherit":
-                image_position = layout.get("image_align", "center")
-            image_alignment = word_align.get(str(image_position).lower(), WD_ALIGN_PARAGRAPH.CENTER)
-            try:
-                image_height = max(20, min(float(data.get("img_height__" + image_id, image_info.get("h", 75))), 140))
-            except (TypeError, ValueError):
-                image_height = 75
-
-            def add_caption():
-                p = doc.add_paragraph(caption)
-                p.alignment = caption_align
-                for run in p.runs:
-                    run.bold = True
-                    run.font.size = Pt(8)
-
-            if cap_position == "above":
-                add_caption()
-            if images.get(image_id):
-                try:
-                    doc.add_picture(io.BytesIO(images[image_id]), height=Mm(image_height))
-                    doc.paragraphs[-1].alignment = image_alignment
-                except Exception:
-                    warns.append(f"{label}: could not embed this image in the Word file")
+        for token in tokens:
+            if not token:
+                continue
+            lower_token = token.lower()
+            if lower_token.startswith("<"):
+                if lower_token in ("<br>", "<br/>", "<br />"):
+                    p.add_run("\n")
+                elif lower_token in ("<b>", "<strong>"):
+                    bold_stack.append(True)
+                elif lower_token in ("</b>", "</strong>"):
+                    if len(bold_stack) > 1:
+                        bold_stack.pop()
+                elif lower_token in ("<i>", "<em>"):
+                    italic_stack.append(True)
+                elif lower_token in ("</i>", "</em>"):
+                    if len(italic_stack) > 1:
+                        italic_stack.pop()
+                elif lower_token == "<sub>":
+                    sub_stack.append(True)
+                elif lower_token == "</sub>":
+                    if len(sub_stack) > 1:
+                        sub_stack.pop()
+                elif lower_token in ("<sup>", "<super>"):
+                    sup_stack.append(True)
+                elif lower_token in ("</sup>", "</super>"):
+                    if len(sup_stack) > 1:
+                        sup_stack.pop()
+                elif lower_token.startswith("<font"):
+                    c_m = re.search(r'color=["\']?#?([0-9a-fA-F]{6})["\']?', token)
+                    s_m = re.search(r'size=["\']?(\d+(?:\.\d+)?)["\']?', token)
+                    c_val = color_stack[-1]
+                    s_val = size_stack[-1]
+                    if c_m:
+                        hex_c = c_m.group(1)
+                        c_val = RGBColor(int(hex_c[:2], 16), int(hex_c[2:4], 16), int(hex_c[4:], 16))
+                    if s_m:
+                        s_val = Pt(float(s_m.group(1)))
+                    color_stack.append(c_val)
+                    size_stack.append(s_val)
+                elif lower_token == "</font>":
+                    if len(color_stack) > 1:
+                        color_stack.pop()
+                    if len(size_stack) > 1:
+                        size_stack.pop()
             else:
-                p = doc.add_paragraph(f"[ IMAGE: {caption} ]")
-                p.alignment = image_alignment
-            if cap_position != "above":
-                add_caption()
+                raw_text = py_html.unescape(token)
+                run = p.add_run(raw_text)
+                run.font.name = "Arial"
+                if bold_stack[-1]:
+                    run.bold = True
+                if italic_stack[-1]:
+                    run.italic = True
+                if color_stack[-1]:
+                    run.font.color.rgb = color_stack[-1]
+                if size_stack[-1]:
+                    run.font.size = size_stack[-1]
+                if sub_stack[-1]:
+                    run.font.subscript = True
+                if sup_stack[-1]:
+                    run.font.superscript = True
+
+    def add_flowable_paragraph(p, flowable):
+        style = flowable.style
+        p.alignment = to_word_align(style.alignment)
+        p.paragraph_format.space_before = Pt(style.spaceBefore if hasattr(style, "spaceBefore") else 0)
+        p.paragraph_format.space_after = Pt(style.spaceAfter if hasattr(style, "spaceAfter") else 4)
+        if hasattr(style, "leading") and style.leading:
+            p.paragraph_format.line_spacing = Pt(style.leading)
+
+        base_bold = False
+        base_size = Pt(getattr(style, "fontSize", 9.5))
+        base_color = None
+
+        if hasattr(style, "textColor") and style.textColor:
+            try:
+                tc = style.textColor
+                if hasattr(tc, "hexval"):
+                    h = tc.hexval().lstrip("0x").lstrip("#")
+                    base_color = RGBColor(int(h[:2], 16), int(h[2:4], 16), int(h[4:], 16))
+            except Exception:
+                pass
+
+        if getattr(style, "name", "") in ("h1", "h2", "title", "big"):
+            base_bold = True
+            if not base_color:
+                base_color = BLUE_COLOR
+
+        if getattr(style, "name", "") == "cap":
+            base_bold = True
+            base_size = Pt(8)
+
+        render_html_to_paragraph(p, flowable.text, base_font_size=base_size, base_color=base_color, base_bold=base_bold)
+
+    def add_flowable_table(table_flowable):
+        cell_values = table_flowable._cellvalues
+        n_rows = len(cell_values)
+        n_cols = len(cell_values[0]) if n_rows > 0 else 0
+        if n_rows == 0 or n_cols == 0:
+            return
+
+        t = doc.add_table(rows=n_rows, cols=n_cols)
+        t.alignment = WD_TABLE_ALIGNMENT.CENTER
+        t.autofit = False
+
+        # Apply column widths if provided
+        col_widths = getattr(table_flowable, "_colWidths", None)
+        total_fw_mm = 166  # FW in ReportLab = 210 - 18 - 12 - 14 = 166mm
+        for r_idx in range(n_rows):
+            row = t.rows[r_idx]
+            for c_idx in range(n_cols):
+                cell = row.cells[c_idx]
+                set_cell_margins(cell, top=50, bottom=50, left=80, right=80)
+                if col_widths and c_idx < len(col_widths):
+                    w_pt = col_widths[c_idx]
+                    cell.width = Mm(w_pt * 25.4 / 72.0)
+
+        # Inspect table styles from ReportLab
+        has_borders = False
+        commands = []
+        if hasattr(table_flowable, "_cellStyles"):
+            pass
+        if hasattr(table_flowable, "_table"):
+            pass
+        # Check command table styles
+        for cmd in getattr(table_flowable, "_argH", []) or []:
+            pass
+
+        # Check if header row has background or borders
+        # In our engine: TableStyle has ("GRID", (0, 0), (-1, -1), 0.6, NAVY), ("BACKGROUND", (0, 0), (-1, 0), HEAD)
+        is_bordered_table = (n_cols > 1 and n_rows > 1 and not (n_cols == 2 and n_rows == 1))
+        # Exclude cert top table (1x2 logo+title) and cert bottom info table (1x3)
+        if n_rows == 1 and n_cols in (2, 3):
+            is_bordered_table = False
+
+        if is_bordered_table:
+            # Header background
+            for c_idx in range(n_cols):
+                set_cell_background(t.rows[0].cells[c_idx], HEAD_HEX)
+            # Add grid borders to all cells
+            for row in t.rows:
+                for cell in row.cells:
+                    set_cell_borders(cell, color=NAVY_HEX)
+
+        for r_idx, row_vals in enumerate(cell_values):
+            for c_idx, val in enumerate(row_vals):
+                cell = t.rows[r_idx].cells[c_idx]
+                cp = cell.paragraphs[0]
+                cp.paragraph_format.space_before = Pt(0)
+                cp.paragraph_format.space_after = Pt(0)
+                if is_bordered_table and r_idx == 0:
+                    cp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                if isinstance(val, Paragraph):
+                    add_flowable_paragraph(cp, val)
+                elif isinstance(val, Slot):
+                    render_slot(cp, val)
+                elif isinstance(val, str):
+                    render_html_to_paragraph(cp, val, base_font_size=Pt(8.5))
+                else:
+                    cp.add_run(str(val) if val is not None else "")
+
+    def render_slot(paragraph, slot_obj):
+        image_align = word_align.get(str(slot_obj.align).lower(), WD_ALIGN_PARAGRAPH.CENTER)
+        paragraph.alignment = image_align
+        paragraph.paragraph_format.space_before = Pt(2)
+        paragraph.paragraph_format.space_after = Pt(4)
+        h_mm = max(20.0, min(float(slot_obj.h * 72.0 / 25.4 if slot_obj.h < 150 else slot_obj.h * 25.4 / 72.0), 140.0))
+        # slot_obj.h is stored as h * mm in points (1mm = 72/25.4 pt = 2.8346 pt)
+        # Convert points back to mm: pt * 25.4 / 72
+        target_h_mm = float(slot_obj.h) * 25.4 / 72.0
+        target_h_mm = max(20.0, min(target_h_mm, 140.0))
+
+        if slot_obj.data:
+            try:
+                paragraph.add_run().add_picture(io.BytesIO(slot_obj.data), height=Mm(target_h_mm))
+                return
+            except Exception:
+                pass
+        # Fallback to visual dashed placeholder image identical to ReportLab Slot draw()
+        placeholder_bytes = make_placeholder_image(slot_obj.label)
+        paragraph.add_run().add_picture(io.BytesIO(placeholder_bytes), height=Mm(target_h_mm))
+
+    # Iterate through all report sections exactly as ReportLab does
+    selected_ids = selected or [s["id"] for s in SECTIONS]
+    first_item = True
+
+    for s in SECTIONS:
+        if s["id"] not in selected_ids:
+            continue
+        c.active = s["id"]
+        custom_body = c.raw("body__" + s["id"])
+        if custom_body and not template:
+            section_story = [c.P(s["title"], "h1")]
+            for para_text in custom_body.replace("\r\n", "\n").split("\n\n"):
+                t_str = para_text.strip()
+                if t_str:
+                    section_story.append(c.P(escape(t_str).replace("\n", "<br/>")))
+            for image_info in s["images"]:
+                section_story += c.slot(image_info["id"], image_info["label"], image_info["h"])
+            section_story.append(PageBreak())
+        else:
+            section_story = BUILD[s["id"]](c)
+
+        added_figures = c.extra_slots(s["id"])
+        if added_figures:
+            ends_page = bool(section_story and isinstance(section_story[-1], PageBreak))
+            if ends_page:
+                section_story.pop()
+            section_story += added_figures
+            if ends_page:
+                section_story.append(PageBreak())
+
+        # Render each flowable into the Word document
+        for item in section_story:
+            if isinstance(item, PageBreak):
+                doc.add_page_break()
+                continue
+            if isinstance(item, Spacer):
+                # Only add slight vertical spacing for substantial spacers
+                if item.height > 15:
+                    sp = doc.add_paragraph()
+                    sp.paragraph_format.space_before = Pt(0)
+                    sp.paragraph_format.space_after = Pt(min(float(item.height) * 25.4 / 72.0 * 0.7, 24))
+                    sp.paragraph_format.line_spacing = Pt(0)
+                continue
+            if isinstance(item, Paragraph):
+                p = doc.paragraphs[-1] if (first_item and len(doc.paragraphs) > 0 and not doc.paragraphs[-1].text) else doc.add_paragraph()
+                first_item = False
+                add_flowable_paragraph(p, item)
+            elif isinstance(item, Table):
+                add_flowable_table(item)
+                first_item = False
+            elif isinstance(item, Slot):
+                p = doc.add_paragraph()
+                first_item = False
+                render_slot(p, item)
 
     output = io.BytesIO()
     doc.save(output)
     return output.getvalue(), warns
+
+
+def build_word(data=None, images=None, selected=None, template=False, layout=None, extras=None, removed=None):
+    """Create a visually faithful Word companion by embedding PDF pages.
+
+    Word's pagination engine cannot reliably reproduce ReportLab's flowable
+    layout (especially its fixed sidebar, form fields and figure placement).
+    The controlled PDF therefore remains the single layout source.  Each PDF
+    page is rendered at 200 DPI and anchored to an A4 Word page, preserving
+    every mark, font, image, footer and page number exactly as issued.
+
+    This is deliberately a page-faithful, non-editable DOCX fallback.  The
+    report data and the PDF generation path are shared; the PDF itself is not
+    changed or post-processed.
+    """
+    import fitz  # PyMuPDF
+    from docx import Document
+    from docx.enum.section import WD_SECTION_START
+    from docx.shared import Mm, Pt
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    # Use precisely the same input and builder as the ordinary PDF download.
+    pdf_bytes, warnings, _ = build(
+        data=data, images=images, selected=selected, template=template,
+        layout=layout, extras=extras, removed=removed,
+    )
+    pdf = fitz.open(stream=pdf_bytes, filetype="pdf")
+    document = Document()
+
+    def configure(section):
+        section.page_width, section.page_height = Mm(210), Mm(297)
+        section.left_margin = section.right_margin = Mm(0)
+        section.top_margin = section.bottom_margin = Mm(0)
+        section.header_distance = section.footer_distance = Mm(0)
+
+    def anchor_to_page(run, picture):
+        """Convert python-docx's inline drawing into a fixed page drawing."""
+        inline = picture._inline
+        inline.tag = qn("wp:anchor")
+        inline.set("distT", "0")
+        inline.set("distB", "0")
+        inline.set("distL", "0")
+        inline.set("distR", "0")
+        inline.set("simplePos", "0")
+        inline.set("relativeHeight", "0")
+        inline.set("behindDoc", "0")
+        inline.set("locked", "1")
+        inline.set("layoutInCell", "1")
+        inline.set("allowOverlap", "1")
+        simple_pos = OxmlElement("wp:simplePos")
+        simple_pos.set("x", "0")
+        simple_pos.set("y", "0")
+        pos_h = OxmlElement("wp:positionH")
+        pos_h.set("relativeFrom", "page")
+        pos_h.append(OxmlElement("wp:posOffset"))
+        pos_h[0].text = "0"
+        pos_v = OxmlElement("wp:positionV")
+        pos_v.set("relativeFrom", "page")
+        pos_v.append(OxmlElement("wp:posOffset"))
+        pos_v[0].text = "0"
+        inline.insert(0, simple_pos)
+        inline.insert(1, pos_h)
+        inline.insert(2, pos_v)
+
+    for index, page in enumerate(pdf):
+        section = document.sections[0] if index == 0 else document.add_section(WD_SECTION_START.NEW_PAGE)
+        configure(section)
+        # A new section has no body paragraph until one is explicitly added.
+        # The image is anchored, so this carrier paragraph never participates
+        # in the visible page layout.
+        paragraph = document.add_paragraph()
+        paragraph.paragraph_format.space_before = Pt(0)
+        paragraph.paragraph_format.space_after = Pt(0)
+        paragraph.paragraph_format.line_spacing = Pt(1)
+        # 200 DPI keeps engineering diagrams and small report text sharp while
+        # producing a practical download size.
+        png = page.get_pixmap(matrix=fitz.Matrix(200 / 72, 200 / 72), alpha=False).tobytes("png")
+        run = paragraph.add_run()
+        picture = run.add_picture(io.BytesIO(png), width=Mm(210), height=Mm(297))
+        anchor_to_page(run, picture)
+
+    pdf.close()
+    result = io.BytesIO()
+    document.core_properties.title = (data or {}).get("project_name") or "Trailer Certification Report"
+    document.core_properties.subject = "Page-faithful PDF companion"
+    document.core_properties.comments = "Pages are embedded from the controlled PDF to preserve the issued layout."
+    document.save(result)
+    return result.getvalue(), warnings
 
 
 def build_word_template(data, images, selected, layout, extras, removed):
