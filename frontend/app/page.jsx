@@ -746,12 +746,453 @@ const initials = (name) => {
 };
 
 /* ------------------------------------------------------------------ */
+/*  Dashboard                                                          */
+/* ------------------------------------------------------------------ */
+
+const ICONS = {
+  search: "M21 21l-4.3-4.3M17 10.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z",
+  star: "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z",
+  clock: "M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z",
+  doc: "M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6",
+  file: "M7 3h7l5 5v13H7zM14 3v5h5",
+  image: "M4 5h16v14H4zM4 16l4.5-4.5 3.5 3.5 3-3 5 5M9 9.5h.01",
+  folder: "M3 6h6l2 2h10v11H3z",
+  folderPlus: "M3 6h6l2 2h10v11H3zM12 11v6M9 14h6",
+  plus: "M12 5v14M5 12h14",
+  dots: "M12 5h.01M12 12h.01M12 19h.01",
+  copy: "M9 9h11v11H9zM5 15V4h11",
+  grid: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+  list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
+  pin: "M9 3h6l-1 6 3 3H7l3-3zM12 12v9",
+  users: "M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM21 20v-1.5a4 4 0 0 0-3-3.9M15.5 4.2a3.5 3.5 0 0 1 0 6.6",
+  edit: "M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4",
+  building: "M4 21V4h10v17M14 9h6v12M8 8h2M8 12h2M8 16h2M17 13h.01M17 17h.01",
+};
+
+function Icon({ name, className = "h-4 w-4", fill = "none", sw = 1.8 }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill={fill} stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={ICONS[name]} />
+    </svg>
+  );
+}
+
+const STATUS = {
+  draft: { label: "Draft", dot: "#8fa9b5" },
+  in_review: { label: "In review", dot: "#77c2bd" },
+  approved: { label: "Approved & certified", dot: "#6fd08a" },
+  archived: { label: "Archived", dot: "#5c7a86" },
+};
+
+const newId = () => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `r_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+
+function makeThumb(file, max = 360) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(img.width * s));
+      c.height = Math.max(1, Math.round(img.height * s));
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", 0.7));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(""); };
+    img.src = url;
+  });
+}
+
+function timeAgo(ts) {
+  const s = Math.max(0, (Date.now() - ts) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) { const h = Math.floor(s / 3600); return `${h} hour${h > 1 ? "s" : ""} ago`; }
+  if (s < 172800) return "yesterday";
+  if (s < 604800) return `${Math.floor(s / 86400)} days ago`;
+  return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function BlueprintArt() {
+  return (
+    <svg viewBox="0 0 240 120" className="h-full w-full" fill="none" stroke="#4f81bd" strokeWidth="1.5" strokeLinejoin="round">
+      <path d="M30 70 L120 40 L205 58 L112 92 Z" />
+      <path d="M30 70 V82 L112 106 V92 M205 58 V70 L112 106" />
+      <path d="M120 40 L170 28 L225 44 L205 58" strokeDasharray="4 3" />
+      <circle cx="170" cy="62" r="5" />
+      <circle cx="188" cy="66" r="5" />
+      <path d="M62 60 V80 M96 52 V72" />
+    </svg>
+  );
+}
+
+const Chip = ({ children }) => (
+  <span className="rounded bg-[#16415f] px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-[#8ed0c9]">{children}</span>
+);
+
+function StarButton({ r, onUpdate, className = "" }) {
+  return (
+    <button
+      type="button"
+      title={r.starred ? "Remove star" : "Star"}
+      onClick={(e) => { e.stopPropagation(); onUpdate(r.id, { starred: !r.starred }); }}
+      className={`rounded-md bg-[#0a2744]/80 p-2 text-[#f84f63] transition hover:bg-[#16415f] ${className}`}
+    >
+      <Icon name="star" fill={r.starred ? "currentColor" : "none"} className="h-5 w-5" />
+    </button>
+  );
+}
+
+function CardMenu({ r, folders, open, setMenuId, actions }) {
+  const item = "flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-xs text-[#c8dfe1] hover:bg-white/5";
+  const head = "px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[.14em] text-[#83c6c0]";
+  const done = (on) => (on ? <span className="text-[#6fd08a]">✓</span> : null);
+  const run = (fn) => (e) => { e.stopPropagation(); setMenuId(null); fn(); };
+  return (
+    <div className="relative" data-menu>
+      <button
+        type="button"
+        aria-label="More actions"
+        onClick={(e) => { e.stopPropagation(); setMenuId(open ? null : r.id); }}
+        className="rounded-md p-1.5 text-[#9bbcc0] hover:bg-white/10 hover:text-white"
+      >
+        <Icon name="dots" sw={3} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-9 z-30 max-h-80 w-56 overflow-y-auto rounded-xl border border-[#2f5b75] bg-[#0e3250] p-1.5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <button className={item} onClick={run(() => actions.open(r.id))}>Open report</button>
+          <button className={item} onClick={run(() => actions.duplicate(r.id))}>Duplicate</button>
+          <button className={item} onClick={run(() => actions.update(r.id, { pinned: !r.pinned }))}>{r.pinned ? "Unpin" : "Pin"}</button>
+          <p className={head}>Status</p>
+          {Object.entries(STATUS).map(([key, s]) => (
+            <button key={key} className={item} onClick={run(() => actions.update(r.id, { status: key }))}>
+              <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: s.dot }} />{s.label}</span>
+              {done(r.status === key)}
+            </button>
+          ))}
+          <p className={head}>Folder</p>
+          <button className={item} onClick={run(() => actions.update(r.id, { folder: "" }))}>No folder {done(!r.folder)}</button>
+          {folders.map((f) => (
+            <button key={f} className={item} onClick={run(() => actions.update(r.id, { folder: f }))}>{f} {done(r.folder === f)}</button>
+          ))}
+          <div className="my-1 border-t border-[#2a5068]/60" />
+          <button className={`${item} text-[#ff8e9c]`} onClick={run(() => actions.remove(r.id))}>Delete</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReportCard({ r, isActive, menuOpen, setMenuId, folders, actions }) {
+  const st = STATUS[r.status] || STATUS.draft;
+  return (
+    <article className="group relative flex flex-col rounded-2xl border border-[#2a5068] bg-[#0e3250] transition hover:border-[#2f5b75]">
+      <div className="relative h-44 cursor-pointer overflow-hidden rounded-t-2xl bg-[#0a2744]" onClick={() => actions.open(r.id)}>
+        {r.thumb ? (
+          <img src={r.thumb} alt="" className="h-full w-full object-contain p-4" />
+        ) : (
+          <div className="flex h-full items-center justify-center p-6"><BlueprintArt /></div>
+        )}
+        <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+          {r.status === "archived" ? <Chip>Archived</Chip> : (<>{r.axle && <Chip>{r.axle}</Chip>}{r.rev && <Chip>Rev {r.rev}</Chip>}</>)}
+        </div>
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 bg-[#0a2744]/70 opacity-0 backdrop-blur-sm transition group-hover:pointer-events-auto group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); actions.open(r.id); }}
+            className="inline-flex items-center gap-2 rounded-md bg-[#f84f63] px-4 py-2.5 text-sm font-semibold text-[#0a1f36] hover:bg-[#ff667a]"
+          >
+            <Icon name="edit" /> Open Report
+          </button>
+          <button
+            type="button"
+            title="Duplicate"
+            onClick={(e) => { e.stopPropagation(); actions.duplicate(r.id); }}
+            className="rounded-md border border-[#2f5b75] bg-[#16415f] p-2.5 text-[#c8dfe1] hover:bg-[#1c4d6f]"
+          >
+            <Icon name="copy" />
+          </button>
+        </div>
+        <StarButton r={r} onUpdate={actions.update} className="absolute right-4 top-4 z-10" />
+      </div>
+
+      <div className="flex flex-1 flex-col p-5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase tracking-[.12em]" style={{ color: st.dot }}>
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: st.dot }} />
+            <span className="truncate">{st.label}</span>
+            {isActive && <span className="rounded-full border border-[#f84f63]/50 px-2 py-0.5 text-[10px] font-medium normal-case tracking-normal text-[#f84f63]">Current</span>}
+          </span>
+          <CardMenu r={r} folders={folders} open={menuOpen} setMenuId={setMenuId} actions={actions} />
+        </div>
+        <h3 className="mt-3 truncate text-base font-semibold text-white" title={r.title}>{r.title}</h3>
+        <p className="mt-1 text-xs text-[#9bbcc0]">Edited {timeAgo(r.updatedAt)} by <span className="text-[#c8dfe1]">{r.editor || "—"}</span></p>
+        <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[#9bbcc0]">
+          <span className="flex items-center gap-1.5"><Icon name="doc" /> {r.sections} sections</span>
+          <span className="flex items-center gap-1.5"><Icon name="image" /> {r.figures} figures</span>
+          {r.pinned && <span className="flex items-center gap-1.5 text-[#77c2bd]"><Icon name="pin" /> Pinned</span>}
+          {r.folder && <span className="flex items-center gap-1.5"><Icon name="folder" /> {r.folder}</span>}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ReportRow({ r, isActive, menuOpen, setMenuId, folders, actions }) {
+  const st = STATUS[r.status] || STATUS.draft;
+  return (
+    <div
+      onClick={() => actions.open(r.id)}
+      className="flex cursor-pointer items-center gap-4 rounded-xl border border-[#2a5068] bg-[#0e3250] px-4 py-3 transition hover:border-[#2f5b75]"
+    >
+      <div className="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[#0a2744]">
+        {r.thumb ? <img src={r.thumb} alt="" className="h-full w-full object-contain" /> : <div className="h-full w-full p-1"><BlueprintArt /></div>}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-white">{r.title}{isActive && <span className="ml-2 text-[10px] font-medium text-[#f84f63]">Current</span>}</p>
+        <p className="mt-0.5 text-xs text-[#9bbcc0]">Edited {timeAgo(r.updatedAt)} by {r.editor || "—"}</p>
+      </div>
+      <span className="hidden items-center gap-2 text-[11px] font-semibold uppercase tracking-[.12em] sm:flex" style={{ color: st.dot }}>
+        <span className="h-2 w-2 rounded-full" style={{ background: st.dot }} />{st.label}
+      </span>
+      <span className="hidden w-24 text-xs text-[#9bbcc0] md:block">{r.sections} sections</span>
+      <span className="hidden w-24 text-xs text-[#9bbcc0] md:block">{r.figures} figures</span>
+      <StarButton r={r} onUpdate={actions.update} />
+      <CardMenu r={r} folders={folders} open={menuOpen} setMenuId={setMenuId} actions={actions} />
+    </div>
+  );
+}
+
+const DASH_SELECT = "rounded-md border border-[#2f5b75] bg-[#16415f] px-3 py-2 text-sm text-white outline-none focus:border-[#f84f63]";
+
+function Dashboard({ reports, folders, activeId, onOpen, onCreate, onDuplicate, onDelete, onUpdate, onAddFolder }) {
+  const [scope, setScope] = useState("recents");
+  const [tab, setTab] = useState("viewed");
+  const [status, setStatus] = useState("all");
+  const [sort, setSort] = useState("modified");
+  const [view, setView] = useState("grid");
+  const [query, setQuery] = useState("");
+  const [menuId, setMenuId] = useState(null);
+  const searchRef = useRef(null);
+  const [folderModal, setFolderModal] = useState(false);
+  const [folderName, setFolderName] = useState("");
+  const [folderError, setFolderError] = useState("")
+
+
+  useEffect(() => {
+    const onKey = (e) => {
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName || "");
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); searchRef.current?.focus(); }
+      else if (e.key === "/" && !typing) { e.preventDefault(); searchRef.current?.focus(); }
+    };
+    const onDown = (e) => { if (!e.target.closest?.("[data-menu]")) setMenuId(null); };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onDown);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("mousedown", onDown); };
+  }, []);
+
+  const visible = useMemo(() => {
+    if (tab === "shared") return [];
+    const q = query.trim().toLowerCase();
+    let list = reports.filter((r) => {
+      if (scope === "drafts" && r.status !== "draft") return false;
+      if (scope === "starred" && !r.starred) return false;
+      if (scope.startsWith("folder:") && r.folder !== scope.slice(7)) return false;
+      if (tab === "pinned" && !r.pinned) return false;
+      if (status !== "all" && r.status !== status) return false;
+      if (q && !`${r.title} ${r.rae} ${r.project}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+    const order = Object.keys(STATUS);
+    list = [...list].sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      if (sort === "name") return a.title.localeCompare(b.title);
+      if (sort === "status") return order.indexOf(a.status) - order.indexOf(b.status);
+      return b.updatedAt - a.updatedAt;
+    });
+    return scope === "recents" ? list.slice(0, 12) : list;
+  }, [reports, scope, tab, status, sort, query]);
+
+  const openFolderModal = () => { setFolderName(""); setFolderError(""); setFolderModal(true); };
+  const submitFolder = (e) => {
+    e.preventDefault();
+    const err = onAddFolder(folderName);
+    if (err) setFolderError(err);
+    else setFolderModal(false);
+  };
+
+  const actions = { open: onOpen, duplicate: onDuplicate, remove: onDelete, update: onUpdate };
+  const NAV = [
+    ["recents", "Recents", "clock", reports.length],
+    ["drafts", "Drafts", "file", reports.filter((r) => r.status === "draft").length],
+    ["all", "All reports", "folder", null],
+    ["starred", "Starred", "star", null],
+  ];
+  const TABS = [["viewed", "Recently viewed", "clock"], ["shared", "Shared with me", "users"], ["pinned", "Pinned", "pin"]];
+  const navBtn = (on) => `flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${on ? "bg-[#16415f] font-semibold text-white ring-1 ring-[#f84f63]/60" : "text-[#c8dfe1] hover:bg-white/5 hover:text-white"}`;
+  const label = "px-3 pb-2 text-[11px] font-semibold uppercase tracking-[.14em] text-[#7f9fae]";
+
+  return (
+    <div className="flex h-[calc(100vh-90px)] overflow-hidden rounded-2xl border border-[#2a5068] bg-[#0b2b47]">
+      {/* Left panel */}
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-[#2a5068]/60 bg-[#0a2744] md:flex">
+        <div className="flex-1 overflow-y-auto px-3 py-5">
+          <p className={label}>Navigation</p>
+          <div className="space-y-1">
+            {NAV.map(([key, text, icon, count]) => (
+              <button key={key} onClick={() => setScope(key)} className={navBtn(scope === key)}>
+                <Icon name={icon} className="h-[18px] w-[18px]" />
+                <span className="flex-1 text-left">{text}</span>
+                {count !== null && <span className="text-xs text-[#7f9fae]">{count}</span>}
+              </button>
+            ))}
+          </div>
+
+          <div className="mb-2 mt-8 flex items-center justify-between pr-2">
+            <p className={label}>Project folders</p>
+            <button onClick={openFolderModal} title="New folder" className="rounded p-1 text-[#9bbcc0] hover:bg-white/10 hover:text-white">
+              <Icon name="folderPlus" className="h-[18px] w-[18px]" />
+            </button>
+          </div>
+          <div className="space-y-1">
+            {folders.length === 0 && <p className="px-3 text-xs text-[#7f9fae]">No folders yet.</p>}
+            {folders.map((f) => (
+              <button key={f} onClick={() => setScope(`folder:${f}`)} className={navBtn(scope === `folder:${f}`)}>
+                <Icon name="folder" className="h-[18px] w-[18px]" />
+                <span className="flex-1 truncate text-left">{f}</span>
+                <span className="text-xs text-[#7f9fae]">{reports.filter((r) => r.folder === f).length}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="border-t border-[#2a5068]/60 px-5 py-4">
+          <p className={`${label} px-0`}>Workspaces</p>
+          <div className="flex items-center gap-3 text-[#c8dfe1]">
+            <Icon name="building" className="h-6 w-6" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-white">CSA Engineering</p>
+              <p className="text-xs text-[#7f9fae]">{reports.length} reports</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex items-center gap-3 border-b border-[#2a5068]/60 px-5 py-4">
+          <div className="relative flex-1">
+            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8fa9b5]"><Icon name="search" className="h-5 w-5" /></span>
+            <input
+              ref={searchRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search reports by title, RAE No. or project… (press / to focus)"
+              className="w-full rounded-md border border-[#2f5b75] bg-[#0a2744] py-3 pl-11 pr-16 text-sm text-white placeholder:text-[#8fa9b5] outline-none transition focus:border-[#f84f63] focus:ring-2 focus:ring-[#f84f63]/25"
+            />
+            <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded bg-[#16415f] px-2 py-0.5 text-[10px] text-[#9bbcc0] sm:block">Ctrl K</kbd>
+          </div>
+          <button onClick={onCreate} className="inline-flex items-center gap-2 rounded-md bg-[#f84f63] px-5 py-3 text-sm font-semibold text-[#0a1f36] transition hover:bg-[#ff667a]">
+            <Icon name="plus" sw={2.4} /> New Report
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+          <div className="flex flex-wrap items-center gap-1">
+            <select value={scope} onChange={(e) => setScope(e.target.value)} className={`${DASH_SELECT} md:hidden`} aria-label="Section">
+              {NAV.map(([key, text]) => <option key={key} value={key}>{text}</option>)}
+              {folders.map((f) => <option key={f} value={`folder:${f}`}>{f}</option>)}
+            </select>
+            {TABS.map(([key, text, icon]) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm transition ${tab === key ? "bg-[#16415f] font-semibold text-white ring-1 ring-[#f84f63]/60" : "text-[#c8dfe1] hover:bg-white/5 hover:text-white"}`}
+              >
+                <Icon name={icon} /> {text}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className={DASH_SELECT} aria-label="Status filter">
+              <option value="all">All statuses ({Object.keys(STATUS).length})</option>
+              {Object.entries(STATUS).map(([key, s]) => <option key={key} value={key}>{s.label}</option>)}
+            </select>
+            <select value={sort} onChange={(e) => setSort(e.target.value)} className={DASH_SELECT} aria-label="Sort">
+              <option value="modified">Last modified</option>
+              <option value="name">Name</option>
+              <option value="status">Status</option>
+            </select>
+            <div className="flex overflow-hidden rounded-md border border-[#2f5b75]">
+              {[["grid", "grid"], ["list", "list"]].map(([key, icon]) => (
+                <button key={key} onClick={() => setView(key)} aria-label={`${key} view`} className={`p-2.5 ${view === key ? "bg-[#16415f] text-[#f84f63]" : "text-[#9bbcc0] hover:bg-white/5"}`}>
+                  <Icon name={icon} className="h-[18px] w-[18px]" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 pb-8">
+          {visible.length === 0 ? (
+            <div className="mt-6 rounded-xl border border-dashed border-[#2f5b75] p-10 text-center text-sm text-[#a9c1ca]">
+              {tab === "shared"
+                ? "Report sharing isn't available yet."
+                : reports.length === 0
+                  ? "No reports yet. Click New Report, fill in the project details and it will appear here."
+                  : "No reports match these filters."}
+            </div>
+          ) : view === "grid" ? (
+            <div className="grid gap-5 lg:grid-cols-2 2xl:grid-cols-3">
+              {visible.map((r) => (
+                <ReportCard key={r.id} r={r} isActive={r.id === activeId} menuOpen={menuId === r.id} setMenuId={setMenuId} folders={folders} actions={actions} />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {visible.map((r) => (
+                <ReportRow key={r.id} r={r} isActive={r.id === activeId} menuOpen={menuId === r.id} setMenuId={setMenuId} folders={folders} actions={actions} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      {folderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" onKeyDown={(e) => e.key === "Escape" && setFolderModal(false)}>
+          <div className="absolute inset-0 bg-[#0a1f36]/60 backdrop-blur-sm" onClick={() => setFolderModal(false)} />
+          <form onSubmit={submitFolder} className="relative mx-4 w-full max-w-sm rounded-2xl border border-[#2a5068] bg-[#0b2b47] p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-semibold text-white">New folder</h3>
+              <button type="button" onClick={() => setFolderModal(false)} aria-label="Close" className="rounded-full border border-[#2f5b75] px-2 py-1 text-xs text-[#c8dfe1] hover:bg-white/5">&times;</button>
+            </div>
+            <label className="block text-xs font-medium text-[#b9d0d8]">Folder name</label>
+            <input
+              autoFocus
+              value={folderName}
+              onChange={(e) => { setFolderName(e.target.value); setFolderError(""); }}
+              maxLength={60}
+              placeholder="e.g. Trailer Chassis ADR 62"
+              className="mt-1.5 w-full rounded-md border border-[#2f5b75] bg-[#16415f] px-3.5 py-3 text-sm text-white placeholder:text-[#8fa9b5] outline-none focus:border-[#f84f63] focus:ring-2 focus:ring-[#f84f63]/25"
+            />
+            {folderError && <p className="mt-2 text-xs text-[#ff8e9c]">{folderError}</p>}
+            <div className="mt-6 flex gap-3">
+              <button type="button" onClick={() => setFolderModal(false)} className="flex-1 rounded-md border border-[#2f5b75] bg-transparent px-4 py-2 text-sm font-semibold text-[#c8dfe1] hover:bg-white/5">Cancel</button>
+              <button type="submit" className="flex-1 rounded-md border border-[#f84f63] bg-[#f84f63] px-4 py-2 text-sm font-semibold text-[#0a1f36] hover:bg-[#ff667a]">Create folder</button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Sidebar: numbered step tracker (logo · steps · completeness)       */
 /*  Everything it needs is passed in as props because it lives         */
 /*  outside the ReportGenix component.                                 */
 /* ------------------------------------------------------------------ */
 
-const SidebarNav = ({ steps, extraLinks, completeness, sidebarOpen, setSidebarOpen, user, openProfile }) => {
+const SidebarNav = ({ steps, extraLinks, completeness, sidebarOpen, setSidebarOpen, user, openProfile, dashboardActive }) => {
   const close = () => setSidebarOpen(false);
 
   return (
@@ -772,6 +1213,18 @@ const SidebarNav = ({ steps, extraLinks, completeness, sidebarOpen, setSidebarOp
         >
           &times;
         </button>
+      </div>
+
+      {/* Dashboard */}
+      <div className="px-6 pb-2">
+        <Link
+          href="/dashboard"
+          onClick={close}
+          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${dashboardActive ? "bg-[#f84f63] text-[#0a1f36]" : "border border-[#2f5b75] bg-[#0e3250] text-[#c8dfe1] hover:bg-white/5 hover:text-white"}`}
+        >
+          <Icon name="grid" className="h-[18px] w-[18px]" />
+          <span>Dashboard</span>
+        </Link>
       </div>
 
       {/* Steps */}
@@ -914,6 +1367,13 @@ export default function ReportGenix() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  /* Dashboard */
+  const [reports, setReports] = useState([]);
+  const [folders, setFolders] = useState([]);
+  const [reportsLoaded, setReportsLoaded] = useState(false);
+  const [activeReportId, setActiveReportId] = useState("");
+  const pendingId = useRef("");
+  const sessionMedia = useRef({}); /* { [reportId]: { files, originals, editorStates } } */
   const raeTimer = useRef(null);
 
   /* Image editor + section preview state */
@@ -923,6 +1383,7 @@ export default function ReportGenix() {
   const [preview, setPreview] = useState(null); /* { pages: [{page,dataUrl}], section_pages: {...} } */
   const [previewLoading, setPreviewLoading] = useState(false);
   const [sectionPreviewIndex, setSectionPreviewIndex] = useState(0);
+
 
   const request = useCallback(
     async (path, options = {}) => {
@@ -960,6 +1421,9 @@ export default function ReportGenix() {
     setMaterialMode(saved.materialMode === "manual" ? "manual" : "library");
     setSelectedMaterialId(saved.selectedMaterialId || "");
     setMaterialMeta((current) => ({ ...current, ...(saved.materialMeta || {}) }));
+    setActiveReportId(saved.activeReportId || "");
+    setExtraImages(saved.extraImages || {});
+    setRemovedSchemaImages(saved.removedSchemaImages || {});
   }, [request]);
 
   useEffect(() => {
@@ -1032,6 +1496,15 @@ export default function ReportGenix() {
     };
   }, [data.rae_no, lookupRae]);
 
+
+  useEffect(() => {
+    if (!ready || !user) return;
+    const key = `reportgenix-landed:${user.id ?? user.email}`;
+    if (window.sessionStorage.getItem(key)) return;
+    window.sessionStorage.setItem(key, "1");
+    if (window.location.pathname === "/") router.replace("/dashboard");
+  }, [ready, user, router]);
+
   useEffect(() => { window.scrollTo({ top: 0 }); }, [pathname]);
 
   /* Close the mobile sidebar whenever the route changes. */
@@ -1039,8 +1512,8 @@ export default function ReportGenix() {
 
   useEffect(() => {
     if (!schema) return;
-    window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ data, standards, selected, layout, materialMode, selectedMaterialId, materialMeta }));
-  }, [schema, data, standards, selected, layout, materialMode, selectedMaterialId, materialMeta]);
+    window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ data, standards, selected, layout, materialMode, selectedMaterialId, materialMeta, activeReportId, extraImages, removedSchemaImages }));
+  }, [schema, data, standards, selected, layout, materialMode, selectedMaterialId, materialMeta, activeReportId, extraImages, removedSchemaImages]);
 
   useEffect(() => {
     if (materialMode !== "manual" || !data.material || !materialMeta.material_type || !data.fu || !csrf) return;
@@ -1244,6 +1717,12 @@ export default function ReportGenix() {
       setEditingImage(null);
       setPreviewUrl("");
       setStep(1);
+      setReports([]);
+      setFolders([]);
+      setReportsLoaded(false);
+      setActiveReportId("");
+      sessionMedia.current = {};
+      Object.keys(window.sessionStorage).filter((k) => k.startsWith("reportgenix-landed:")).forEach((k) => window.sessionStorage.removeItem(k));
       window.sessionStorage.removeItem(DRAFT_KEY);
     }
   };
@@ -1431,6 +1910,188 @@ export default function ReportGenix() {
     }
   };
 
+    /* ---------------- Dashboard: report records ---------------- */
+
+  const userKey = user ? String(user.id ?? user.email) : "";
+  const storeKey = `reportgenix-reports-v1:${userKey}`;
+
+  useEffect(() => {
+    if (!userKey) return;
+    try {
+      const raw = JSON.parse(window.localStorage.getItem(storeKey) || "{}");
+      setReports(Array.isArray(raw.reports) ? raw.reports : []);
+      setFolders(Array.isArray(raw.folders) ? raw.folders : []);
+    } catch {
+      setReports([]);
+      setFolders([]);
+    }
+    setReportsLoaded(true);
+  }, [userKey, storeKey]);
+
+  useEffect(() => {
+    if (!reportsLoaded || !userKey) return;
+    const write = (list) => window.localStorage.setItem(storeKey, JSON.stringify({ reports: list, folders }));
+    try {
+      write(reports);
+    } catch {
+      try { write(reports.map((r) => ({ ...r, thumb: "" }))); } catch { /* storage full */ }
+    }
+  }, [reports, folders, reportsLoaded, userKey, storeKey]);
+
+  /* Keep the current report's card up to date (only when something really changed). */
+  useEffect(() => {
+    if (!schema || !reportsLoaded || !user) return;
+    const hasContent = [data.rae_no, data.project_name, data.report_title].some((v) => String(v ?? "").trim()) || standards.length > 0;
+    if (!hasContent) return;
+    const snapshot = { data, standards, selected, layout, materialMode, selectedMaterialId, materialMeta, extraImages, removedSchemaImages };
+    const sig = JSON.stringify(snapshot);
+    const figures = Object.values(files).filter(Boolean).length;
+    const id = activeReportId || pendingId.current || (pendingId.current = newId());
+    if (!activeReportId) setActiveReportId(id);
+    setReports((cur) => {
+      const prev = cur.find((r) => r.id === id);
+      const nextFigures = figures || prev?.figures || 0;
+      if (prev && prev.sig === sig && prev.figures === nextFigures) return cur;
+      const now = Date.now();
+      const meta = {
+        title: String(data.report_title || "").trim() || String(data.project_name || "").trim() || "Untitled report",
+        rae: data.rae_no || "",
+        project: data.project_name || "",
+        rev: data.rev || "",
+        axle: data.axle_type || "",
+        sections: selected.length,
+        figures: nextFigures,
+        editor: user.full_name || user.email || "",
+        snapshot,
+        sig,
+        updatedAt: now,
+      };
+      if (prev) return cur.map((r) => (r.id === id ? { ...r, ...meta } : r));
+      return [{ id, status: "draft", starred: false, pinned: false, folder: "", thumb: "", createdAt: now, lastViewedAt: now, ...meta }, ...cur];
+    });
+  }, [schema, reportsLoaded, user, data, standards, selected, layout, materialMode, selectedMaterialId, materialMeta, extraImages, removedSchemaImages, files, activeReportId]);
+
+  /* Card thumbnail = first attached figure */
+  useEffect(() => {
+    if (!activeReportId) return;
+    const first = Object.values(files).find(Boolean);
+    if (!first) return;
+    let dead = false;
+    makeThumb(first).then((thumb) => {
+      if (dead || !thumb) return;
+      setReports((cur) => cur.map((r) => (r.id === activeReportId && r.thumb !== thumb ? { ...r, thumb } : r)));
+    });
+    return () => { dead = true; };
+  }, [files, activeReportId]);
+
+  const stashMedia = () => {
+    if (activeReportId) sessionMedia.current[activeReportId] = { files, originals, editorStates };
+  };
+
+  const resetWorkspace = () => {
+    if (!schema) return;
+    const blank = Object.fromEntries(
+      schema.general.map((f) => [f.id, f.default || (f.type === "date" ? new Date().toISOString().slice(0, 10) : "")])
+    );
+    if (user?.initials) blank.prepared_by = user.initials;
+    pendingId.current = "";
+    setActiveReportId("");
+    setData(blank);
+    setStandards([]);
+    setSelected(schema.sections.map((s) => s.id));
+    setExtraImages({});
+    setRemovedSchemaImages({});
+    setFiles({});
+    setOriginals({});
+    setEditorStates({});
+    setEditingImage(null);
+    setPreview(null);
+    setSelectedMaterialId("");
+    setMaterialMode("library");
+    setMaterialMeta({ material_type: "", category: "steel", source_standard_id: "", notes: "" });
+  };
+
+  const writeDraft = (d) => {
+    try { window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* ignore */ }
+  };
+
+  const createReport = () => {
+    stashMedia();
+    resetWorkspace();
+    const blank = Object.fromEntries(
+      schema.general.map((f) => [f.id, f.default || (f.type === "date" ? new Date().toISOString().slice(0, 10) : "")])
+    );
+    if (user?.initials) blank.prepared_by = user.initials;
+    writeDraft({
+      data: blank, standards: [], selected: schema.sections.map((s) => s.id), layout,
+      materialMode: "library", selectedMaterialId: "", materialMeta: { material_type: "", category: "steel", source_standard_id: "", notes: "" },
+      activeReportId: "", extraImages: {}, removedSchemaImages: {},
+    });
+    router.push("/");
+  };
+
+  const openReport = (id) => {
+    const rec = reports.find((r) => r.id === id);
+    if (!rec) return;
+    if (id !== activeReportId) {
+      stashMedia();
+      const s = rec.snapshot || {};
+      const media = sessionMedia.current[id] || {};
+      pendingId.current = "";
+      setData(s.data || {});
+      setStandards(s.standards || []);
+      setSelected(s.selected || schema.sections.map((x) => x.id));
+      setLayout(s.layout || layout);
+      setMaterialMode(s.materialMode === "manual" ? "manual" : "library");
+      setSelectedMaterialId(s.selectedMaterialId || "");
+      setMaterialMeta(s.materialMeta || { material_type: "", category: "steel", source_standard_id: "", notes: "" });
+      setExtraImages(s.extraImages || {});
+      setRemovedSchemaImages(s.removedSchemaImages || {});
+      setFiles(media.files || {});
+      setOriginals(media.originals || {});
+      setEditorStates(media.editorStates || {});
+      setEditingImage(null);
+      setPreview(null);
+      setActiveReportId(id);
+    }
+    const snap = rec.snapshot || {};
+    writeDraft({
+      data: snap.data || {}, standards: snap.standards || [], selected: snap.selected || schema.sections.map((x) => x.id),
+      layout: snap.layout || layout, materialMode: snap.materialMode === "manual" ? "manual" : "library",
+      selectedMaterialId: snap.selectedMaterialId || "", materialMeta: snap.materialMeta || { material_type: "", category: "steel", source_standard_id: "", notes: "" },
+      activeReportId: id, extraImages: snap.extraImages || {}, removedSchemaImages: snap.removedSchemaImages || {},
+    });
+    setReports((cur) => cur.map((r) => (r.id === id ? { ...r, lastViewedAt: Date.now() } : r)));
+    router.push("/");
+  };
+
+  const updateReport = (id, patch) => setReports((cur) => cur.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+
+  const duplicateReport = (id) => {
+    const rec = reports.find((r) => r.id === id);
+    if (!rec) return;
+    const copyId = newId();
+    const media = id === activeReportId ? { files, originals, editorStates } : sessionMedia.current[id];
+    if (media) sessionMedia.current[copyId] = media;
+    const now = Date.now();
+    setReports((cur) => [{ ...rec, id: copyId, title: `${rec.title} (copy)`, status: "draft", starred: false, pinned: false, createdAt: now, updatedAt: now, lastViewedAt: now }, ...cur]);
+  };
+
+  const deleteReport = (id) => {
+    if (!window.confirm("Delete this report from the dashboard? This can't be undone.")) return;
+    delete sessionMedia.current[id];
+    setReports((cur) => cur.filter((r) => r.id !== id));
+    if (id === activeReportId) resetWorkspace();
+  };
+
+  const addFolder = (rawName) => {
+    const name = String(rawName || "").trim();
+    if (!name) return "Enter a folder name.";
+    if (folders.some((f) => f.toLowerCase() === name.toLowerCase())) return "A folder with this name already exists.";
+    setFolders((cur) => [...cur, name]);
+    return "";
+  };
+
   if (!ready) {
     return (
       <Shell>
@@ -1473,21 +2134,23 @@ export default function ReportGenix() {
   const activeSection = schema.sections.find((section) => section.id === sectionId);
   /* /faq and /raq are the same page (Raised and Answered Questions) */
   const route =
-    pathname === "/"
-      ? "home"
-      : pathname === "/projects"
-        ? "projects"
-        : pathname === "/layout"
-          ? "layout"
-          : pathname === "/issue"
-            ? "issue"
-            : pathname === "/help"
-              ? "help"
-              : pathname === "/faq" || pathname === "/raq"
-                ? "faq"
-                : activeSection
-                  ? "section"
-                  : "not-found";
+    pathname === "/dashboard"
+      ? "dashboard"
+      : pathname === "/"
+        ? "home"
+        : pathname === "/projects"
+          ? "projects"
+          : pathname === "/layout"
+            ? "layout"
+            : pathname === "/issue"
+              ? "issue"
+              : pathname === "/help"
+                ? "help"
+                : pathname === "/faq" || pathname === "/raq"
+                  ? "faq"
+                  : activeSection
+                    ? "section"
+                    : "not-found";
   const reportSections = schema.sections.filter((section) => section.id !== "summary");
   const navClass = (active) => `rounded-md px-3 py-2 text-sm font-medium transition ${active ? "bg-[#f84f63] text-[#0a1f36]" : "text-[#c6dce2] hover:bg-white/5 hover:text-white"}`;
 
@@ -1533,32 +2196,37 @@ const sidebarSteps = [
 
   return (
     <Shell>
-      {sidebarOpen && <div className="fixed inset-0 z-40 bg-[#0a1f36]/40 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
-      <SidebarNav
-        steps={sidebarSteps}
-        extraLinks={sidebarExtraLinks}
-        completeness={completeness}
-        sidebarOpen={sidebarOpen}
-        setSidebarOpen={setSidebarOpen}
-        user={user}
-        openProfile={openProfile}
-      />
+      {route !== "dashboard" && sidebarOpen && <div className="fixed inset-0 z-40 bg-[#0a1f36]/40 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      {route !== "dashboard" && (
+        <SidebarNav
+          steps={sidebarSteps}
+          extraLinks={sidebarExtraLinks}
+          completeness={completeness}
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          user={user}
+          openProfile={openProfile}
+          dashboardActive={false}
+        />
+      )}
 
       {/* Everything to the right of the fixed sidebar on large screens */}
-      <div className="lg:pl-72">
+        <div className={route === "dashboard" ? "" : "lg:pl-72"}>
         <header className="sticky top-0 z-30 border-b border-[#2a5068]/60 bg-[#0a2744]/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-10">
           <div className="mx-auto flex max-w-[1600px] items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen((prev) => !prev)}
-              className="rounded-md border border-[#2f5b75] bg-[#0e3250] px-3 py-1.5 text-base font-semibold text-[#c8dfe1] hover:bg-white/10 focus:outline-none focus:border-[#f84f63] lg:hidden"
-              aria-label="Toggle sidebar"
-              aria-expanded={sidebarOpen}
-            >
-              ≡
-            </button>
-            <Link href="/" className="flex shrink-0 items-center gap-3 lg:hidden">
+            {route !== "dashboard" && (
+              <button
+                onClick={() => setSidebarOpen((prev) => !prev)}
+                className="rounded-md border border-[#2f5b75] bg-[#0e3250] px-3 py-1.5 text-base font-semibold text-[#c8dfe1] hover:bg-white/10 focus:outline-none focus:border-[#f84f63] lg:hidden"
+                aria-label="Toggle sidebar"
+                aria-expanded={sidebarOpen}
+              >
+                ≡
+              </button>
+            )}
+            <Link href="/dashboard" className={`flex shrink-0 items-center gap-3 ${route === "dashboard" ? "" : "lg:hidden"}`}>
               <img src="/csa_logo.webp" alt="CSA Engineering" className="h-9 w-auto" />
-              <span className="hidden border-l border-[#2f5b75] pl-3 text-base font-semibold sm:inline">ReportGenix</span>
+              <span className="border-l border-[#2f5b75] pl-3 text-base font-semibold">ReportGenix</span>
             </Link>
             <div className="ml-auto flex items-center gap-2">
               <span className="hidden max-w-[220px] truncate text-sm text-[#b9d2d3] md:inline">{user.full_name || user.email}</span>
@@ -1579,10 +2247,10 @@ const sidebarSteps = [
           </div>
         </header>
 
-        <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
-          <div className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7"><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? (data[`heading__${activeSection.id}`] || activeSection.title) : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Issue</Link></div></div>
+        <div className={route === "dashboard" ? "px-4 py-4 sm:px-6" : "mx-auto max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10"}>
+          <div className={`${route === "dashboard" ? "hidden " : ""}mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7`}><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? (data[`heading__${activeSection.id}`] || activeSection.title) : route === "layout" ? "Layout controls" : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Issue</Link></div></div>
 
-          <nav className="flex items-center gap-1 text-xs text-[#8fbcc0] mt-4 ml-2" aria-label="Breadcrumb">
+          <nav className={`${route === "dashboard" ? "hidden " : ""}flex items-center gap-1 text-xs text-[#8fbcc0] mt-4 ml-2`} aria-label="Breadcrumb">
             <Link href="/" className="hover:text-[#c8dfe1]">Home</Link>
             <span>/</span>
             <Link href="/projects" className="hover:text-[#c8dfe1]">Project</Link>
@@ -1597,6 +2265,21 @@ const sidebarSteps = [
             {route === "help" ? <span className="text-[#c8dfe1]">Help</span> : null}
             {route === "faq" ? <span className="text-[#c8dfe1]">RAQ</span> : null}
           </nav>
+          {route === "dashboard" && (
+            <div>
+              <Dashboard
+                reports={reports}
+                folders={folders}
+                activeId={activeReportId}
+                onOpen={openReport}
+                onCreate={createReport}
+                onDuplicate={duplicateReport}
+                onDelete={deleteReport}
+                onUpdate={updateReport}
+                onAddFolder={addFolder}
+              />
+            </div>
+          )}
           {route === "home" && (
             <section className={CARD}>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -1817,7 +2500,7 @@ const sidebarSteps = [
             </section>
           )}
           {route === "not-found" && <section className={CARD}><p className="text-[#ff8e9c]">This report page does not exist.</p><Link href="/" className="mt-4 inline-block text-sm font-semibold text-[#8ed0c9] underline">Return to project details</Link></section>}
-          <div className="mt-12 border-t border-[#2a5068]/40 pt-8 px-6">
+          <div className={`${route === "dashboard" ? "hidden " : ""}mt-12 border-t border-[#2a5068]/40 pt-8 px-6`}>
             <div className="flex flex-wrap justify-between items-center gap-4">
               <div className="text-xs text-[#6b7c86] uppercase tracking-wider font-medium">Stage navigation</div>
               <div className="flex items-center gap-3 text-sm text-[#b9d2d3]">
