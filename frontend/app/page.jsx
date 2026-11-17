@@ -15,6 +15,14 @@ import TourGuide from "./TourGuide";
 
 const MATERIAL_IDS = new Set(["material", "fu", "fy", "young", "nu", "rho"]);
 const DRAFT_KEY = "reportgenix-draft-v2";
+/* Survives client-side remounts (not a full page reload) */
+const MEDIA = { files: {}, originals: {}, editorStates: {} };
+const WORK = { data: null };
+/* Drops saved narrative overrides that are just template text with [ placeholders ] */
+const stripStaleBodies = (d) =>
+  Object.fromEntries(
+    Object.entries(d || {}).filter(([k, v]) => !(k.startsWith("body__") && /\[\s[^\]]+\s\]/.test(String(v))))
+  );
 
 const STANDARD_SECTION_NARRATIVES = [
   {
@@ -1514,12 +1522,12 @@ export default function ReportGenix() {
   const [authForm, setAuthForm] = useState({ full_name: "", email: "", password: "" });
   const [authStatus, setAuthStatus] = useState("");
   const [schema, setSchema] = useState(null);
-  const [data, setData] = useState({});
+  const [data, setData] = useState(() => stripStaleBodies(WORK.data));
   const [standardsCatalog, setStandardsCatalog] = useState([]);
   const [materialsCatalog, setMaterialsCatalog] = useState([]);
   const [standards, setStandards] = useState([]);
   const [selected, setSelected] = useState([]);
-  const [files, setFiles] = useState({});
+  const [files, setFiles] = useState(() => MEDIA.files);
   const [layout, setLayout] = useState({ heading_align: "left", text_align: "justify", image_align: "center", caption_position: "below", caption_align: "center" });
   const [materialMode, setMaterialMode] = useState("library");
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
@@ -1586,8 +1594,8 @@ export default function ReportGenix() {
   const [tourOpen, setTourOpen] = useState(false);
   /* Image editor + section preview state */
   const [editingImage, setEditingImage] = useState(null); /* { id, label, url, originalFile } */
-  const [originals, setOriginals] = useState({}); /* { [imageId]: untouched original File } */
-  const [editorStates, setEditorStates] = useState({}); /* { [imageId]: saved layers } */
+  const [originals, setOriginals] = useState(() => MEDIA.originals);
+  const [editorStates, setEditorStates] = useState(() => MEDIA.editorStates);
   const [preview, setPreview] = useState(null); /* { pages: [{page,dataUrl}], section_pages: {...} } */
   const [previewLoading, setPreviewLoading] = useState(false);
   const [sectionPreviewIndex, setSectionPreviewIndex] = useState(0);
@@ -1617,11 +1625,17 @@ export default function ReportGenix() {
     } catch {
       window.sessionStorage.removeItem(DRAFT_KEY);
     }
+
     setData((current) =>
-      Object.fromEntries(
-        nextSchema.general.map((field) => [field.id, saved.data?.[field.id] ?? current[field.id] ?? field.default ?? (field.type === "date" ? new Date().toISOString().slice(0, 10) : "")])
-      )
+      stripStaleBodies({
+        ...Object.fromEntries(
+          nextSchema.general.map((field) => [field.id, field.default ?? (field.type === "date" ? new Date().toISOString().slice(0, 10) : "")])
+        ),
+        ...(saved.data || {}),
+        ...current,
+      })
     );
+
     const standardNarrativeDefaults = Object.fromEntries(
       nextSchema.sections
         .map((section) => {
@@ -1631,7 +1645,6 @@ export default function ReportGenix() {
         })
         .filter(([, value]) => Boolean(value))
     );
-    setData((current) => ({ ...current, ...(saved.data || {}), ...standardNarrativeDefaults }));
     setStandards(Array.isArray(saved.standards) ? saved.standards : []);
     setSelected(Array.isArray(saved.selected) ? saved.selected : nextSchema.sections.map((section) => section.id));
     setLayout((current) => ({ ...current, ...(saved.layout || {}) }));
@@ -1731,6 +1744,11 @@ export default function ReportGenix() {
     if (!schema) return;
     window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ data, standards, selected, layout, materialMode, selectedMaterialId, materialMeta, activeReportId, extraImages, removedSchemaImages }));
   }, [schema, data, standards, selected, layout, materialMode, selectedMaterialId, materialMeta, activeReportId, extraImages, removedSchemaImages]);
+
+  useEffect(() => { MEDIA.files = files; }, [files]);
+  useEffect(() => { MEDIA.originals = originals; }, [originals]);
+  useEffect(() => { MEDIA.editorStates = editorStates; }, [editorStates]);
+  useEffect(() => { WORK.data = data; }, [data]);
 
   useEffect(() => {
     if (materialMode !== "manual" || !data.material || !materialMeta.material_type || !data.fu || !csrf) return;
@@ -1940,6 +1958,8 @@ export default function ReportGenix() {
       setReportsLoaded(false);
       setActiveReportId("");
       sessionMedia.current = {};
+      MEDIA.files = {}; MEDIA.originals = {}; MEDIA.editorStates = {};
+      WORK.data = null;
       Object.keys(window.sessionStorage).filter((k) => k.startsWith("reportgenix-landed:")).forEach((k) => window.sessionStorage.removeItem(k));
       window.sessionStorage.removeItem(DRAFT_KEY);
     }
