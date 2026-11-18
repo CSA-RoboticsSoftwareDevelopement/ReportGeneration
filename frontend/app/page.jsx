@@ -15,6 +15,14 @@ import TourGuide from "./TourGuide";
 
 const MATERIAL_IDS = new Set(["material", "fu", "fy", "young", "nu", "rho"]);
 const DRAFT_KEY = "reportgenix-draft-v2";
+const MEDIA = { files: {}, originals: {}, editorStates: {} };
+const WORK = { data: null };
+let navigationMedia = { files: {}, originals: {}, editorStates: {} };
+
+const stripStaleBodies = (data) =>
+  Object.fromEntries(
+    Object.entries(data || {}).filter(([key, value]) => !(key.startsWith("body__") && /\[\s[^\]]+\s\]/.test(String(value))))
+  );
 
 const STANDARD_SECTION_NARRATIVES = [
   {
@@ -1626,7 +1634,7 @@ export default function ReportGenix() {
   const [materialsCatalog, setMaterialsCatalog] = useState([]);
   const [standards, setStandards] = useState([]);
   const [selected, setSelected] = useState([]);
-  const [files, setFiles] = useState({});
+  const [files, setFiles] = useState(() => navigationMedia.files);
   const [layout, setLayout] = useState({ heading_align: "left", text_align: "justify", image_align: "center", caption_position: "below", caption_align: "center" });
   const [materialMode, setMaterialMode] = useState("library");
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
@@ -1693,8 +1701,8 @@ export default function ReportGenix() {
   const [tourOpen, setTourOpen] = useState(false);
   /* Image editor + section preview state */
   const [editingImage, setEditingImage] = useState(null); /* { id, label, url, originalFile } */
-  const [originals, setOriginals] = useState({}); /* { [imageId]: untouched original File } */
-  const [editorStates, setEditorStates] = useState({}); /* { [imageId]: saved layers } */
+  const [originals, setOriginals] = useState(() => navigationMedia.originals); /* { [imageId]: untouched original File } */
+  const [editorStates, setEditorStates] = useState(() => navigationMedia.editorStates); /* { [imageId]: saved layers } */
   const [preview, setPreview] = useState(null); /* { pages: [{page,dataUrl}], section_pages: {...} } */
   const [previewLoading, setPreviewLoading] = useState(false);
   const [sectionPreviewIndex, setSectionPreviewIndex] = useState(0);
@@ -2054,6 +2062,7 @@ export default function ReportGenix() {
       setActiveReportId("");
       sessionMedia.current = {};
       MEDIA.files = {}; MEDIA.originals = {}; MEDIA.editorStates = {};
+      navigationMedia = { files: {}, originals: {}, editorStates: {} };
       WORK.data = null;
       Object.keys(window.sessionStorage).filter((k) => k.startsWith("reportgenix-landed:")).forEach((k) => window.sessionStorage.removeItem(k));
       window.sessionStorage.removeItem(DRAFT_KEY);
