@@ -674,8 +674,7 @@ def build(data=None, images=None, selected=None, template=False, layout=None, ex
             # An optional browser-preview override gives an editor full control
             # of a section's wording while retaining its editable figures.
             custom_body = c.raw("body__" + s["id"])
-            if custom_body and re.search(r"\[ [^\]]+ \]", custom_body):
-                custom_body = ""   # leftover template text with [ placeholders ]: use the built-in wording and calculations
+            
             if custom_body and not template:
                 section_heading = c.raw("heading__" + s["id"]) or s["title"]
                 section_story = [PageMarker(s["id"]), c.P(escape(section_heading), "h1")]

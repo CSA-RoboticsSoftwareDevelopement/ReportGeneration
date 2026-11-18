@@ -218,6 +218,7 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
   const [tool, setTool] = useState("select");
   const [color, setColor] = useState(COLORS[0]);
   const [fontSize, setFontSize] = useState(20);
+  const [full, setFull] = useState(false);
   const [showLayers, setShowLayers] = useState(true);
   const [loading, setLoading] = useState(true);
   const [crop, setCrop] = useState(null); // { id, rect: {x,y,w,h} } while cropping
@@ -623,6 +624,13 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
     });
   };
 
+  useEffect(() => {
+    if (!full) return;
+    const onEsc = (e) => { if (e.key === "Escape" && !crop) setFull(false); };
+    window.addEventListener("keydown", onEsc);
+    return () => window.removeEventListener("keydown", onEsc);
+  }, [full, crop]);
+
   // ---------- keyboard (ignored while typing in inputs) ----------
   useEffect(() => {
     const onKey = (e) => {
@@ -689,7 +697,7 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
   );
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#2a5068] bg-[#0b2b47]">
+      <div className={`flex flex-col overflow-hidden border border-[#2a5068] bg-[#0b2b47] ${full ? "fixed inset-0 z-[90] h-screen" : "h-full rounded-2xl"}`}>
       {/* tools */}
       <div className="flex flex-wrap items-center gap-2 border-b border-[#2a5068]/50 bg-[#0a2744]/60 p-3">
         <div className="flex gap-1">
@@ -731,6 +739,13 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
             onChange={(e) => { addOverlay(e.target.files?.[0]); e.target.value = ""; }} />
           <button className={btn} onClick={undo} disabled={!canUndo || !!crop} title="Undo">{"\u21B6"}</button>
           <button className={btn} onClick={redo} disabled={!canRedo || !!crop} title="Redo">{"\u21B7"}</button>
+          <button className={btn} onClick={() => setFull((v) => !v)} title={full ? "Exit full screen (Esc)" : "Full screen"} aria-label="Toggle full screen">
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {full
+                ? <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />
+                : <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />}
+            </svg>
+          </button>
         </div>
       </div>
 

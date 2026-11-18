@@ -19,10 +19,12 @@ const DRAFT_KEY = "reportgenix-draft-v2";
 const MEDIA = { files: {}, originals: {}, editorStates: {} };
 const WORK = { data: null };
 /* Drops saved narrative overrides that are just template text with [ placeholders ] */
-const stripStaleBodies = (d) =>
-  Object.fromEntries(
+const stripStaleBodies = (d) => {
+  if (typeof window === "undefined" || window.localStorage.getItem("rg-bodies-clean-v2")) return d || {};
+  return Object.fromEntries(
     Object.entries(d || {}).filter(([k, v]) => !(k.startsWith("body__") && /\[\s[^\]]+\s\]/.test(String(v))))
   );
+};
 
 const STANDARD_SECTION_NARRATIVES = [
   {
@@ -140,9 +142,39 @@ The compressive stress induced per bolt = [ force ] / (Plate thickness x Hole cl
   },
 ];
 
-function getStandardSectionNarrative(section) {
+function getStandardSectionNarrative(section, data = {}) {
   const title = String(section?.title || "");
-  return STANDARD_SECTION_NARRATIVES.find((entry) => entry.match(title))?.text || "";
+  const text = STANDARD_SECTION_NARRATIVES.find((entry) => entry.match(title))?.text || "";
+  if (!text || /^requirements$/i.test(title)) return "";
+  const id = section?.id || "";
+  const n = /^a(\d)$/.test(id) ? id.slice(1) : "";
+  const atm = parseFloat(data.atm);
+  const hasAtm = Number.isFinite(atm);
+  const fmt = (v, d = 0) => v.toLocaleString("en-US", { maximumFractionDigits: d });
+  const T = parseFloat(data.tow_mass || 2);
+  const C = hasAtm ? atm / 1000 : null;
+  const dc = hasAtm && T ? (9.81 * T * C) / (T + C) : null;
+  const map = {
+    "ATM": data.atm,
+    "Material": data.material,
+    "Yield strength": data.fy,
+    "stress": n && data[`a${n}_stress`],
+    "deformation": n && data[`a${n}_def`],
+    "Overall length": data.length_mm,
+    "Overall width": data.width_mm,
+    "Distance coupling to suspension": data.susp_mm,
+    "Mesh nodes": data.nodes,
+    "Mesh elements": data.elements,
+    "1.5 x 9.81 x ATM": hasAtm ? fmt(1.5 * 9.81 * atm) : "",
+    "0.5 x 9.81 x ATM": hasAtm ? fmt(0.5 * 9.81 * atm) : "",
+    "ATM/1000": hasAtm ? String(C) : "",
+    "C": hasAtm ? String(C) : "",
+    "D-value": dc ? dc.toFixed(3) : "",
+  };
+  return text.replace(/\[ ([^\]]+) \]/g, (whole, key) => {
+    const v = map[key];
+    return v !== undefined && v !== null && String(v).trim() !== "" ? String(v) : whole;
+  });
 }
 
 
@@ -750,9 +782,43 @@ function EvidenceThumb({ file, onEdit }) {
   );
 }
 
+function SectionTitle({ value, fallback, onChange }) {
+  const [editing, setEditing] = useState(false);
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        aria-label="Section heading"
+        value={value ?? fallback}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={() => setEditing(false)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") e.currentTarget.blur(); }}
+        className="w-full max-w-2xl rounded-md border border-[#f84f63] bg-[#16415f] px-3 py-1 text-2xl font-semibold text-white outline-none"
+      />
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-2">
+      {value || fallback}
+      <button
+        type="button"
+        title="Edit section name"
+        aria-label="Edit section name"
+        onClick={() => setEditing(true)}
+        className="rounded-md p-1.5 text-[#9bbcc0] hover:bg-white/10 hover:text-white"
+      >
+        <Icon name="edit" className="h-4 w-4" />
+      </button>
+    </span>
+  );
+}
+
 function SectionEditor({ section, sections, data, setData, files, setFiles, extraImages, setExtraImages, removedSchemaImages, setRemovedSchemaImages, selected, setSelected, children, onOpenImageEditor, editingImage, onFileChange, originals }) {
   const enabled = selected.includes(section.id);
   const headingId = `heading__${section.id}`;
+  const bodyKey = `body__${section.id}`;
+  const standardText = getStandardSectionNarrative(section, data);
+  const hasOverride = typeof data[bodyKey] === "string" && data[bodyKey] !== "";
   const router = useRouter();
   const sectionIds = sections.map((s) => s.id);
   const currentIndex = sectionIds.indexOf(section.id);
@@ -767,47 +833,31 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
 
   return (
     <section className={`overflow-hidden rounded-2xl border ${enabled ? "border-[#2a5068] bg-[#0e3250]" : "border-[#2a5068]/50 bg-[#0b2b47]/60 opacity-70"}`}>
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#2a5068]/60 px-5 py-4">
-        <div className="flex items-center gap-3">
-          <div>
-            <h3 className="font-semibold text-white">{section.title}</h3>
-            <p className="mt-0.5 text-xs text-[#9bbcc0]">Report section</p>
-          </div>
-        </div>
-      </header>
 
       {enabled && (
         <div className="space-y-5 p-5 sm:p-6">
           {children}
-          <div className={INSET}>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[.14em] text-[#83c6c0]">Editable report heading</p>
-            <Labeled label="Main section heading">
-              <input
-                className={INPUT}
-                value={data[headingId] ?? section.title}
-                onChange={(event) => setData((current) => ({ ...current, [headingId]: event.target.value }))}
-              />
-            </Labeled>
-          </div>
 
           <div className={INSET}>
-            <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[.14em] text-[#83c6c0]">Section narrative &amp; description</p>
-                <p className="mt-1 text-xs leading-5 text-[#9bbcc0]">
-                  Leave this blank to retain the standard generated wording. Enter text here to replace the section narrative in the preview and exported report.
-                </p>
-              </div>
-              <span className="rounded-full border border-[#2f5b75] bg-[#0a2744]/70 px-2.5 py-1 text-[10px] text-[#9bbcc0]">Draft auto-saved</span>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-[.14em] text-[#83c6c0]">Section narrative &amp; description</p>
             </div>
-            <Labeled label="Editable report content">
-              <textarea
-                className={`${INPUT} min-h-[190px] resize-y leading-7`}
-                value={data[`body__${section.id}`] ?? ""}
-                onChange={(event) => setData((current) => ({ ...current, [`body__${section.id}`]: event.target.value }))}
-                placeholder={`Add or replace the standard narrative for ${section.title}…`}
-              />
-            </Labeled>
+            <textarea
+              aria-label="Editable report content"
+              className={`${INPUT} min-h-[190px] resize-y !text-xs leading-6`}
+              value={hasOverride ? data[bodyKey] : standardText}
+              onChange={(event) => setData((current) => ({ ...current, [bodyKey]: event.target.value }))}
+              placeholder={`Add or replace the standard narrative for ${section.title}…`}
+            />
+            {hasOverride && (
+              <button
+                type="button"
+                onClick={() => setData((current) => { const next = { ...current }; delete next[bodyKey]; return next; })}
+                className="mt-2 rounded-md border border-[#2f5b75] px-3 py-1.5 text-xs font-semibold text-[#c8dfe1] hover:bg-white/5"
+              >
+                Reset to standard wording
+              </button>
+            )}
           </div>
 
           {section.fields.length > 0 && (
@@ -1635,16 +1685,8 @@ export default function ReportGenix() {
         ...current,
       })
     );
+    try { window.localStorage.setItem("rg-bodies-clean-v2", "1"); } catch { /* ignore */ }
 
-    const standardNarrativeDefaults = Object.fromEntries(
-      nextSchema.sections
-        .map((section) => {
-          const key = `body__${section.id}`;
-          const existing = saved.data?.[key];
-          return [key, existing !== undefined ? existing : getStandardSectionNarrative(section)];
-        })
-        .filter(([, value]) => Boolean(value))
-    );
     setStandards(Array.isArray(saved.standards) ? saved.standards : []);
     setSelected(Array.isArray(saved.selected) ? saved.selected : nextSchema.sections.map((section) => section.id));
     setLayout((current) => ({ ...current, ...(saved.layout || {}) }));
@@ -2508,8 +2550,8 @@ const sidebarSteps = [
           </div>
         </header>
 
-        <div className={route === "dashboard" ? "px-4 py-4 sm:px-6" : "mx-auto max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10"}>
-          <div data-tour="page-header" className={`${route === "dashboard" ? "hidden " : ""}mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7`}><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? (data[`heading__${activeSection.id}`] || activeSection.title) : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Preview and Download</Link></div></div>
+        <div className={route === "dashboard" ? "px-4 py-4 sm:px-6" : "w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-6"}>
+          <div data-tour="page-header" className={`${route === "dashboard" ? "hidden " : ""}mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7`}><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? <SectionTitle key={activeSection.id} value={data[`heading__${activeSection.id}`]} fallback={activeSection.title} onChange={(v) => setData((current) => ({ ...current, [`heading__${activeSection.id}`]: v }))} /> : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Preview and Download</Link></div></div>
 
           <nav className={`${route === "dashboard" ? "hidden " : ""}flex items-center gap-1 text-xs text-[#8fbcc0] mt-4 ml-2`} aria-label="Breadcrumb">
             <Link href="/" className="hover:text-[#c8dfe1]">Home</Link>
