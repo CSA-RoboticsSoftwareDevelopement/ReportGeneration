@@ -13,6 +13,7 @@ from reportlab.platypus import (BaseDocTemplate, PageTemplate, Frame, Paragraph,
                                 TableStyle, PageBreak, Flowable, KeepTogether)
 from reportlab.pdfgen import canvas as rl_canvas
 from reportlab.lib.utils import ImageReader
+import re
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOGO = os.path.join(HERE, "assets", "logo.png")
@@ -678,6 +679,7 @@ def build(data=None, images=None, selected=None, template=False, layout=None, ex
             # An optional browser-preview override gives an editor full control
             # of a section's wording while retaining its editable figures.
             custom_body = c.raw("body__" + s["id"])
+            
             if custom_body and not template:
                 section_heading = c.raw("heading__" + s["id"]) or s["title"]
                 section_story = [PageMarker(s["id"]), c.P(escape(section_heading), "h1")]
