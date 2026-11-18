@@ -376,6 +376,11 @@ class Ctx:
             return []
         if self.tpl:
             return [Slot(None, label, h), CapField(label)]
+        # Issued reports and live previews are evidence-driven: a figure takes
+        # up space only after the user has supplied its image.  The blank
+        # template above deliberately retains its editable placeholder boxes.
+        if not self.im.get(sid):
+            return []
         try:
             h = max(20, min(float(self.raw("img_height__" + sid)), 140)) if self.raw("img_height__" + sid) else h
         except ValueError:
