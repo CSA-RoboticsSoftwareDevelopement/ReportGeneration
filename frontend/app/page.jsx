@@ -15,6 +15,10 @@ import TourGuide from "./TourGuide";
 
 const MATERIAL_IDS = new Set(["material", "fu", "fy", "young", "nu", "rho"]);
 const DRAFT_KEY = "reportgenix-draft-v2";
+// Section routes re-export this page component, causing it to remount during
+// navigation. File objects cannot be placed in sessionStorage, so retain the
+// current report's in-browser media separately and hydrate the next route.
+let navigationMedia = { files: {}, originals: {}, editorStates: {} };
 
 const STANDARD_SECTION_NARRATIVES = [
   {
@@ -708,8 +712,9 @@ function ComplianceEditor({ rows, setRows, catalog, request }) {
 /*  Report sections                                                    */
 /* ------------------------------------------------------------------ */
 
-function EvidenceThumb({ file, onEdit }) {
+function EvidenceThumb({ file, onEdit, onSelectFile, label = "Evidence image" }) {
   const [url, setUrl] = useState("");
+  const inputRef = useRef(null);
   useEffect(() => {
     if (!file) { setUrl(""); return; }
     const next = URL.createObjectURL(file);
@@ -721,21 +726,51 @@ function EvidenceThumb({ file, onEdit }) {
     <div className="mt-3">
       <p className="mb-1 text-xs font-medium text-[#8fa9b5]">Evidence image</p>
       <div className="relative">
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          tabIndex={-1}
+          onChange={(event) => {
+            const nextFile = event.target.files?.[0];
+            if (nextFile) onSelectFile(nextFile);
+            // Selecting the same file again should still trigger an upload.
+            event.target.value = "";
+          }}
+        />
         {url ? (
           <>
-            <img src={url} alt="Preview" className="h-32 w-full rounded-md border border-[#2f5b75] bg-[#061d31] object-cover" />
+            <img src={url} alt={`${label} preview`} className="h-32 w-full rounded-md border border-[#2f5b75] bg-[#061d31] object-cover" />
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-md border border-[#2f5b75] bg-[#0a2744]/90 px-2 py-1 text-[10px] font-medium text-[#d4e8e8] hover:border-[#f84f63]"
+              aria-label={`Replace ${label}`}
+            >
+              <Icon name="image" className="h-3.5 w-3.5" />
+              Replace
+            </button>
             <button
               type="button"
               onClick={onEdit}
-              className="absolute bottom-2 right-2 rounded-md bg-[#f84f63] px-2.5 py-1 text-xs font-semibold text-[#0a1f36] shadow hover:bg-[#ff667a]"
+              className="absolute bottom-2 right-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#f84f63] text-[#0a1f36] shadow hover:bg-[#ff667a]"
+              aria-label={`Edit ${label}`}
+              title="Edit image"
             >
-              Open image in editor
+              <Icon name="edit" className="h-4 w-4" />
             </button>
           </>
         ) : (
-          <div className="flex h-32 w-full items-center justify-center rounded-md border border-dashed border-[#2f5b75]/50 bg-[#061d31]/50 text-xs text-[#5c7a86]">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="flex h-32 w-full flex-col items-center justify-center rounded-md border border-dashed border-[#2f5b75]/50 bg-[#061d31]/50 text-xs text-[#8fa9b5] hover:border-[#f84f63] hover:bg-[#f84f63]/5"
+          >
+            <Icon name="image" className="mb-2 h-5 w-5" />
             No image attached
-          </div>
+            <span className="mt-1 rounded border border-[#2f5b75] bg-red-600 px-2 py-0.5 text-[10px] text-white">Upload image</span>
+          </button>
         )}
       </div>
     </div>
@@ -751,11 +786,42 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
   const prevSection = currentIndex > 0 ? sections[currentIndex - 1] : null;
   const nextSection = currentIndex < sectionIds.length - 1 ? sections[currentIndex + 1] : null;
   const goTo = (id) => router.push(`/section/${id}`);
-  const sectionExtra = extraImages[section.id] || [];
+  // Certificate/title/summary-style sections have no designed figure slots
+  // and therefore intentionally have no Evidence Images UI.
+  const sectionExtra = section.images.length ? (extraImages[section.id] || []) : [];
+  const visibleSlotsKey = `visible_image_slots__${section.id}`;
+  const highestUploadedSchemaSlot = section.images.reduce(
+    (highest, image, index) => (files[image.id] ? index + 1 : highest),
+    0
+  );
+  // A section begins with one field. "Add Image" reveals the next designed
+  // report slot before creating an appended, additional figure.
+  const visibleSchemaSlots = section.images.length
+    ? Math.min(
+        section.images.length,
+        Math.max(1, Number(data[visibleSlotsKey]) || 1, highestUploadedSchemaSlot)
+      )
+    : 0;
   const allImages = [
-    ...section.images.map((img) => ({ ...img, source: "schema" })),
+    ...section.images
+      .slice(0, visibleSchemaSlots)
+      .filter((img) => !removedSchemaImages[`${section.id}:${img.id}`])
+      .map((img) => ({ ...img, source: "schema" })),
     ...sectionExtra.map((img) => ({ ...img, source: "extra" })),
   ];
+
+  const addImage = () => {
+    if (visibleSchemaSlots < section.images.length) {
+      setData((current) => ({ ...current, [visibleSlotsKey]: visibleSchemaSlots + 1 }));
+      return;
+    }
+    const newId = `extra_${section.id}_${Date.now()}`;
+    setExtraImages((current) => ({
+      ...current,
+      [section.id]: [...(current[section.id] || []), { id: newId, label: "", h: 60 }],
+    }));
+    setData((current) => ({ ...current, [`cap__${newId}`]: "" }));
+  };
 
   return (
     <section className={`overflow-hidden rounded-2xl border ${enabled ? "border-[#2a5068] bg-[#0e3250]" : "border-[#2a5068]/50 bg-[#0b2b47]/60 opacity-70"}`}>
@@ -809,46 +875,55 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
               ))}
             </div>
           )}
-          {allImages.length > 0 && (
+          {section.images.length > 0 && (
             <div className="grid gap-4 md:grid-cols-2">
               {allImages.map((image) => {
                 const isSchema = image.source === "schema";
                 const cardKey = isSchema ? `schema_${image.id}` : `extra_${image.id}`;
-                if (removedSchemaImages[`${section.id}:${image.id}`]) return null;
                 const isActive = editingImage?.id === image.id;
                 return (
                   <div
                     key={cardKey}
                     className={`relative rounded-xl border border-dashed p-4 ${isActive ? "border-[#f84f63] bg-[#f84f63]/5" : "border-[#2f5b75] bg-[#0a2744]/60"}`}
                   >
-                    <button
-                      onClick={() => {
-                        if (isSchema) {
-                          setRemovedSchemaImages((current) => ({ ...current, [`${section.id}:${image.id}`]: true }));
-                        } else {
-                          setExtraImages((current) => ({
-                            ...current,
-                            [section.id]: (current[section.id] || []).filter((img) => img.id !== image.id),
-                          }));
-                          setFiles((current) => {
-                            const next = { ...current };
-                            delete next[image.id];
-                            return next;
-                          });
-                        }
-                      }}
-                      className="absolute top-2 right-2 rounded-full border border-[#2f5b75] bg-[#0a2744] text-[#ff8e9c] text-xs p-1 hover:bg-[#ff8e9c]/20 hover:text-white"
-                      aria-label="Remove image"
-                    >
-                      &#215;
-                    </button>
-
                     <EvidenceThumb
                       file={files[image.id]}
+                      label={data[`cap__${image.id}`] || image.label || "Image"}
+                      onSelectFile={(file) => {
+                        // A slot that was hidden by an older saved draft is
+                        // restored as soon as a replacement is attached.
+                        if (isSchema) {
+                          setRemovedSchemaImages((current) => ({ ...current, [`${section.id}:${image.id}`]: false }));
+                        }
+                        onFileChange(image.id, file);
+                      }}
                       onEdit={() =>
                         onOpenImageEditor({ id: image.id, label: data[`cap__${image.id}`] || image.label || "Image" })
                       }
                     />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onFileChange(image.id, null);
+                        if (isSchema) {
+                          setRemovedSchemaImages((current) => ({
+                            ...current,
+                            [`${section.id}:${image.id}`]: true,
+                          }));
+                        } else {
+                          setExtraImages((current) => ({
+                            ...current,
+                            [section.id]: (current[section.id] || []).filter((item) => item.id !== image.id),
+                          }));
+                        }
+                      }}
+                      className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#2f5b75] bg-[#0a2744] text-lg leading-none text-[#ff9da9] hover:border-[#ff8e9c] hover:bg-[#ff8e9c]/20 hover:text-white"
+                      aria-label={`Remove ${data[`cap__${image.id}`] || image.label || "evidence image"}`}
+                      title="Remove evidence image"
+                    >
+                      &#215;
+                    </button>
 
                     <Labeled label="Image heading / caption">
                       <input
@@ -873,12 +948,6 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
                     <Labeled label="Image height (mm)" className="mt-3">
                       <input className={INPUT} type="number" min="20" max="140" value={data[`img_height__${image.id}`] ?? (isSchema ? image.h : 60)} onChange={(event) => setData((current) => ({ ...current, [`img_height__${image.id}`]: event.target.value }))} />
                     </Labeled>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="mt-4 block w-full text-xs text-[#a8c9ca] file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-[#f84f63] file:px-3 file:py-2 file:text-xs file:font-semibold file:text-[#0a1f36]"
-                      onChange={(e) => onFileChange(image.id, e.target.files?.[0] || null)}
-                    />
                     {files[image.id] && (
                       <p className="mt-2 break-all text-xs text-[#8fd0c8]">
                         {originals[image.id] ? "Edited in image editor" : `Attached: ${files[image.id].name}`}
@@ -888,14 +957,8 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
                 );
               })}
               <button
-                onClick={() => {
-                  const newId = `extra_${section.id}_${Date.now()}`;
-                  setExtraImages((current) => ({
-                    ...current,
-                    [section.id]: [...(current[section.id] || []), { id: newId, label: "", h: 60 }],
-                  }));
-                  setData((current) => ({ ...current, [`cap__${newId}`]: "" }));
-                }}
+                type="button"
+                onClick={addImage}
                 className="flex-1 sm:flex-none rounded-md border border-[#2f5b75] bg-transparent text-[#b9d2d3] px-4 py-2 text-sm font-semibold hover:bg-white/5"
               >
                 + Add image
@@ -1519,7 +1582,7 @@ export default function ReportGenix() {
   const [materialsCatalog, setMaterialsCatalog] = useState([]);
   const [standards, setStandards] = useState([]);
   const [selected, setSelected] = useState([]);
-  const [files, setFiles] = useState({});
+  const [files, setFiles] = useState(() => navigationMedia.files);
   const [layout, setLayout] = useState({ heading_align: "left", text_align: "justify", image_align: "center", caption_position: "below", caption_align: "center" });
   const [materialMode, setMaterialMode] = useState("library");
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
@@ -1586,11 +1649,15 @@ export default function ReportGenix() {
   const [tourOpen, setTourOpen] = useState(false);
   /* Image editor + section preview state */
   const [editingImage, setEditingImage] = useState(null); /* { id, label, url, originalFile } */
-  const [originals, setOriginals] = useState({}); /* { [imageId]: untouched original File } */
-  const [editorStates, setEditorStates] = useState({}); /* { [imageId]: saved layers } */
+  const [originals, setOriginals] = useState(() => navigationMedia.originals); /* { [imageId]: untouched original File } */
+  const [editorStates, setEditorStates] = useState(() => navigationMedia.editorStates); /* { [imageId]: saved layers } */
   const [preview, setPreview] = useState(null); /* { pages: [{page,dataUrl}], section_pages: {...} } */
   const [previewLoading, setPreviewLoading] = useState(false);
   const [sectionPreviewIndex, setSectionPreviewIndex] = useState(0);
+
+  useEffect(() => {
+    navigationMedia = { files, originals, editorStates };
+  }, [files, originals, editorStates]);
 
 
   const request = useCallback(
@@ -2035,7 +2102,8 @@ export default function ReportGenix() {
         .map((key) => key.slice(key.indexOf(":") + 1)),
     };
     Object.entries(extraImages).forEach(([sid, images]) => {
-      payload.extra_images[sid] = images.map((img) => ({
+      if (!schema.sections.find((section) => section.id === sid)?.images?.length) return;
+      payload.extra_images[sid] = images.filter((img) => files[img.id]).map((img) => ({
         id: img.id,
         label: data[`cap__${img.id}`] || img.label || "",
         h: Number(data[`img_height__${img.id}`] || img.h || 60),
@@ -2070,7 +2138,8 @@ export default function ReportGenix() {
       const form = new FormData();
       const extraImagesPayload = {};
       Object.entries(extraImages).forEach(([sid, images]) => {
-        extraImagesPayload[sid] = images.map((img) => ({
+        if (!schema?.sections?.find((section) => section.id === sid)?.images?.length) return;
+        extraImagesPayload[sid] = images.filter((img) => files[img.id]).map((img) => ({
           id: img.id,
           label: data[`cap__${img.id}`] || img.label || "",
           h: Number(data[`img_height__${img.id}`] || img.h || 60),
