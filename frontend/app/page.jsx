@@ -331,7 +331,7 @@ function LoginScreen({ authMode, setAuthMode, authForm, setAuthForm, submit, sta
             <h2 className="mt-12 text-3xl font-normal sm:text-4xl">{signup ? "Get started" : "Welcome back"}</h2>
             <p className="mt-2 text-sm text-[#a9c1ca]">{signup ? "Enter your details to create an account." : "Enter your details to log in."}</p>
 
-            <form className="mt-9 space-y-6" onSubmit={submit}>
+            <form className="mt-9 space-y-6" onSubmit={submit} autoComplete="off">
               {signup && (
                 <label className="block">
                   <span className={AUTH_LABEL}>Full name *</span>
@@ -340,7 +340,7 @@ function LoginScreen({ authMode, setAuthMode, authForm, setAuthForm, submit, sta
               )}
               <label className="block">
                 <span className={AUTH_LABEL}>Email address *</span>
-                <input required type="email" autoComplete="email" value={authForm.email} onChange={set("email")} className={AUTH_INPUT} placeholder="you@example.com" />
+                <input required type="email" autoComplete="off" value={authForm.email} onChange={set("email")} className={AUTH_INPUT} placeholder="you@example.com" />
               </label>
               <label className="block">
                 <span className={AUTH_LABEL}>Password *</span>
@@ -349,7 +349,7 @@ function LoginScreen({ authMode, setAuthMode, authForm, setAuthForm, submit, sta
                     required
                     minLength={8}
                     type={show ? "text" : "password"}
-                    autoComplete={signup ? "new-password" : "current-password"}
+                    autoComplete="new-password"
                     value={authForm.password}
                     onChange={set("password")}
                     className={`${AUTH_INPUT} pr-20`}
