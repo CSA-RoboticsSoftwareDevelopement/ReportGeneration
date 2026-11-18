@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const COLORS = ["#f84f63", "#fbbf24", "#38bdf8"];
+const COLORS = ["#000000", "#f84f63", "#fbbf24", "#38bdf8"];
 const HANDLE = 9;
 const MAX_HISTORY = 50;
 
@@ -24,6 +24,8 @@ const fileToDataUrl = (file) =>
     r.readAsDataURL(file);
   });
 
+/* ---------------- geometry / drawing helpers ---------------- */
+
 function withTextBox(el) {
   if (el.type !== "text") return el;
   const ctx = document.createElement("canvas").getContext("2d");
@@ -39,9 +41,7 @@ function bbox(el) {
 }
 
 function handlesOf(el) {
-  if (el.type === "arrow") {
-    return [{ name: "start", x: el.x, y: el.y }, { name: "end", x: el.x2, y: el.y2 }];
-  }
+  if (el.type === "arrow") return [{ name: "start", x: el.x, y: el.y }, { name: "end", x: el.x2, y: el.y2 }];
   return [
     { name: "nw", x: el.x, y: el.y },
     { name: "ne", x: el.x + el.w, y: el.y },
@@ -89,7 +89,6 @@ function drawEl(ctx, el) {
   } else if (el.type === "arrow") {
     const head = Math.max(12, el.lineWidth * 4);
     const angle = Math.atan2(el.y2 - el.y, el.x2 - el.x);
-    // stop the shaft slightly short so the head stays crisp
     const sx = el.x2 - Math.cos(angle) * head * 0.6;
     const sy = el.y2 - Math.sin(angle) * head * 0.6;
     ctx.beginPath();
@@ -130,8 +129,6 @@ function drawSelection(ctx, el, k) {
   }
   ctx.restore();
 }
-
-/* ---------------- crop helpers ---------------- */
 
 const CROP_HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 
@@ -180,30 +177,108 @@ function drawCropOverlay(ctx, box, rect, k) {
   ctx.restore();
 }
 
+/* ---------------- UI atoms ---------------- */
+
+const PATHS = {
+  select: "M5 3l14 8-6.2 1.8L10.5 19z",
+  arrow: "M5 19L19 5M9 5h10v10",
+  rect: "M4 6h16v12H4z",
+  oval: "M12 5c5 0 9 3 9 7s-4 7-9 7-9-3-9-7 4-7 9-7z",
+  text: "M5 6V4h14v2M12 4v16M9 20h6",
+  overlay: "M3 5h14v14H3zM3 15l4-4 4 4 3-3 3 3M19 3v6M16 6h6",
+  crop: "M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14",
+  undo: "M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3",
+  redo: "M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h3",
+  layers: "M12 3l9 5-9 5-9-5zM3 13l9 5 9-5",
+  duplicate: "M9 9h11v11H9zM5 15V4h11",
+  forward: "M12 19V6M6 12l6-6 6 6",
+  backward: "M12 5v13M6 12l6 6 6-6",
+  trash: "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3",
+  expand: "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5",
+  collapse: "M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5",
+  download: "M12 4v11M7 11l5 5 5-5M5 20h14",
+  eraser: "M4 20h16M7 15l7-9 5 4-6 9z",
+  eye: "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
+  eyeoff: "M3 3l18 18M10.6 6.1A9.7 9.7 0 0 1 12 5c6 0 10 7 10 7a17 17 0 0 1-3.2 4M6.5 6.6C3.8 8.3 2 12 2 12s4 7 10 7a9.6 9.6 0 0 0 4-.9",
+  lock: "M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3",
+  unlock: "M6 11h12v9H6zM8 11V8a4 4 0 0 1 7.5-2",
+  minus: "M5 12h14",
+  plus: "M12 5v14M5 12h14",
+  fit: "M4 4h16v16H4zM9 9h6v6H9z",
+  reset: "M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5",
+  close: "M6 6l12 12M18 6L6 18",
+  check: "M5 12l5 5 9-10",
+  ratio: "M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4M9 12h6",
+};
+
+function Ic({ n, cls = "h-[18px] w-[18px]" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={cls} fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={PATHS[n]} />
+    </svg>
+  );
+}
+
+function Tip({ label, side = "top", align = "center", children }) {
+  const v = side === "top" ? "bottom-full mb-2" : "top-full mt-2";
+  const h = align === "end" ? "right-0" : align === "start" ? "left-0" : "left-1/2 -translate-x-1/2";
+  return (
+    <span className="group relative inline-flex">
+      {children}
+      <span
+        role="tooltip"
+        className={`pointer-events-none absolute z-[100] whitespace-nowrap rounded-md border border-[#2f5b75] bg-[#061523] px-2 py-1 text-[11px] font-medium text-[#e3eef0] opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 ${v} ${h}`}
+      >
+        {label}
+      </span>
+    </span>
+  );
+}
+
+/* round icon button with hover tooltip */
+function RB({ label, icon, onClick, active, disabled, danger, side = "top", align = "center", size = "h-10 w-10" }) {
+  return (
+    <Tip label={label} side={side} align={align}>
+      <button
+        type="button"
+        aria-label={label}
+        onClick={onClick}
+        disabled={disabled}
+        className={`${size} grid place-items-center rounded-full border transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-35 ${
+          active
+            ? "border-[#f84f63] bg-[#f84f63] text-[#0a1f36]"
+            : `border-[#2f5b75] bg-[#16415f] hover:bg-[#1c4d6f] ${danger ? "text-[#ff8e9c]" : "text-[#c6dce2]"}`
+        }`}
+      >
+        <Ic n={icon} cls={size.includes("h-8") ? "h-4 w-4" : "h-[18px] w-[18px]"} />
+      </button>
+    </Tip>
+  );
+}
+
+const Divider = () => <span className="mx-0.5 h-6 w-px bg-[#2a5068]" />;
+
 const TOOLS = [
-  { id: "select", label: "Select", glyph: "\u2196" },
-  { id: "arrow", label: "Arrow", glyph: "\u2192" },
-  { id: "rect", label: "Rectangle", glyph: "\u25A1" },
-  { id: "oval", label: "Oval", glyph: "\u2B2D" },
-  { id: "text", label: "Text", glyph: "T" },
+  { id: "select", label: "Select & move (V)", icon: "select" },
+  { id: "arrow", label: "Arrow (A)", icon: "arrow" },
+  { id: "rect", label: "Rectangle (R)", icon: "rect" },
+  { id: "oval", label: "Oval (O)", icon: "oval" },
+  { id: "text", label: "Text box (T)", icon: "text" },
 ];
 const LABELS = { image: "Image", arrow: "Arrow", rect: "Box", oval: "Oval", text: "Text" };
-
-const btn =
-  "rounded-md border border-[#2f5b75] bg-[#16415f] px-2.5 py-1 text-xs font-semibold text-[#c6dce2] hover:bg-white/10 disabled:opacity-40";
 
 /**
  * Props
  *  imageUrl      – URL (blob:/data:/same-origin) of the ORIGINAL base image
  *  initialState  – optional object returned earlier as `state` from onSave (restores layers)
  *  title         – optional heading, e.g. the figure caption
- *  onSave(file, state, dataUrl) – file: PNG File of the flattened result,
- *                  state: JSON-serialisable layers (store it to re-open editing later)
- *  onClose()     – cancel
+ *  onSave(file, state, dataUrl)
+ *  onClose()
  */
 export default function ImageEditor({ imageUrl, initialState, title, onSave, onClose }) {
   const canvasRef = useRef(null);
-  const wrapRef = useRef(null);
+  const areaRef = useRef(null);
+  const dockRef = useRef(null);
   const fileRef = useRef(null);
   const textInputRef = useRef(null);
   const elsRef = useRef([]);
@@ -211,20 +286,24 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
   const drag = useRef(null);
   const layerCounter = useRef(2);
   const wantTextFocus = useRef(false);
+  const rafRef = useRef(0);
+  const cropRafRef = useRef(0);
+  const cropPending = useRef(null);
 
   const [els, setEls] = useState([]);
   const [size, setSize] = useState({ w: 900, h: 600 });
   const [selectedId, setSelectedId] = useState(null);
   const [tool, setTool] = useState("select");
-  const [color, setColor] = useState(COLORS[0]);
+  const [color, setColor] = useState(COLORS[1]);
   const [fontSize, setFontSize] = useState(20);
-  const [full, setFull] = useState(false);
-  const [showLayers, setShowLayers] = useState(true);
+  const [showLayers, setShowLayers] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [crop, setCrop] = useState(null); // { id, rect: {x,y,w,h} } while cropping
-  const [, setTick] = useState(0); // forces redraw / undo-state refresh
+  const [crop, setCrop] = useState(null);
+  const [full, setFull] = useState(false);
+  const [avail, setAvail] = useState({ w: 700, h: 400, dock: 64 });
+  const [, setTick] = useState(0);
 
-  const unit = Math.max(0.5, size.w / 900); // keeps line/text size sensible on big images
+  const unit = Math.max(0.5, size.w / 900);
   const selected = els.find((e) => e.id === selectedId) || null;
 
   const setAll = useCallback((next, record) => {
@@ -240,7 +319,33 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
     }
   }, []);
 
-  // ---------- load base image (+ saved layers) ----------
+  /* one React update per animation frame while dragging */
+  const liveSet = (next) => {
+    elsRef.current = next;
+    if (!rafRef.current) {
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = 0;
+        setEls(elsRef.current);
+      });
+    }
+  };
+  const liveCrop = (rect) => {
+    cropPending.current = rect;
+    if (!cropRafRef.current) {
+      cropRafRef.current = requestAnimationFrame(() => {
+        cropRafRef.current = 0;
+        const r = cropPending.current;
+        setCrop((c) => (c && r ? { ...c, rect: r } : c));
+      });
+    }
+  };
+
+  useEffect(() => () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (cropRafRef.current) cancelAnimationFrame(cropRafRef.current);
+  }, []);
+
+  /* ---------- load base image (+ saved layers) ---------- */
   useEffect(() => {
     let dead = false;
     (async () => {
@@ -249,7 +354,7 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
         const base = await loadImage(imageUrl);
         const savedBase = initialState?.base || {};
         const list = [{
-          id: "base", type: "image", isBase: true, name: "Layer 1: Base image", img: base,
+          id: "base", type: "image", isBase: true, name: "Base image", img: base,
           x: 0, y: 0, w: base.naturalWidth, h: base.naturalHeight,
           locked: false, visible: true, opacity: 1, lockAspect: true,
           ...savedBase,
@@ -276,7 +381,26 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imageUrl]);
 
-  // ---------- drawing ----------
+  /* ---------- fit canvas to the available space ---------- */
+  useEffect(() => {
+    const measure = () => {
+      const a = areaRef.current;
+      if (!a) return;
+      const dock = dockRef.current ? dockRef.current.offsetHeight : 0;
+      setAvail({ w: Math.max(120, a.clientWidth - 32), h: Math.max(120, a.clientHeight - dock - 44), dock });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (areaRef.current) ro.observe(areaRef.current);
+    if (dockRef.current) ro.observe(dockRef.current);
+    return () => ro.disconnect();
+  }, [full]);
+
+  const scale = Math.min(avail.w / size.w, avail.h / size.h, full ? 4 : 2);
+  const dispW = Math.max(40, Math.round(size.w * scale));
+  const dispH = Math.max(30, Math.round(size.h * scale));
+
+  /* ---------- drawing ---------- */
   useEffect(() => {
     const cv = canvasRef.current;
     if (!cv) return;
@@ -290,11 +414,14 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
     else if (selected && selected.visible) drawSelection(ctx, selected, k);
   });
 
+  /* panel opens by default in full screen, closed in the compact view; lock page scroll */
   useEffect(() => {
-    const onResize = () => setTick((t) => t + 1);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+    setShowLayers(full);
+    if (!full) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [full]);
 
   useEffect(() => {
     if (wantTextFocus.current && selected?.type === "text") {
@@ -304,7 +431,7 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
     }
   }, [selectedId, selected?.type]);
 
-  // ---------- helpers ----------
+  /* ---------- helpers ---------- */
   const toLogical = (e) => {
     const cv = canvasRef.current;
     const r = cv.getBoundingClientRect();
@@ -317,7 +444,7 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
 
   const nextName = (type) => `Layer ${layerCounter.current++}: ${LABELS[type]}`;
 
-  // ---------- pointer interaction ----------
+  /* ---------- pointer interaction ---------- */
   const onPointerDown = (e) => {
     if (loading) return;
     const cv = canvasRef.current;
@@ -387,19 +514,13 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
     const p = toLogical(e);
     const dx = p.x - d.start.x, dy = p.y - d.start.y;
     d.moved = true;
-    if (d.mode === "cropresize") {
-      setCrop((c) => c && { ...c, rect: resizeRect(d.orig, d.handle, p, d.box) });
-      return;
-    }
+    if (d.mode === "cropresize") { liveCrop(resizeRect(d.orig, d.handle, p, d.box)); return; }
     if (d.mode === "cropmove") {
       const o = d.orig, b = d.box;
-      setCrop((c) => c && {
-        ...c,
-        rect: {
-          ...o,
-          x: Math.min(Math.max(o.x + dx, b.x), b.x + b.w - o.w),
-          y: Math.min(Math.max(o.y + dy, b.y), b.y + b.h - o.h),
-        },
+      liveCrop({
+        ...o,
+        x: Math.min(Math.max(o.x + dx, b.x), b.x + b.w - o.w),
+        y: Math.min(Math.max(o.y + dy, b.y), b.y + b.h - o.h),
       });
       return;
     }
@@ -414,17 +535,14 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
         if (el.type === "arrow") return { ...el, x: o.x + dx, y: o.y + dy, x2: o.x2 + dx, y2: o.y2 + dy };
         return { ...el, x: o.x + dx, y: o.y + dy };
       }
-      // resize
-      if (el.type === "arrow") {
-        return d.handle === "start" ? { ...el, x: p.x, y: p.y } : { ...el, x2: p.x, y2: p.y };
-      }
+      if (el.type === "arrow") return d.handle === "start" ? { ...el, x: p.x, y: p.y } : { ...el, x2: p.x, y2: p.y };
       const west = d.handle.includes("w"), north = d.handle.includes("n");
-      const ax = west ? o.x + o.w : o.x; // fixed (opposite) corner
+      const ax = west ? o.x + o.w : o.x;
       const ay = north ? o.y + o.h : o.y;
       if (el.type === "text") {
-        const scale = Math.max(0.2, Math.abs(p.y - ay) / o.h);
-        const w = o.w * scale, h = o.h * scale;
-        return { ...el, fontSize: Math.max(6, o.fontSize * scale), w, h, x: west ? ax - w : ax, y: north ? ay - h : ay };
+        const sc = Math.max(0.2, Math.abs(p.y - ay) / o.h);
+        const w = o.w * sc, h = o.h * sc;
+        return { ...el, fontSize: Math.max(6, o.fontSize * sc), w, h, x: west ? ax - w : ax, y: north ? ay - h : ay };
       }
       let nx = p.x, ny = p.y;
       if (el.lockAspect) {
@@ -436,7 +554,7 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
       }
       return { ...el, x: Math.min(ax, nx), y: Math.min(ay, ny), w: Math.max(8, Math.abs(nx - ax)), h: Math.max(8, Math.abs(ny - ay)) };
     });
-    setAll(list, false);
+    liveSet(list);
   };
 
   const onPointerUp = (e) => {
@@ -444,7 +562,10 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
     drag.current = null;
     if (!d) return;
     try { canvasRef.current.releasePointerCapture(e.pointerId); } catch {}
-    if (d.mode === "cropresize" || d.mode === "cropmove") return;
+    if (d.mode === "cropresize" || d.mode === "cropmove") {
+      if (cropPending.current) setCrop((c) => (c ? { ...c, rect: cropPending.current } : c));
+      return;
+    }
     let list = elsRef.current;
     if (d.mode === "create") {
       const el = list.find((x) => x.id === d.id);
@@ -460,7 +581,17 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
     }
   };
 
-  // ---------- history ----------
+  const onDoubleClick = (e) => {
+    if (crop || tool !== "select") return;
+    const p = toLogical(e);
+    const hit = [...elsRef.current].reverse().find((x) => hitEl(x, p, p.k));
+    if (hit && hit.type === "text") {
+      setSelectedId(hit.id);
+      setTimeout(() => { textInputRef.current?.focus(); textInputRef.current?.select(); }, 0);
+    }
+  };
+
+  /* ---------- history ---------- */
   const undo = () => {
     const h = hist.current;
     if (h.i <= 0) return;
@@ -476,7 +607,7 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
     setTick((t) => t + 1);
   };
 
-  // ---------- layer actions ----------
+  /* ---------- layer actions ---------- */
   const removeSel = useCallback(() => {
     if (!selectedId || selectedId === "base") return;
     setAll(elsRef.current.filter((e) => e.id !== selectedId), true);
@@ -496,7 +627,7 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
     const list = [...elsRef.current];
     const i = list.findIndex((e) => e.id === selectedId);
     const j = i + dir;
-    if (i < 0 || j < 1 || j >= list.length) return; // index 0 stays the base layer
+    if (i < 0 || j < 1 || j >= list.length) return;
     [list[i], list[j]] = [list[j], list[i]];
     setAll(list, true);
   };
@@ -513,6 +644,7 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
     };
     setAll([...elsRef.current, el], true);
     setSelectedId(el.id);
+    setTool("select");
   };
 
   const applyColor = (c) => {
@@ -520,7 +652,7 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
     if (selected && !selected.isBase && selected.type !== "image") patch(selected.id, { color: c });
   };
 
-  // ---------- export ----------
+  /* ---------- export ---------- */
   const renderFlat = () => {
     const out = document.createElement("canvas");
     out.width = size.w;
@@ -567,14 +699,13 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
     setSelectedId(null);
   };
 
-  // ---------- base / crop actions ----------
+  /* ---------- base / crop actions ---------- */
   const resetBase = () => {
     const b = elsRef.current.find((e) => e.isBase);
     if (!b) return;
     patch(b.id, { x: 0, y: 0, w: b.img.naturalWidth, h: b.img.naturalHeight, crop: null, w0: undefined, h0: undefined });
   };
 
-  // Crops/grows the canvas to exactly the base image, shifting every layer with it.
   const fitCanvas = () => {
     const b = elsRef.current.find((e) => e.isBase);
     if (!b) return;
@@ -612,7 +743,6 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
     setCrop(null);
   };
 
-  // brings the full image back at the current on-screen scale
   const resetCrop = () => {
     if (!selected || selected.type !== "image" || !selected.crop) return;
     const c = selected.crop, kx = selected.w / c.sw, ky = selected.h / c.sh;
@@ -624,30 +754,43 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
     });
   };
 
-  useEffect(() => {
-    if (!full) return;
-    const onEsc = (e) => { if (e.key === "Escape" && !crop) setFull(false); };
-    window.addEventListener("keydown", onEsc);
-    return () => window.removeEventListener("keydown", onEsc);
-  }, [full, crop]);
-
-  // ---------- keyboard (ignored while typing in inputs) ----------
+  /* ---------- keyboard ---------- */
   useEffect(() => {
     const onKey = (e) => {
       const tag = e.target?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
-      if (crop) { if (e.key === "Escape") setCrop(null); return; }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
-      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
-      else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeSel(); }
-      else if (e.key === "Escape") { setSelectedId(null); setTool("select"); }
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      const k = e.key.toLowerCase();
+      if (e.key === "Escape") {
+        if (crop) setCrop(null);
+        else if (selectedId || tool !== "select") { setSelectedId(null); setTool("select"); }
+        else if (full) setFull(false);
+        return;
+      }
+      if (crop) return;
+      if ((e.ctrlKey || e.metaKey) && k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+      if ((e.ctrlKey || e.metaKey) && k === "y") { e.preventDefault(); redo(); return; }
+      if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeSel(); return; }
+      if (selected && !selected.locked && e.key.startsWith("Arrow")) {
+        e.preventDefault();
+        const step = (e.shiftKey ? 10 : 1) * unit;
+        const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+        const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+        patch(selected.id, selected.type === "arrow"
+          ? { x: selected.x + dx, y: selected.y + dy, x2: selected.x2 + dx, y2: selected.y2 + dy }
+          : { x: selected.x + dx, y: selected.y + dy });
+        return;
+      }
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        const m = { v: "select", a: "arrow", r: "rect", o: "oval", t: "text" }[k];
+        if (m) setTool(m);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const canUndo = hist.current.i > 0;
-  const canRedo = hist.current.i < hist.current.stack.length - 1;
+  const canUndo = hist.current.i > 0 && !crop;
+  const canRedo = hist.current.i < hist.current.stack.length - 1 && !crop;
   const num = (v) => (Number.isFinite(v) ? Math.round(v) : 0);
   const box = selected ? bbox(selected) : null;
 
@@ -674,9 +817,7 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
     const pct = parseFloat(value);
     if (!selected || selected.locked || selected.type === "arrow" || !Number.isFinite(pct) || pct < 5) return;
     const f = pct / 100;
-    if (!selected.w0) {
-      patch(selected.id, { w0: selected.w, h0: selected.h, fs0: selected.fontSize });
-    }
+    if (!selected.w0) patch(selected.id, { w0: selected.w, h0: selected.h, fs0: selected.fontSize });
     const w0 = selected.w0 || selected.w, h0 = selected.h0 || selected.h;
     if (selected.type === "text") patch(selected.id, { fontSize: (selected.fs0 || selected.fontSize) * f });
     else patch(selected.id, { w: w0 * f, h: h0 * f });
@@ -689,207 +830,204 @@ export default function ImageEditor({ imageUrl, initialState, title, onSave, onC
       <input
         type="number"
         value={box ? num(box[key]) : ""}
-        disabled={!selected || selected.locked || !!crop}
+        disabled={!selected || selected.locked}
         onChange={(e) => setBox(key, e.target.value)}
-        className="w-16 rounded border border-[#2f5b75] bg-[#0a1f36] px-1.5 py-1 text-xs text-white disabled:opacity-40"
+        className="w-16 rounded-md border border-[#2f5b75] bg-[#0a1f36] px-1.5 py-1 text-xs text-white outline-none focus:border-[#f84f63] disabled:opacity-40"
       />
     </label>
   );
 
+  const TEXT_BTN = "rounded-full border px-4 py-2 text-sm font-semibold transition active:scale-95 disabled:opacity-50";
+
   return (
-      <div className={`flex flex-col overflow-hidden border border-[#2a5068] bg-[#0b2b47] ${full ? "fixed inset-0 z-[90] h-screen" : "h-full rounded-2xl"}`}>
-      {/* tools */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-[#2a5068]/50 bg-[#0a2744]/60 p-3">
-        <div className="flex gap-1">
-          {TOOLS.map((t) => (
-            <button
-              key={t.id}
-              title={t.label}
-              onClick={() => setTool(t.id)}
-              className={`h-9 w-9 rounded-md border text-base font-semibold transition ${
-                tool === t.id ? "border-[#f84f63] bg-[#f84f63]/20 text-[#f84f63]" : "border-[#2f5b75] bg-[#16415f] text-[#c6dce2] hover:bg-white/10"
-              }`}
-            >
-              {t.glyph}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-1.5 pl-2">
-          {COLORS.map((c) => (
-            <button
-              key={c}
-              onClick={() => applyColor(c)}
-              style={{ background: c }}
-              className={`h-6 w-6 rounded-full border-2 ${color === c ? "border-white" : "border-transparent"}`}
-              aria-label={`Colour ${c}`}
-            />
-          ))}
-          <input type="color" value={color} onChange={(e) => applyColor(e.target.value)} className="h-6 w-6 cursor-pointer bg-transparent" />
-        </div>
-        <div className="flex items-center gap-1 pl-2 text-xs text-[#9bbcc0]">
-          Text
-          <button className={btn} onClick={() => setFontSize((v) => Math.max(8, v - 2))}>{"\u2212"}</button>
-          <span className="w-6 text-center">{fontSize}</span>
-          <button className={btn} onClick={() => setFontSize((v) => v + 2)}>+</button>
+    <div
+      className={`flex flex-col overflow-hidden border border-[#2a5068] bg-[#071a2d] ${full ? "fixed inset-0 z-[90] h-screen" : "h-full rounded-2xl"}`}
+      style={full ? { animation: "iePop .18s ease-out" } : undefined}
+    >
+      <style>{`@keyframes iePop{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}`}</style>
+
+      {/* ---------------- top bar ---------------- */}
+      <div className="flex items-center gap-2 border-b border-[#2a5068]/50 bg-[#0a2744]/80 px-3 py-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-white">{title || "Image editor"}</p>
+          <p className="hidden text-[11px] text-[#7f9fae] sm:block">{size.w} × {size.h}px · {Math.round(scale * 100)}% view</p>
         </div>
         <div className="ml-auto flex items-center gap-1.5">
-          <button className={btn} onClick={() => setShowLayers((v) => !v)}>Layers ({els.length})</button>
-          <button className={btn} onClick={() => fileRef.current?.click()}>+ Add Overlay</button>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden"
-            onChange={(e) => { addOverlay(e.target.files?.[0]); e.target.value = ""; }} />
-          <button className={btn} onClick={undo} disabled={!canUndo || !!crop} title="Undo">{"\u21B6"}</button>
-          <button className={btn} onClick={redo} disabled={!canRedo || !!crop} title="Redo">{"\u21B7"}</button>
-          <button className={btn} onClick={() => setFull((v) => !v)} title={full ? "Exit full screen (Esc)" : "Full screen"} aria-label="Toggle full screen">
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {full
-                ? <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />
-                : <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />}
-            </svg>
+          <RB label="Export snapshot (.png)" icon="download" onClick={exportPng} side="bottom" size="h-9 w-9" />
+          <RB label="Clear annotations" icon="eraser" onClick={clearAnnotations} side="bottom" size="h-9 w-9" />
+          <RB label={full ? "Exit full screen (Esc)" : "Full screen"} icon={full ? "collapse" : "expand"} onClick={() => setFull((v) => !v)} side="bottom" size="h-9 w-9" />
+          <button type="button" onClick={onClose} className={`${TEXT_BTN} border-[#2f5b75] text-[#b9d2d3] hover:bg-white/5`}>Cancel</button>
+          <button type="button" onClick={handleSave} disabled={loading || !!crop} className={`${TEXT_BTN} border-[#f84f63] bg-[#f84f63] text-[#0a1f36] hover:bg-[#ff667a]`}>
+            Save
           </button>
         </div>
       </div>
 
-      {/* properties */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-[#2a5068]/50 bg-[#081c33] px-3 py-2">
-        <span className="max-w-[220px] truncate text-xs font-semibold text-[#38bdf8]">{selected ? selected.name : title || "No layer selected"}</span>
-        {numInput("X", "x")}{numInput("Y", "y")}{numInput("W", "w")}{numInput("H", "h")}
-        <label className="flex items-center gap-1 text-[11px] text-[#9bbcc0]">
-          Scale %
-          <input type="number" value={selected && selected.type !== "arrow" ? scalePct : ""} disabled={!selected || selected.locked || selected.type === "arrow" || !!crop}
-            onChange={(e) => setScale(e.target.value)}
-            className="w-16 rounded border border-[#2f5b75] bg-[#0a1f36] px-1.5 py-1 text-xs text-white disabled:opacity-40" />
-        </label>
-        {selected?.type === "text" && (
-          <input
-            ref={textInputRef}
-            value={selected.text}
-            onChange={(e) => patch(selected.id, { text: e.target.value }, false)}
-            onBlur={() => setAll(elsRef.current, true)}
-            placeholder="Type text…"
-            className="min-w-[160px] flex-1 rounded border border-[#2f5b75] bg-[#0a1f36] px-2 py-1 text-xs text-white"
-          />
-        )}
-        {selected?.type === "image" && !crop && (
+      {/* ---------------- contextual bar ---------------- */}
+      <div className="flex min-h-[52px] flex-wrap items-center gap-x-3 gap-y-2 border-b border-[#2a5068]/50 bg-[#081c33] px-3 py-2">
+        {crop ? (
           <>
-            <button className={btn} onClick={startCrop} disabled={selected.locked}>Crop</button>
-            {selected.crop && <button className={btn} onClick={resetCrop}>Reset crop</button>}
+            <span className="text-xs font-semibold text-[#fbbf24]">Cropping — drag the handles, then apply</span>
+            <div className="ml-auto flex gap-2">
+              <button type="button" onClick={applyCrop} className="rounded-full bg-[#fbbf24] px-4 py-1.5 text-xs font-semibold text-[#0a1f36] transition active:scale-95 hover:bg-[#fcd34d]">Apply crop</button>
+              <button type="button" onClick={() => setCrop(null)} className="rounded-full border border-[#2f5b75] px-4 py-1.5 text-xs font-semibold text-[#c6dce2] transition active:scale-95 hover:bg-white/5">Cancel</button>
+            </div>
           </>
-        )}
-        {crop && (
+        ) : selected ? (
           <>
-            <button className="rounded-md bg-[#fbbf24] px-3 py-1 text-xs font-semibold text-[#0a1f36] hover:bg-[#fcd34d]" onClick={applyCrop}>Apply crop</button>
-            <button className={btn} onClick={() => setCrop(null)}>Cancel crop</button>
+            <span className="max-w-[160px] truncate text-xs font-semibold text-[#38bdf8]">{selected.name}</span>
+            {numInput("X", "x")}{numInput("Y", "y")}
+            {selected.type !== "arrow" && <>{numInput("W", "w")}{numInput("H", "h")}</>}
+            {selected.type !== "arrow" && (
+              <label className="flex items-center gap-1 text-[11px] text-[#9bbcc0]">
+                Scale %
+                <input
+                  type="number" value={scalePct} disabled={selected.locked}
+                  onChange={(e) => setScale(e.target.value)}
+                  className="w-16 rounded-md border border-[#2f5b75] bg-[#0a1f36] px-1.5 py-1 text-xs text-white outline-none focus:border-[#f84f63] disabled:opacity-40"
+                />
+              </label>
+            )}
+            <label className="flex items-center gap-1.5 text-[11px] text-[#9bbcc0]">
+              Opacity
+              <input
+                type="range" min="10" max="100"
+                value={Math.round((selected.opacity ?? 1) * 100)}
+                onChange={(e) => patch(selected.id, { opacity: Number(e.target.value) / 100 }, false)}
+                onPointerUp={() => setAll(elsRef.current, true)}
+                className="w-24 accent-[#f84f63]"
+              />
+            </label>
+            {selected.type === "text" && (
+              <input
+                ref={textInputRef}
+                value={selected.text}
+                onChange={(e) => patch(selected.id, { text: e.target.value }, false)}
+                onBlur={() => setAll(elsRef.current, true)}
+                placeholder="Type text…"
+                className="min-w-[140px] flex-1 rounded-md border border-[#2f5b75] bg-[#0a1f36] px-2 py-1 text-xs text-white outline-none focus:border-[#f84f63]"
+              />
+            )}
+            <div className="ml-auto flex flex-wrap items-center gap-1.5">
+              {selected.type === "image" && (
+                <>
+                  <RB size="h-8 w-8" side="bottom" label="Crop image" icon="crop" onClick={startCrop} disabled={selected.locked} />
+                  {selected.crop && <RB size="h-8 w-8" side="bottom" label="Reset crop" icon="reset" onClick={resetCrop} />}
+                  <RB size="h-8 w-8" side="bottom" label={selected.lockAspect ? "Aspect ratio locked" : "Aspect ratio free"} icon="ratio" active={!!selected.lockAspect} disabled={selected.locked} onClick={() => patch(selected.id, { lockAspect: !selected.lockAspect })} />
+                </>
+              )}
+              {selected.isBase && (
+                <>
+                  <RB size="h-8 w-8" side="bottom" label="Reset image size" icon="reset" onClick={resetBase} />
+                  <RB size="h-8 w-8" side="bottom" label="Fit canvas to image" icon="fit" onClick={fitCanvas} />
+                </>
+              )}
+              {!selected.isBase && (
+                <>
+                  <RB size="h-8 w-8" side="bottom" label="Bring forward" icon="forward" onClick={() => moveLayer(1)} />
+                  <RB size="h-8 w-8" side="bottom" label="Send backward" icon="backward" onClick={() => moveLayer(-1)} />
+                  <RB size="h-8 w-8" side="bottom" align="end" label="Duplicate" icon="duplicate" onClick={duplicateSel} />
+                  <RB size="h-8 w-8" side="bottom" align="end" label="Delete layer (Del)" icon="trash" danger onClick={removeSel} />
+                </>
+              )}
+            </div>
           </>
-        )}
-        {selected?.type === "image" && (
-          <label className="flex items-center gap-1 text-[11px] text-[#9bbcc0]">
-            <input
-              type="checkbox"
-              checked={!!selected.lockAspect}
-              disabled={selected.locked || !!crop}
-              onChange={(e) => patch(selected.id, { lockAspect: e.target.checked })}
-            />
-            Lock ratio
-          </label>
-        )}
-        {selected?.isBase && !crop && (
-          <>
-            <button className={btn} onClick={resetBase}>Reset size</button>
-            <button className={btn} onClick={fitCanvas}>Fit canvas to image</button>
-          </>
-        )}
-        {selected && !selected.isBase && !crop && (
-          <div className="ml-auto flex gap-1">
-            <button className={btn} onClick={() => moveLayer(1)} title="Bring forward">{"\u2191"}</button>
-            <button className={btn} onClick={() => moveLayer(-1)} title="Send backward">{"\u2193"}</button>
-            <button className={btn} onClick={duplicateSel}>Duplicate</button>
-            <button className={`${btn} text-[#ff8e9c]`} onClick={removeSel}>Delete</button>
-          </div>
+        ) : (
+          <span className="text-xs text-[#7f9fae]">Select a layer to edit it, or pick a tool below to annotate. Double-click text to rename it.</span>
         )}
       </div>
 
-      {/* canvas + layers panel */}
-      <div ref={wrapRef} className="relative flex-1 overflow-auto bg-[#0a2744] p-4">
-        {loading && <p className="text-sm text-[#9bbcc0]">Loading image…</p>}
-        <canvas
-          ref={canvasRef}
-          width={size.w}
-          height={size.h}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-          style={{
-            width: "100%",
-            maxWidth: size.w,
-            height: "auto",
-            touchAction: "none",
-            cursor: crop ? "crosshair" : tool === "select" ? "default" : tool === "text" ? "text" : "crosshair",
-          }}
-          className="mx-auto block rounded-lg border border-[#2a5068] bg-[#06182b]"
-        />
+      {/* ---------------- canvas area ---------------- */}
+      <div
+        ref={areaRef}
+        className="relative min-h-0 flex-1 overflow-hidden bg-[#0a2744]"
+        style={{ backgroundImage: "radial-gradient(#16405c 1px, transparent 1px)", backgroundSize: "20px 20px" }}
+      >
+        <div className="absolute inset-0 flex items-center justify-center" style={{ paddingBottom: avail.dock + 20 }}>
+          {loading && <p className="absolute text-sm text-[#9bbcc0]">Loading image…</p>}
+          <canvas
+            ref={canvasRef}
+            width={size.w}
+            height={size.h}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+            onDoubleClick={onDoubleClick}
+            style={{
+              width: dispW, height: dispH, display: "block", touchAction: "none",
+              cursor: crop ? "crosshair" : tool === "select" ? "default" : tool === "text" ? "text" : "crosshair",
+            }}
+            className="rounded-sm bg-[#06182b] shadow-[0_10px_40px_rgba(0,0,0,.45)] ring-1 ring-black"
+          />
+        </div>
 
+        {/* layers card */}
         {showLayers && (
-          <div className="absolute right-4 top-4 w-64 overflow-hidden rounded-xl border border-[#2a5068] bg-[#0b2b47]/95 shadow-xl backdrop-blur">
-            <div className="flex items-center justify-between border-b border-[#2a5068]/60 px-3 py-2">
-              <span className="text-sm font-semibold text-white">Overlay Layers</span>
-              <button className="text-[#9bbcc0] hover:text-white" onClick={() => setShowLayers(false)}>{"\u2014"}</button>
+          <div
+            className="absolute left-3 top-3 z-10 flex w-56 flex-col overflow-hidden rounded-2xl border border-[#2a5068] bg-[#061523]/90 shadow-2xl backdrop-blur"
+            style={{ maxHeight: `calc(100% - ${avail.dock + 36}px)` }}
+          >
+            <div className="flex items-center justify-between px-3 py-2.5">
+              <span className="text-sm font-semibold text-white">Layers</span>
+              <span className="text-[11px] text-[#7f9fae]">{els.length}</span>
             </div>
-            <ul className="max-h-60 overflow-auto p-1.5">
+            <ul className="space-y-1 overflow-y-auto px-2 pb-2">
               {[...els].reverse().map((el) => (
                 <li
                   key={el.id}
                   onClick={() => { setCrop(null); setSelectedId(el.id); setTool("select"); }}
-                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2 py-1.5 text-xs ${
+                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2 py-1.5 text-xs transition ${
                     el.id === selectedId ? "border-[#38bdf8] bg-[#16415f]" : "border-transparent hover:bg-white/5"
                   }`}
                 >
-                  <button
-                    title="Show / hide"
-                    onClick={(ev) => { ev.stopPropagation(); patch(el.id, { visible: !el.visible }); }}
-                    className={el.visible ? "text-[#c6dce2]" : "text-[#58707c]"}
-                  >
-                    {el.visible ? "\u25C9" : "\u25CB"}
+                  <button type="button" title="Show / hide" onClick={(ev) => { ev.stopPropagation(); patch(el.id, { visible: !el.visible }); }} className={el.visible ? "text-[#c6dce2]" : "text-[#58707c]"}>
+                    <Ic n={el.visible ? "eye" : "eyeoff"} cls="h-4 w-4" />
                   </button>
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: el.color || "#64748b" }} />
-                  <span className={`flex-1 truncate ${el.visible ? "text-[#e3eef0]" : "text-[#58707c]"}`}>{el.name}</span>
-                  <span className="text-[10px] text-[#8fa9b5]">{Math.round((el.opacity ?? 1) * 100)}%</span>
-                  <button
-                    title="Lock / unlock"
-                    onClick={(ev) => { ev.stopPropagation(); patch(el.id, { locked: !el.locked }); }}
-                    className={el.locked ? "text-[#ff8e9c]" : "text-[#8fa9b5]"}
-                  >
-                    {el.locked ? "\uD83D\uDD12" : "\uD83D\uDD13"}
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full border border-white/30" style={{ background: el.color || "#64748b" }} />
+                  <span className={`min-w-0 flex-1 truncate ${el.visible ? "text-[#e3eef0]" : "text-[#58707c]"}`}>{el.name}</span>
+                  <button type="button" title="Lock / unlock" onClick={(ev) => { ev.stopPropagation(); patch(el.id, { locked: !el.locked }); }} className={el.locked ? "text-[#ff8e9c]" : "text-[#7f9fae]"}>
+                    <Ic n={el.locked ? "lock" : "unlock"} cls="h-4 w-4" />
                   </button>
                 </li>
               ))}
             </ul>
-            <div className="flex items-center gap-2 border-t border-[#2a5068]/60 px-3 py-2 text-xs text-[#9bbcc0]">
-              Opacity
-              <input
-                type="range" min="10" max="100" disabled={!selected}
-                value={selected ? Math.round((selected.opacity ?? 1) * 100) : 100}
-                onChange={(e) => selected && patch(selected.id, { opacity: Number(e.target.value) / 100 }, false)}
-                onPointerUp={() => setAll(elsRef.current, true)}
-                className="flex-1"
-              />
-            </div>
           </div>
         )}
-      </div>
 
-      {/* footer */}
-      <div className="flex flex-wrap items-center gap-3 border-t border-[#2a5068]/50 bg-[#0a2744]/80 p-3">
-        <button className="text-xs text-[#9bbcc0] hover:text-white" onClick={clearAnnotations}>Clear Annotations</button>
-        <button className="text-xs text-[#9bbcc0] hover:text-white" onClick={exportPng}>Export Snapshot (.png)</button>
-        <div className="ml-auto flex gap-2">
-          <button onClick={onClose} className="rounded-md border border-[#2f5b75] px-4 py-2 text-sm font-semibold text-[#b9d2d3] hover:bg-white/5">
-            Cancel
-          </button>
-          <button onClick={handleSave} disabled={loading || !!crop}
-            className="rounded-md border border-[#f84f63] bg-[#f84f63] px-4 py-2 text-sm font-semibold text-[#0a1f36] hover:bg-[#ff667a] disabled:opacity-50">
-            Save edited image
-          </button>
+        {/* bottom dock */}
+        <div
+          ref={dockRef}
+          className="absolute bottom-4 left-1/2 z-20 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-[28px] border border-[#2a5068] bg-[#061523]/90 px-3 py-2.5 shadow-2xl backdrop-blur"
+        >
+          {TOOLS.map((t) => (
+            <RB key={t.id} label={t.label} icon={t.icon} active={tool === t.id && !crop} disabled={!!crop} onClick={() => setTool(t.id)} />
+          ))}
+          <Divider />
+          {COLORS.map((c) => (
+            <Tip key={c} label={c === "#000000" ? "Black" : c === "#f84f63" ? "Coral" : c === "#fbbf24" ? "Amber" : "Sky blue"}>
+              <button
+                type="button"
+                aria-label={`Colour ${c}`}
+                onClick={() => applyColor(c)}
+                style={{ background: c }}
+                className={`h-7 w-7 rounded-full border-2 transition active:scale-90 ${color === c ? "scale-110 border-white" : "border-white/30 hover:border-white/70"}`}
+              />
+            </Tip>
+          ))}
+          <Tip label="Custom colour">
+            <input type="color" value={color} onChange={(e) => applyColor(e.target.value)} className="h-7 w-7 cursor-pointer rounded-full border-2 border-white/30 bg-transparent p-0" />
+          </Tip>
+          <Divider />
+          <RB size="h-8 w-8" label="Smaller text" icon="minus" onClick={() => setFontSize((v) => Math.max(8, v - 2))} />
+          <span className="w-6 text-center text-xs font-semibold text-[#c6dce2]">{fontSize}</span>
+          <RB size="h-8 w-8" label="Larger text" icon="plus" onClick={() => setFontSize((v) => v + 2)} />
+          <Divider />
+          <RB label="Add overlay image" icon="overlay" onClick={() => fileRef.current?.click()} />
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { addOverlay(e.target.files?.[0]); e.target.value = ""; }} />
+          <RB label={showLayers ? "Hide layers" : "Show layers"} icon="layers" active={showLayers} onClick={() => setShowLayers((v) => !v)} />
+          <RB label="Undo (Ctrl+Z)" icon="undo" onClick={undo} disabled={!canUndo} />
+          <RB label="Redo (Ctrl+Y)" icon="redo" onClick={redo} disabled={!canRedo} />
         </div>
       </div>
     </div>

@@ -544,6 +544,92 @@ function MaterialEditor({ catalog, mode, setMode, selectedId, setSelectedId, dat
   );
 }
 
+function ClausePicker({ clauses, selectedIds, disabled, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("mousedown", onDown); window.removeEventListener("keydown", onKey); };
+  }, [open]);
+
+  const ids = new Set(selectedIds.map(String));
+  const term = q.trim().toLowerCase();
+  const shown = term ? clauses.filter((c) => `${c.clause_no || ""} ${c.title || ""}`.toLowerCase().includes(term)) : clauses;
+  const allOn = clauses.length > 0 && clauses.every((c) => ids.has(String(c.id)));
+  const someOn = ids.size > 0 && !allOn;
+
+  const toggle = (id) => {
+    const next = new Set(ids);
+    next.has(String(id)) ? next.delete(String(id)) : next.add(String(id));
+    onChange(clauses.filter((c) => next.has(String(c.id))).map((c) => c.id));
+  };
+  const toggleAll = () => onChange(allOn ? [] : clauses.map((c) => c.id));
+  const toggleShown = () => {
+    const allShown = shown.every((c) => ids.has(String(c.id)));
+    const next = new Set(ids);
+    shown.forEach((c) => (allShown ? next.delete(String(c.id)) : next.add(String(c.id))));
+    onChange(clauses.filter((c) => next.has(String(c.id))).map((c) => c.id));
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((v) => !v)}
+        className={`${INPUT} flex items-center justify-between text-left`}
+      >
+        <span className="truncate">
+          {ids.size === 0 ? "Select clauses" : allOn ? `All ${clauses.length} clauses selected` : `${ids.size} of ${clauses.length} clauses selected`}
+        </span>
+        <span className="ml-2 text-xs text-[#9bbcc0]">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-[#2f5b75] bg-[#0e3250] shadow-2xl">
+          <div className="space-y-2 border-b border-[#2a5068]/60 p-2.5">
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search clauses…"
+              className="w-full rounded-md border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-xs text-white outline-none focus:border-[#f84f63]"
+            />
+            <label className="flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-white">
+              <input
+                type="checkbox"
+                checked={term ? shown.length > 0 && shown.every((c) => ids.has(String(c.id))) : allOn}
+                ref={(el) => { if (el) el.indeterminate = !term && someOn; }}
+                onChange={term ? toggleShown : toggleAll}
+                className="h-4 w-4 accent-[#f84f63]"
+              />
+              {term ? `Select all ${shown.length} matching` : "Select all clauses"}
+            </label>
+          </div>
+          <ul className="max-h-72 overflow-y-auto p-1.5">
+            {shown.length === 0 && <li className="px-3 py-3 text-xs text-[#9bbcc0]">No clauses match.</li>}
+            {shown.map((c) => (
+              <li key={c.id}>
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-md px-2.5 py-2 text-sm text-[#c8dfe1] hover:bg-white/5">
+                  <input type="checkbox" checked={ids.has(String(c.id))} onChange={() => toggle(c.id)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#f84f63]" />
+                  <span>{c.clause_no ? `${c.clause_no} — ` : ""}{c.title}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <div className="flex justify-end border-t border-[#2a5068]/60 p-2">
+            <button type="button" onClick={() => setOpen(false)} className="rounded-md bg-[#f84f63] px-4 py-1.5 text-xs font-semibold text-[#0a1f36] hover:bg-[#ff667a]">Done</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Summary of compliance                                              */
 /* ------------------------------------------------------------------ */
@@ -570,27 +656,28 @@ function ComplianceEditor({ rows, setRows, catalog, request }) {
   const update = (id, patch) => setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
 
   const selectStandard = async (row, standardId) => {
-    update(row.id, { standardId, clauseId: "", clauses: [], standard: "", requirement: "", error: "" });
+    update(row.id, { standardId, clauseId: "", clauseIds: [], picked: [], clauses: [], standard: "", requirement: "", error: "" });
     if (!standardId) return;
     try {
-      // request() returns a Response, so read the JSON body before using it
       const response = await request(`/api/standards/${standardId}/clauses`);
       const result = await response.json();
       update(row.id, { clauses: result.clauses || [] });
     } catch (error) {
       update(row.id, { error: error.message });
     }
-  };
+  }
 
-  const selectClause = (row, clauseId) => {
-    const clause = row.clauses.find((item) => String(item.id) === String(clauseId));
-    if (!clause) return;
+  const pickClauses = (row, clauseIds) => {
     const code = catalog.find((item) => String(item.id) === String(row.standardId))?.code || "";
-    update(row.id, {
-      clauseId,
-      standard: clause.summary_standard || `${code} - ${clause.clause_no}`,
-      requirement: clause.summary_requirement || [clause.title, clause.requirement_text].filter(Boolean).join("\n"),
-    });
+    const set = new Set(clauseIds.map(String));
+    const picked = row.clauses
+      .filter((c) => set.has(String(c.id)))
+      .map((c) => ({
+        id: c.id,
+        standard: c.summary_standard || `${code} - ${c.clause_no}`,
+        requirement: c.summary_requirement || [c.title, c.requirement_text].filter(Boolean).join("\n"),
+      }));
+    update(row.id, { clauseIds, clauseId: "", picked, standard: "", requirement: "" });
   };
 
   const saveManual = async (rowId, manual) => {
@@ -679,14 +766,15 @@ function ComplianceEditor({ rows, setRows, catalog, request }) {
                       ))}
                     </select>
                   </Labeled>
-                  <Labeled label="Clause">
-                    <select disabled={!row.standardId} className={INPUT} value={row.clauseId} onChange={(e) => selectClause(row, e.target.value)}>
-                      <option value="">Select a clause</option>
-                      {row.clauses.map((item) => (
-                        <option key={item.id} value={item.id}>{item.clause_no ? `${item.clause_no} — ` : ""}{item.title}</option>
-                      ))}
-                    </select>
-                  </Labeled>
+                  <div className="block">
+                    <span className={LABEL}>Clauses</span>
+                    <ClausePicker
+                      clauses={row.clauses}
+                      disabled={!row.standardId}
+                      selectedIds={row.clauseIds || (row.clauseId ? [row.clauseId] : [])}
+                      onChange={(ids) => pickClauses(row, ids)}
+                    />
+                  </div>
                 </>
               ) : (
                 <>
@@ -731,12 +819,22 @@ function ComplianceEditor({ rows, setRows, catalog, request }) {
               </div>
             )}
 
-            {row.standard && (
+            {row.picked?.length > 0 ? (
+              <div className="mt-4 space-y-2 rounded-lg border border-[#77c2bd]/20 bg-[#77c2bd]/5 p-3 text-sm">
+                <p className="text-xs font-semibold text-[#99cfca]">{row.picked.length} clause{row.picked.length > 1 ? "s" : ""} will be added to the report</p>
+                {row.picked.map((p) => (
+                  <div key={p.id} className="grid gap-2 border-t border-[#2a5068]/40 pt-2 md:grid-cols-2">
+                    <p><b className="font-semibold text-[#99cfca]">Standard:</b> {p.standard}</p>
+                    <p className="whitespace-pre-line"><b className="font-semibold text-[#99cfca]">Requirement:</b> {p.requirement}</p>
+                  </div>
+                ))}
+              </div>
+            ) : row.standard ? (
               <div className="mt-4 grid gap-3 rounded-lg border border-[#77c2bd]/20 bg-[#77c2bd]/5 p-3 text-sm md:grid-cols-2">
                 <p><b className="font-semibold text-[#99cfca]">Standard:</b> {row.standard}</p>
                 <p className="whitespace-pre-line"><b className="font-semibold text-[#99cfca]">Requirement:</b> {row.requirement}</p>
               </div>
-            )}
+            ) : null}
           </div>
         ))}
       </div>
@@ -2054,7 +2152,11 @@ export default function ReportGenix() {
   );
 
   const reportRows = useMemo(
-    () => standards.filter((row) => row.standard || row.requirement).map(({ standard, requirement, conformity }) => ({ standard, requirement, conformity })),
+    () =>
+      standards.flatMap((row) => {
+        if (row.picked?.length) return row.picked.map((p) => ({ standard: p.standard, requirement: p.requirement, conformity: row.conformity }));
+        return row.standard || row.requirement ? [{ standard: row.standard, requirement: row.requirement, conformity: row.conformity }] : [];
+      }),
     [standards]
   );
 
@@ -2636,7 +2738,7 @@ const sidebarSteps = [
               </div>
               <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-t border-[#2a5068]/60 bg-[#0a2744] lg:border-l lg:border-t-0">
                 {editingImage ? (
-                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
+                  <div className="min-h-0 flex-1 p-3">
                     <ImageEditor
                       key={editingImage.id}
                       imageUrl={editingImage.url}
