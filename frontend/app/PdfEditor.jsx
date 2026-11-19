@@ -77,7 +77,7 @@ const TABS = [
 ];
 
 const HINTS = {
-  select: "Click an item to move, resize or edit it. Double-click text to edit.",
+  select: "Select and drag to move · Drag a corner to resize · Double-click to edit · Enter saves · Shift+Enter adds a line.",
   text: "Click on the page to add a text box.",
   edittext: "Click any existing text on the page to rewrite it.",
   image: "Click on the page to place the image.",
@@ -254,45 +254,102 @@ function SignatureDialog({ kind, onDone, onClose }) {
 
 function TextItem({ it, tool, selected, editing, api, pageKey }) {
   const ref = useRef(null);
+  const minTextHeight = Math.max((it.size || 12) * 1.25, 16);
+  const boxHeight = Math.max(Number(it.h) || minTextHeight, minTextHeight);
   const style = {
-    position: "absolute", left: it.x, top: it.y, width: it.w, minHeight: it.size * 1.25,
-    fontSize: it.size, lineHeight: 1.25, color: it.color, fontFamily: FONT_FAMILIES[it.font] || FONT_FAMILIES.Helvetica,
+    position: "absolute", left: it.x, top: it.y, width: Math.max(Number(it.w) || 30, 30), height: boxHeight,
+    minHeight: minTextHeight, fontSize: it.size, lineHeight: 1.25,
+    color: it.color, fontFamily: FONT_FAMILIES[it.font] || FONT_FAMILIES.Helvetica,
     fontWeight: it.bold ? 700 : 400, fontStyle: it.italic ? "italic" : "normal", textAlign: it.align || "left",
-    whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0, padding: 0, border: 0, background: "transparent",
-    pointerEvents: tool === "select" ? "auto" : "none", cursor: tool === "select" ? "move" : "default",
-    outline: selected || editing ? "1px dashed #81c9c2" : "none", outlineOffset: 2, resize: "none", overflow: "visible", boxSizing: "border-box",
+    whiteSpace: "pre-wrap", overflowWrap: "anywhere", wordBreak: "break-word",
+    margin: 0, padding: 0, border: 0, background: "transparent", boxSizing: "border-box",
+    pointerEvents: tool === "select" ? "auto" : "none",
+    cursor: tool === "select" ? "move" : "default",
+    outline: selected || editing ? "1px dashed #81c9c2" : "none",
+    outlineOffset: 3, resize: "none", overflow: "hidden",
   };
+
+  // Keep the saved text-box height in sync with wrapped/multiline content.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const h = editing ? el.scrollHeight : el.offsetHeight;
-    if (Math.abs(h - it.h) > 1) api.patch(pageKey, it.id, { h }, false);
-  }, [it.text, it.size, it.w, it.font, it.bold, it.italic, editing]); // eslint-disable-line react-hooks/exhaustive-deps
+    const measured = Math.max(boxHeight, minTextHeight, el.scrollHeight);
+    if (Math.abs(measured - boxHeight) > 2) {
+      api.patch(pageKey, it.id, { h: measured }, false);
+    }
+  }, [it.text, it.size, it.w, it.font, it.bold, it.italic, editing, minTextHeight, boxHeight]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!editing) return;
-    const t = setTimeout(() => { if (ref.current) { ref.current.focus(); if (editing.selectAll) ref.current.select(); } }, 40);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => {
+      if (!ref.current) return;
+      ref.current.focus();
+      if (editing.selectAll) ref.current.select();
+      else {
+        const end = ref.current.value.length;
+        ref.current.setSelectionRange(end, end);
+      }
+    }, 40);
+    return () => clearTimeout(timer);
   }, [editing]);
 
   if (editing) {
     return (
       <textarea
         ref={ref}
+        aria-label="Edit PDF text"
         value={it.text}
         onChange={(e) => api.patch(pageKey, it.id, { text: e.target.value }, false)}
-        onBlur={() => api.stopEditing(pageKey, it)}
-        onKeyDown={(e) => { if (e.key === "Escape") e.currentTarget.blur(); e.stopPropagation(); }}
+        onBlur={(e) => {
+          const nextW = Math.max(30, e.currentTarget.offsetWidth || it.w);
+          const nextH = Math.max(minTextHeight, e.currentTarget.offsetHeight || it.h);
+          if (Math.abs(nextW - it.w) > 2 || Math.abs(nextH - it.h) > 2) {
+            api.patch(pageKey, it.id, { w: nextW, h: nextH }, false);
+          }
+          api.stopEditing(pageKey, it.id);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            e.currentTarget.blur();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            e.currentTarget.blur();
+          }
+          e.stopPropagation();
+        }}
         onPointerDown={(e) => e.stopPropagation()}
-        style={{ ...style, pointerEvents: "auto", cursor: "text", height: Math.max(it.h, it.size * 1.5), minHeight: it.size * 1.5, padding: "2px 3px", border: "1px solid #81c9c2", background: "rgba(255,255,255,.96)", color: it.color, overflow: "auto", whiteSpace: "pre-wrap" }}
+        onPointerUp={(e) => {
+          const target = e.currentTarget;
+          requestAnimationFrame(() => {
+            if (!target.isConnected) return;
+            const nextW = Math.max(30, target.offsetWidth || it.w);
+            const nextH = Math.max(minTextHeight, target.offsetHeight || it.h);
+            if (Math.abs(nextW - it.w) > 2 || Math.abs(nextH - it.h) > 2) {
+              api.patch(pageKey, it.id, { w: nextW, h: nextH }, false);
+            }
+          });
+        }}
+        spellCheck
+        style={{
+          ...style, pointerEvents: "auto", cursor: "text",
+          height: boxHeight, minHeight: minTextHeight, padding: "5px 7px",
+          border: "1px solid #81c9c2", borderRadius: 4,
+          background: it.editBg || "rgba(255,255,255,.98)", color: it.color,
+          overflow: "auto", whiteSpace: "pre-wrap", resize: "both",
+          boxShadow: "0 0 0 3px rgba(129,201,194,.16)",
+        }}
       />
     );
   }
+
   return (
     <div
       ref={ref}
       style={style}
       onPointerDown={(e) => api.startDrag(e, pageKey, it, "move")}
       onDoubleClick={() => tool === "select" && api.startEditing(it.id)}
+      title={tool === "select" ? "Double-click to edit · Drag to move" : undefined}
     >
       {it.text || " "}
     </div>
@@ -431,12 +488,28 @@ function ItemsLayer({ items, W, H, tool, selectedId, editing, api, pageKey, scal
         if (it.type === "line" || it.type === "arrow") {
           handles.push({ n: "p1", x: it.x, y: it.y }, { n: "p2", x: it.x2, y: it.y2 });
         } else if (RESIZABLE.has(it.type)) {
-          if (it.type === "text") handles.push({ n: "se", x: b.x + b.w, y: b.y + b.h });
+          if (it.type === "text") {
+            handles.push(
+              { n: "nw", x: b.x, y: b.y },
+              { n: "ne", x: b.x + b.w, y: b.y },
+              { n: "sw", x: b.x, y: b.y + b.h },
+              { n: "se", x: b.x + b.w, y: b.y + b.h },
+            );
+          }
           else handles.push({ n: "nw", x: b.x, y: b.y }, { n: "ne", x: b.x + b.w, y: b.y }, { n: "sw", x: b.x, y: b.y + b.h }, { n: "se", x: b.x + b.w, y: b.y + b.h });
         }
         return (
           <div key={`sel_${it.id}`} style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none", zIndex: 20 }}>
-            {it.type !== "line" && it.type !== "arrow" && it.type !== "text" && <div style={{ position: "absolute", left: b.x, top: b.y, width: b.w, height: b.h, outline: `${1 / scale}px dashed #81c9c2`, outlineOffset: 2 / scale }} />}
+            {it.type !== "line" && it.type !== "arrow" && (
+              <div style={{
+                position: "absolute", left: b.x, top: b.y,
+                width: b.w, height: b.h,
+                outline: `${1.25 / scale}px solid #81c9c2`,
+                outlineOffset: 2 / scale,
+                borderRadius: it.type === "text" ? 2 / scale : 0,
+                boxShadow: it.type === "text" ? `0 0 0 ${2 / scale}px rgba(129,201,194,.12)` : "none",
+              }} />
+            )}
             {handles.map((h) => (
               <div key={h.n} onPointerDown={(e) => api.startDrag(e, pageKey, it, h.n)}
                 style={{ position: "absolute", left: h.x - hs / 2, top: h.y - hs / 2, width: hs, height: hs, background: "#f84f63", border: `${1 / scale}px solid #fff`, borderRadius: 2, pointerEvents: "auto", cursor: h.n === "nw" || h.n === "se" ? "nwse-resize" : h.n === "ne" || h.n === "sw" ? "nesw-resize" : "crosshair" }} />
@@ -491,8 +564,16 @@ function PageView({ pdf, pageNo, pageKey, label, size, blank, scale, rot, delete
         if (!t.str || !t.str.trim()) return;
         const m = pdfjs.Util.transform(vp.transform, t.transform);
         const h = Math.hypot(m[2], m[3]);
-        const fam = content.styles?.[t.fontName]?.fontFamily || "";
-        out.push({ str: t.str, x: m[4], y: m[5] - h, w: Math.max(t.width * vp.scale, 2), h, font: /mono|courier/i.test(fam) ? "Courier" : /serif/i.test(fam) && !/sans/i.test(fam) ? "Times" : "Helvetica" });
+        const fontStyle = content.styles?.[t.fontName] || {};
+        const fam = fontStyle.fontFamily || "";
+        const fontLabel = `${t.fontName || ""} ${fam}`;
+        out.push({
+          str: t.str, x: m[4], y: m[5] - h,
+          w: Math.max(t.width * vp.scale, 2), h,
+          font: /mono|courier/i.test(fam) ? "Courier" : /serif/i.test(fam) && !/sans/i.test(fam) ? "Times" : "Helvetica",
+          bold: /bold|black|heavy|semibold/i.test(fontLabel),
+          italic: /italic|oblique/i.test(fontLabel),
+        });
       });
       setTextItems(out);
     })();
@@ -510,14 +591,72 @@ function PageView({ pdf, pageNo, pageKey, label, size, blank, scale, rot, delete
   };
   api.toPtRef.current[pageKey] = toPt;
 
-  const sampleBg = (ti) => {
+  const samplePageColors = (ti) => {
+    const toHex = (rgb) => `#${rgb.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("")}`;
     try {
-      const c = canvasRef.current;
-      const f = c.width / W;
-      const ctx = c.getContext("2d");
-      const d = ctx.getImageData(Math.max(0, Math.floor((ti.x - 2) * f)), Math.floor((ti.y + ti.h / 2) * f), 1, 1).data;
-      return `#${[d[0], d[1], d[2]].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
-    } catch { return "#ffffff"; }
+      const canvas = canvasRef.current;
+      if (!canvas) return { bg: "#ffffff", color: "#000000" };
+      const factor = canvas.width / W;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const x = Math.max(0, Math.floor(ti.x * factor));
+      const y = Math.max(0, Math.floor(ti.y * factor));
+      const w = Math.max(1, Math.min(canvas.width - x, Math.ceil(ti.w * factor)));
+      const h = Math.max(1, Math.min(canvas.height - y, Math.ceil(ti.h * factor)));
+      const data = ctx.getImageData(x, y, w, h).data;
+
+      // Sample the text-box perimeter to determine the page background,
+      // avoiding the glyphs themselves so the whiteout blends cleanly.
+      const edgeSamples = [];
+      const sample = (sx, sy) => {
+        const px = Math.max(0, Math.min(canvas.width - 1, sx));
+        const py = Math.max(0, Math.min(canvas.height - 1, sy));
+        const pixel = ctx.getImageData(px, py, 1, 1).data;
+        edgeSamples.push([pixel[0], pixel[1], pixel[2]]);
+      };
+      const steps = 5;
+      for (let i = 0; i <= steps; i++) {
+        const px = x + Math.round((w - 1) * i / steps);
+        sample(px, y);
+        sample(px, y + h - 1);
+        const py = y + Math.round((h - 1) * i / steps);
+        sample(x, py);
+        sample(x + w - 1, py);
+      }
+      const buckets = new Map();
+      edgeSamples.forEach((rgb) => {
+        const key = rgb.map((v) => Math.round(v / 16)).join(",");
+        const entry = buckets.get(key) || { count: 0, total: [0, 0, 0] };
+        entry.count += 1;
+        rgb.forEach((v, i) => { entry.total[i] += v; });
+        buckets.set(key, entry);
+      });
+      const bgEntry = [...buckets.values()].sort((a, b) => b.count - a.count)[0];
+      const bg = bgEntry ? bgEntry.total.map((v) => v / bgEntry.count) : [255, 255, 255];
+      const bgLum = 0.2126 * bg[0] + 0.7152 * bg[1] + 0.0722 * bg[2];
+
+      // Find the most common contrasting ink colour in the glyph area.
+      // Quantisation groups antialiased pixels from the same font colour.
+      const inkBuckets = new Map();
+      for (let i = 0; i < data.length; i += 4) {
+        const alpha = data[i + 3];
+        if (alpha < 180) continue;
+        const rgb = [data[i], data[i + 1], data[i + 2]];
+        const lum = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+        if (Math.abs(lum - bgLum) < 38) continue;
+        const key = rgb.map((v) => Math.round(v / 24)).join(",");
+        const entry = inkBuckets.get(key) || { count: 0, total: [0, 0, 0] };
+        entry.count += 1;
+        rgb.forEach((v, j) => { entry.total[j] += v; });
+        inkBuckets.set(key, entry);
+      }
+      const inkEntry = [...inkBuckets.values()].sort((a, b) => b.count - a.count)[0];
+      const color = inkEntry
+        ? inkEntry.total.map((v) => v / inkEntry.count)
+        : [25, 35, 48];
+      return { bg: toHex(bg), color: toHex(color) };
+    } catch {
+      return { bg: "#ffffff", color: "#000000" };
+    }
   };
 
   const hitText = (rect) =>
@@ -615,7 +754,11 @@ function PageView({ pdf, pageNo, pageKey, label, size, blank, scale, rot, delete
                   key={i}
                   {...(match ? { "data-match": "1" } : {})}
                   onPointerDown={(e) => {
-                    if (tool === "edittext") { e.stopPropagation(); e.preventDefault(); api.editExisting(pageKey, t, sampleBg(t)); }
+                    if (tool === "edittext") {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      api.editExisting(pageKey, t, samplePageColors(t));
+                    }
                   }}
                   className={tool === "edittext" ? "pdfed-hover" : ""}
                   style={{ position: "absolute", left: t.x, top: t.y, width: t.w, height: t.h, fontSize: t.h, lineHeight: 1, whiteSpace: "pre", color: "transparent", background: match ? "rgba(253,224,71,.55)" : "transparent", outline: match ? "1px solid #f59e0b" : "none", cursor: tool === "edittext" ? "text" : "auto", userSelect: tool === "select" ? "text" : "none", overflow: "hidden" }}
@@ -818,10 +961,17 @@ export default function PdfEditor({ pdfBase64, pageNumbers, allPageKeys, title =
     patch: (key, id, p, record = false) => mapItems(key, (a) => a.map((x) => (x.id === id ? { ...x, ...p } : x)), record),
     commitNow: () => {},
     setPage: (key, p) => { const c = editsRef.current; commit({ ...c, pages: { ...c.pages, [key]: { ...(c.pages?.[key] || {}), ...p } } }, true); },
-    startEditing: (id) => setEditing({ id, selectAll: false }),
-    stopEditing: (key, it) => {
+    startEditing: (id) => {
+      const current = selected?.key;
+      if (current) snap();
+      setEditing({ id, selectAll: false });
+    },
+    stopEditing: (key, id) => {
+      const current = (editsRef.current.items?.[key] || []).find((item) => item.id === id);
       setEditing(null);
-      if (!(it.text || "").trim()) mapItems(key, (a) => a.filter((x) => x.id !== it.id), false);
+      if (!(current?.text || "").trim()) {
+        mapItems(key, (a) => a.filter((item) => item.id !== id), false);
+      }
     },
     editLink: (key, it) => {
       const url = window.prompt("Link URL", it.url || "https://");
@@ -830,11 +980,28 @@ export default function PdfEditor({ pdfBase64, pageNumbers, allPageKeys, title =
     afterOneShot: (t) => { if (ONE_SHOT.has(t)) setTool("select"); },
     editImage: (key, item) => onEditImage?.({ key, item }),
 
-    editExisting: (key, ti, bg) => {
+    editExisting: (key, ti, sampled = {}) => {
       const c = editsRef.current;
       const id = uid();
-      const cover = { id: uid(), type: "whiteout", x: ti.x - 1, y: ti.y - 0.5, w: ti.w + 2, h: ti.h + 1, color: bg };
-      const text = { id, type: "text", x: ti.x, y: ti.y, w: Math.max(ti.w * 1.08 + 8, 40), h: ti.h * 1.25, text: ti.str, size: Math.round(ti.h * 10) / 10, color: "#000000", font: ti.font, bold: false, italic: false, align: "left" };
+      const bg = sampled.bg || "#ffffff";
+      const ink = sampled.color || "#000000";
+      // Slightly overdraw the original glyph bounds to avoid leaving fragments
+      // around antialiased edges after the text is replaced.
+      const padX = Math.max(1.5, ti.h * 0.08);
+      const padY = Math.max(1, ti.h * 0.06);
+      const cover = {
+        id: uid(), type: "whiteout",
+        x: ti.x - padX, y: ti.y - padY,
+        w: ti.w + padX * 2, h: ti.h + padY * 2,
+        color: bg,
+      };
+      const text = {
+        id, type: "text", x: ti.x, y: ti.y,
+        w: Math.max(ti.w * 1.12 + 10, 48), h: Math.max(ti.h * 1.35, 18),
+        text: ti.str, size: Math.round(ti.h * 10) / 10,
+        color: ink, editBg: bg, font: ti.font,
+        bold: Boolean(ti.bold), italic: Boolean(ti.italic), align: "left",
+      };
       commit({ ...c, items: { ...c.items, [key]: [...(c.items?.[key] || []), cover, text] } }, true);
       setSelected({ key, id });
       setEditing({ id, selectAll: true });
@@ -898,7 +1065,15 @@ export default function PdfEditor({ pdfBase64, pageNumbers, allPageKeys, title =
           if (mode.includes("e")) x2 = Math.max(p.x, x1 + 6);
           if (mode.includes("n")) y1 = Math.min(p.y, y2 - 6);
           if (mode.includes("s")) y2 = Math.max(p.y, y1 + 6);
-          if (orig.type === "text") patch = { x: x1, w: Math.max(30, x2 - x1) };
+          if (orig.type === "text") {
+            const minW = 30;
+            const minH = Math.max((orig.size || 12) * 1.25, 16);
+            if (mode.includes("w")) x1 = Math.min(p.x, x2 - minW);
+            if (mode.includes("e")) x2 = Math.max(p.x, x1 + minW);
+            if (mode.includes("n")) y1 = Math.min(p.y, y2 - minH);
+            if (mode.includes("s")) y2 = Math.max(p.y, y1 + minH);
+            patch = { x: x1, y: y1, w: Math.max(minW, x2 - x1), h: Math.max(minH, y2 - y1) };
+          }
           else if (orig.type === "image") { const w = x2 - x1; patch = { x: x1, y: mode.includes("n") ? y2 - w * (orig.h / orig.w) : y1, w, h: w * (orig.h / orig.w) }; }
           else if (orig.type === "check" || orig.type === "cross" || orig.type === "dot") { const w = Math.max(x2 - x1, 8); patch = { x: x1, y: y1, w, h: w }; }
           else patch = { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
@@ -930,7 +1105,7 @@ export default function PdfEditor({ pdfBase64, pageNumbers, allPageKeys, title =
       const p = { ...patch };
       if ("hlColor" in p) { p.color = p.hlColor; delete p.hlColor; }
       if ("fillWhite" in p) { p.color = p.fillWhite; delete p.fillWhite; }
-      const allowed = ["color", "fill", "sw", "size", "font", "bold", "italic", "align", "opacity"];
+      const allowed = ["color", "fill", "sw", "size", "font", "bold", "italic", "align", "opacity", "w", "h"];
       const out = {};
       Object.keys(p).forEach((k) => { if (allowed.includes(k)) out[k] = p[k]; });
       if (Object.keys(out).length) { snap(); api.patch(selected.key, selected.id, out, false); }
@@ -1279,15 +1454,81 @@ export default function PdfEditor({ pdfBase64, pageNumbers, allPageKeys, title =
             </label>
           )}
           {showTextProps && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <select value={selItem?.font || style.font} onChange={(e) => applyStyle({ font: e.target.value })} className={FIELD}>
-                <option>Helvetica</option><option>Times</option><option>Courier</option>
-              </select>
-              <input type="number" min="6" max="96" value={Math.round((selItem?.size || style.size) * 10) / 10} onChange={(e) => applyStyle({ size: clamp(+e.target.value || 12, 6, 96) })} className={`${FIELD} w-14`} />
-              <button type="button" onClick={() => applyStyle({ bold: !(selItem ? selItem.bold : style.bold) })} className={`${BTN} !px-2 !py-0.5 font-bold ${(selItem ? selItem.bold : style.bold) ? BTN_ON : ""}`}>B</button>
-              <button type="button" onClick={() => applyStyle({ italic: !(selItem ? selItem.italic : style.italic) })} className={`${BTN} !px-2 !py-0.5 italic ${(selItem ? selItem.italic : style.italic) ? BTN_ON : ""}`}>I</button>
+            <div className="flex min-w-max items-center gap-2 rounded-lg border border-[#2f5b75]/70 bg-[#061d31]/65 px-2 py-1.5">
+              <span className="mr-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#81c9c2]">Text</span>
+
+              {selItem?.type === "text" && (
+                <>
+                  <button
+                    type="button"
+                    className={`${BTN} !border-[#81c9c2]/60 !bg-[#16415f]`}
+                    onClick={() => api.startEditing(selItem.id)}
+                    title="Edit selected text"
+                  >
+                    <Ico name="edittext" /> Edit
+                  </button>
+                  <span className="h-5 w-px bg-[#2f5b75]" />
+                </>
+              )}
+
+              <label className="flex items-center gap-1 text-[10px] text-[#9bbcc0]">
+                Font
+                <select value={selItem?.font || style.font} onChange={(e) => applyStyle({ font: e.target.value })} className={`${FIELD} max-w-[112px]`}>
+                  <option>Helvetica</option><option>Times</option><option>Courier</option>
+                </select>
+              </label>
+
+              <label className="flex items-center gap-1 text-[10px] text-[#9bbcc0]">
+                Size
+                <input type="number" min="6" max="96" step="1"
+                  value={Math.round((selItem?.size || style.size) * 10) / 10}
+                  onChange={(e) => applyStyle({ size: clamp(+e.target.value || 12, 6, 96) })}
+                  className={`${FIELD} w-14 text-center`} />
+              </label>
+
+              {selItem?.type === "text" && (
+                <>
+                  <button
+                    type="button"
+                    className={`${BTN} !border-[#81c9c2]/60 !text-[#b9e7df]`}
+                    onClick={() => {
+                      snap();
+                      api.patch(selected.key, selected.id, {
+                        w: Math.max(30, Math.round((selItem.w || 30) * 1.25)),
+                        h: Math.max(16, Math.round((selItem.h || 16) * 1.35)),
+                      }, false);
+                    }}
+                    title="Extend the text area without changing its font or size"
+                  >
+                    Expand box
+                  </button>
+                  <label className="flex items-center gap-1 text-[10px] text-[#9bbcc0]">
+                    W
+                    <input type="number" min="30" max="1200" step="5"
+                      value={Math.round(selItem.w || 30)}
+                      onChange={(e) => applyStyle({ w: clamp(+e.target.value || 30, 30, 1200) })}
+                      className={`${FIELD} w-16 text-center`} />
+                  </label>
+                  <label className="flex items-center gap-1 text-[10px] text-[#9bbcc0]">
+                    H
+                    <input type="number" min="16" max="1600" step="5"
+                      value={Math.round(selItem.h || 16)}
+                      onChange={(e) => applyStyle({ h: clamp(+e.target.value || 16, 16, 1600) })}
+                      className={`${FIELD} w-16 text-center`} />
+                  </label>
+                </>
+              )}
+
+              <button type="button" onClick={() => applyStyle({ bold: !(selItem ? selItem.bold : style.bold) })}
+                className={`${BTN} !px-2 !py-1 font-bold ${(selItem ? selItem.bold : style.bold) ? BTN_ON : ""}`} title="Bold">B</button>
+              <button type="button" onClick={() => applyStyle({ italic: !(selItem ? selItem.italic : style.italic) })}
+                className={`${BTN} !px-2 !py-1 italic ${(selItem ? selItem.italic : style.italic) ? BTN_ON : ""}`} title="Italic">I</button>
+
+              <span className="h-5 w-px bg-[#2f5b75]" />
               {["left", "center", "right"].map((a) => (
-                <button key={a} type="button" onClick={() => applyStyle({ align: a })} className={`${BTN} !px-2 !py-0.5 ${(selItem?.align || style.align) === a ? BTN_ON : ""}`}>{a[0].toUpperCase()}</button>
+                <button key={a} type="button" onClick={() => applyStyle({ align: a })}
+                  className={`${BTN} !px-2 !py-1 ${(selItem?.align || style.align) === a ? BTN_ON : ""}`}
+                  title={`Align ${a}`}>{a[0].toUpperCase()}</button>
               ))}
             </div>
           )}

@@ -327,7 +327,15 @@ class Ctx:
         self.extras, self.removed = extras or {}, set(removed or [])
         self.labels = {f["id"]: f["label"] for f in GENERAL + [x for s in SECTIONS for x in s["fields"]]}
         self.defs = {f["id"]: f["default"] for f in GENERAL + [x for s in SECTIONS for x in s["fields"]]}
+    def _dynamic_key(self, key):
+        """Map template analysis field IDs to the active dynamic analysis section."""
+        active = str(self.active or "")
+        if not re.fullmatch(r"(?:a\d+|analysis-\d+)", active, re.I):
+            return key
+        return re.sub(r"(?<![A-Za-z0-9-])a\d+(?=_|$)", active, str(key), count=1, flags=re.I)
+
     def raw(self, k):
+        k = self._dynamic_key(k)
         v = str(self.d.get(k, "") if k in self.d else self.defs.get(k, "")).strip()
         return v
     def standards(self):
@@ -372,6 +380,7 @@ class Ctx:
                 style.alignment = _align(position, style.alignment)
         return Paragraph(t, style)
     def slot(self, sid, label, h):
+        sid = self._dynamic_key(sid)
         if sid in self.removed:
             return []
         if self.tpl:
@@ -631,26 +640,34 @@ STATIC = {1: ("14.2.1.1.1", "Longitudinal Tension and Compression", 1.5, "coupli
           2: ("14.2.1.2.1", "Transverse Thrust", 0.5, "coupling holes in the transverse direction"),
           3: ("14.2.1.3.1", "Vertical Tension and Compression", 0.5, "coupling holes in the vertical direction (with an equal downward force on the chassis)")}
 
+def active_analysis_number(c, fallback):
+    match = re.search(r"(?:a|analysis-)(\d+)$", str(c.active or ""), re.I)
+    return int(match.group(1)) if match else fallback
+
+
 def results(c, n, limit_label="yield strength", limit=None):
+    display_n = active_analysis_number(c, n)
     fy = limit if limit is not None else c.n("fy")
     st, de = c.n(f"a{n}_stress"), c.n(f"a{n}_def")
-    ok, tail = c.check(f"Analysis {n}", st, fy) if fy else (None, "")
+    ok, tail = c.check(f"Analysis {display_n}", st, fy) if fy else (None, "")
     out = [c.P(f"As per the result shown in the stress distribution plot, neglecting local stresses, the max stress of {c.num(st, '{:g}', 'stress')} MPa was found on the {c.v(f'a{n}_loc')}, which is {'less than' if ok else 'compared with'} the yield strength of material {c.v('material')} which is {c.v('fy')} MPa. {tail}")]
     if c.raw(f"a{n}_note"): out.append(c.P(escape(c.raw(f"a{n}_note"))))
     return out, de
 
+
 def sec_static(n):
     def f(c):
+        display_n = active_analysis_number(c, n)
         clause, title, fac, where = STATIC[n]; atm = atm_kg(c)
         force = c.num(fac * G * atm, "{:,.0f}", "force") if atm else c.ph(f"{fac} x 9.81 x ATM")
-        out = [c.P(f"ANALYSIS {n} (ADR 62/02- {clause}) - {title}", "h1"),
+        out = [c.P(f"ANALYSIS {display_n} (ADR 62/02- {clause})", "h1"),
                c.P(f"Trailer restraint and the force applied as shown in the below image. The applied force is {force} N as per clause {clause} of ADR 62/02 i.e., {fac} x 9.81 x {c.v('atm')} kg, applied on the {where}. All hanger holes faces are fixed in all DOF.")]
-        out += c.slot(f"a{n}_load", "Load & constraints applied on the trailer", 85) + c.slot(f"a{n}_stress_img", f"Stress Distribution Plot for Analysis {n}", 75)
+        out += c.slot(f"a{n}_load", "Load & constraints applied on the trailer", 85) + c.slot(f"a{n}_stress_img", f"Stress Distribution Plot for Analysis {display_n}", 75)
         out.append(PageBreak())
         out += c.slot(f"a{n}_probe", "Stress Distribution Plot with the probe", 75)
         r, de = results(c, n); out += r
-        out += c.slot(f"a{n}_disp", f"Displacement Plot for Analysis {n}", 75)
-        out.append(c.P(f"As shown above, the following is the deformation of the structure under the Analysis {n} loading condition. The maximum deformation is {c.num(de, '{:g}', 'deformation')} mm."))
+        out += c.slot(f"a{n}_disp", f"Displacement Plot for Analysis {display_n}", 75)
+        out.append(c.P(f"As shown above, the following is the deformation of the structure under the Analysis {display_n} loading condition. The maximum deformation is {c.num(de, '{:g}', 'deformation')} mm."))
         return out + [PageBreak()]
     return f
 
@@ -762,6 +779,52 @@ def _resolve_calculation_template(standard, requirement):
     return ""
 
 
+def _dynamic_analysis_heading(number, standard, requirement):
+    """Format a complete analysis heading from the selected standard and clause."""
+    standard = re.sub(r"^standard\s*:\s*", "", str(standard or "").strip(), flags=re.I)
+    requirement = str(requirement or "").strip().replace("\r\n", "\n")
+    lines = [line.strip() for line in requirement.split("\n") if line.strip()]
+
+    clause_pattern = re.compile(r"\b(?:clause\s*)?(\d+(?:\.\d+)+)\b", re.I)
+    clause_match = clause_pattern.search(requirement) or clause_pattern.search(standard)
+    clause_number = clause_match.group(1) if clause_match else ""
+
+    description = ""
+    for line in lines:
+        candidate = re.sub(
+            r"^\s*(?:clause\s*)?\d+(?:\.\d+)+\s*[:\-–—.)]?\s*",
+            "",
+            line,
+            flags=re.I,
+        )
+        candidate = re.sub(
+            r"^\s*(?:ADR\s*62/02|AS\s*4100(?:-\d{4})?)\s*[-:–—]?\s*",
+            "",
+            candidate,
+            flags=re.I,
+        )
+        candidate = re.sub(r"^\s*[-:–—]\s*", "", candidate).strip()
+        if candidate and not re.match(
+            r"^(?:standard|selected standard|selected clause requirement)\s*:",
+            candidate,
+            re.I,
+        ):
+            description = candidate
+            break
+
+    standard_and_clause = standard
+    if clause_number:
+        standard_and_clause = f"{standard}{'- ' if standard else ''}{clause_number}"
+
+    if standard_and_clause and description:
+        return f"ANALYSIS {number} ({standard_and_clause}) - {description}"
+    if standard_and_clause:
+        return f"ANALYSIS {number} ({standard_and_clause})"
+    if description:
+        return f"ANALYSIS {number} - {description}"
+    return f"ANALYSIS {number}"
+
+
 def _analysis_sections_for_report(c):
     """Build one analysis section per selected Summary of Compliance row."""
     rows = c.standards()
@@ -779,12 +842,15 @@ def _analysis_sections_for_report(c):
         standard = str(row.get("standard") or "").strip()
         calculation_template = _resolve_calculation_template(standard, requirement)
         calculation_section = templates.get(int(calculation_template[1:]), {}) if calculation_template else template_section
-        first_line = next((line.strip() for line in requirement.splitlines() if line.strip()), "")
-        clause_title = first_line or standard or f"Compliance item {number}"
+        heading = _dynamic_analysis_heading(number, standard, requirement)
         images = calculation_section.get("images") or analysis_images(number)
+        images = [
+            {**image, "id": re.sub(r"^a\d+_", f"{section_id}_", str(image.get("id") or ""), count=1, flags=re.I)}
+            for image in images
+        ]
         sections.append({
             "id": section_id,
-            "title": f"Analysis {number} - {clause_title}",
+            "title": heading,
             "compliance_standard": standard,
             "compliance_requirement": requirement,
             "calculation_template": calculation_template,
@@ -807,7 +873,18 @@ def _build_compliance_analysis(c, section):
             out.append(c.P(f"<b>Selected standard:</b> {escape(standard)}"))
         if requirement:
             out.append(c.P(f"<b>Selected clause requirement:</b> {escape(requirement).replace(chr(10), '<br/>')}"))
-        out.extend(BUILD[calculation_template](c))
+        calculation_story = BUILD[calculation_template](c)
+
+        # Keep the complete selected-standard heading consistent with the
+        # sidebar for every analysis, including custom standards and clauses.
+        heading = section["title"]
+
+        for index, flowable in enumerate(calculation_story):
+            if isinstance(flowable, Paragraph) and flowable.style.name == "h1":
+                calculation_story[index] = c.P(escape(heading), "h1")
+                break
+
+        out.extend(calculation_story)
         return out
 
     out = [c.P(escape(section["title"]), "h1")]
