@@ -10,3 +10,6 @@ bcrypt
 itsdangerous
 qrcode
 pymupdf
+pytesseract
+openpyxl
+python-pptx

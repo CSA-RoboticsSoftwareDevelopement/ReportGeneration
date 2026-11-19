@@ -2291,38 +2291,42 @@ export default function ReportGenix() {
     return () => window.clearTimeout(timer);
   }, [schema, currentActiveSection, loadPreview]);
 
+  const buildGenerationForm = (output) => {
+    const form = new FormData();
+    const extraImagesPayload = {};
+    Object.entries(extraImages).forEach(([sid, images]) => {
+      if (!schema?.sections?.find((section) => section.id === sid)?.images?.length) return;
+      extraImagesPayload[sid] = images.filter((img) => files[img.id]).map((img) => ({
+        id: img.id,
+        label: data[`cap__${img.id}`] || img.label || "",
+        h: Number(data[`img_height__${img.id}`] || img.h || 60),
+      }));
+    });
+    const removedImagesPayload = Object.keys(removedSchemaImages)
+      .filter((key) => removedSchemaImages[key])
+      .map((key) => key.slice(key.indexOf(":") + 1));
+    form.append(
+      "payload",
+      JSON.stringify({
+        data: { ...data, standards: reportRows },
+        standards: reportRows,
+        selected,
+        layout,
+        extra_images: extraImagesPayload,
+        removed_images: removedImagesPayload,
+        output: output === "preview" ? "pdf" : output,
+      })
+    );
+    Object.entries(files).forEach(([key, file]) => {
+      if (file) form.append(`img__${key}`, file);
+    });
+    return form;
+  };
+
   const generate = async (output) => {
     setBusy(output);
     try {
-      const form = new FormData();
-      const extraImagesPayload = {};
-      Object.entries(extraImages).forEach(([sid, images]) => {
-        if (!schema?.sections?.find((section) => section.id === sid)?.images?.length) return;
-        extraImagesPayload[sid] = images.filter((img) => files[img.id]).map((img) => ({
-          id: img.id,
-          label: data[`cap__${img.id}`] || img.label || "",
-          h: Number(data[`img_height__${img.id}`] || img.h || 60),
-        }));
-      });
-      const removedImagesPayload = Object.keys(removedSchemaImages)
-        .filter((key) => removedSchemaImages[key])
-        .map((key) => key.slice(key.indexOf(":") + 1));
-      form.append(
-        "payload",
-        JSON.stringify({
-          data: { ...data, standards: reportRows },
-          standards: reportRows,
-          selected,
-          layout,
-          extra_images: extraImagesPayload,
-          removed_images: removedImagesPayload,
-          output: output === "preview" ? "pdf" : output,
-        })
-      );
-      Object.entries(files).forEach(([key, file]) => {
-        if (file) form.append(`img__${key}`, file);
-      });
-      const response = await request("/api/generate", { method: "POST", body: form });
+      const response = await request("/api/generate", { method: "POST", body: buildGenerationForm(output) });
       const blob = await response.blob();
       if (output === "preview") {
         if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -2341,6 +2345,27 @@ export default function ReportGenix() {
       setBusy("");
     }
   };
+
+  const openInStudio = async () => {
+    setBusy("studio");
+    try {
+      const response = await request("/api/generate", { method: "POST", body: buildGenerationForm("pdf") });
+      const blob = await response.blob();
+      const name = `${data.rae_no || "Trailer"}_Certification_Report.pdf`;
+      const form = new FormData();
+      form.append("file", blob, name);
+      form.append("name", name);
+      const opened = await request("/api/pdf/open", { method: "POST", body: form });
+      const payload = await opened.json();
+      if (!payload?.info?.doc_id) throw new Error("PDF Studio could not open the generated report.");
+      router.push(`/studio?doc=${payload.info.doc_id}`);
+    } catch (error) {
+      window.alert(error.message);
+    } finally {
+      setBusy("");
+    }
+  };
+
 
   const downloadTemplate = async (format) => {
     try {
@@ -2645,6 +2670,7 @@ const sidebarSteps = [
 ];
 
   const sidebarExtraLinks = [
+    { href: "/studio", label: "PDF Studio", icon: "▤", active: false },
     { href: "/help", label: "Help", icon: "❓", active: route === "help" },
     { href: "/faq", label: "FAQ", icon: "❔", active: route === "faq" },
   ];
@@ -2692,6 +2718,7 @@ const sidebarSteps = [
             <div className="ml-auto flex items-center gap-2">
               <div data-tour="help-tabs" className="hidden items-center gap-1 md:flex">
                 <Link href="/dashboard" className={navClass(route === "dashboard")}>Dashboard</Link>
+                <Link href="/studio" className={navClass(false)}>PDF Studio</Link>
                 <button onClick={() => setTourOpen(true)} className={navClass(false)}>Help</button>
                 <Link href="/faq" className={navClass(route === "faq")}>FAQ</Link>
               </div>
@@ -2717,7 +2744,7 @@ const sidebarSteps = [
         </header>
 
         <div className={route === "dashboard" ? "px-4 py-4 sm:px-6" : "w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-6"}>
-          <div data-tour="page-header" className={`${route === "dashboard" ? "hidden " : ""}mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7`}><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? <SectionTitle key={activeSection.id} value={data[`heading__${activeSection.id}`]} fallback={activeSection.title} onChange={(v) => setData((current) => ({ ...current, [`heading__${activeSection.id}`]: v }))} /> : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Preview and Download</Link></div></div>
+          <div data-tour="page-header" className={`${route === "dashboard" ? "hidden " : ""}mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7`}><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? <SectionTitle key={activeSection.id} value={data[`heading__${activeSection.id}`]} fallback={activeSection.title} onChange={(v) => setData((current) => ({ ...current, [`heading__${activeSection.id}`]: v }))} /> : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/studio" className={navClass(false)}>Studio</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Preview and Download</Link></div></div>
 
           <nav className={`${route === "dashboard" ? "hidden " : ""}flex items-center gap-1 text-xs text-[#8fbcc0] mt-4 ml-2`} aria-label="Breadcrumb">
             <Link href="/" className="hover:text-[#c8dfe1]">Home</Link>
@@ -2893,6 +2920,9 @@ const sidebarSteps = [
                   </ActionButton>
                   <ActionButton variant="secondary" onClick={() => generate("word")} disabled={Boolean(busy)} className="flex-1 sm:flex-none">
                     {busy === "word" ? "Creating Word…" : "Download Word"}
+                  </ActionButton>
+                  <ActionButton variant="ghost" onClick={openInStudio} disabled={Boolean(busy)} className="flex-1 sm:flex-none">
+                    {busy === "studio" ? "Opening Studio…" : "Open in PDF Studio"}
                   </ActionButton>
                   <ActionButton variant="ghost" onClick={() => downloadTemplate("word")} className="flex-1 sm:flex-none">Blank Word</ActionButton>
                 </div>
