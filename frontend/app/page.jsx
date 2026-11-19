@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import ImageEditor from "./ImageEditor";
+import PdfEditor from "./PdfEditor";
 import TourGuide from "./TourGuide";
 
 /* ------------------------------------------------------------------ */
@@ -140,8 +141,25 @@ The compressive stress induced per bolt = [ force ] / (Plate thickness x Hole cl
   },
 ];
 
+
+function resolveCalculationTemplate(row) {
+  const source = `${row?.standard || ""} ${row?.requirement || ""}`.toLowerCase();
+  if (/14\.2\.1\.1\.1|longitudinal tension/.test(source)) return "a1";
+  if (/14\.2\.1\.2\.1|transverse thrust/.test(source)) return "a2";
+  if (/14\.2\.1\.3\.1|vertical tension/.test(source)) return "a3";
+  if (/14\.2\.2\.1|drawbar dynamic|d-value/.test(source)) return "a4";
+  if (/as\s*4100|structural strength/.test(source)) return "a5";
+  if (/14\.4(?:\.1)?|safety chain/.test(source)) return "a6";
+  if (/analysis\s*7|coupling attachment|coupling plate|coupling bolts/.test(source)) return "a7";
+  return "";
+}
+
 function getStandardSectionNarrative(section, data = {}) {
   const title = String(section?.title || "");
+  if (section?.dynamicAnalysis) {
+    const standard = section.complianceStandard ? `Standard: ${section.complianceStandard}\n\n` : "";
+    return `${standard}${section.complianceRequirement || "Add analysis details for this selected compliance clause."}`;
+  }
   const text = STANDARD_SECTION_NARRATIVES.find((entry) => entry.match(title))?.text || "";
   if (!text || /^requirements$/i.test(title)) return "";
   const id = section?.id || "";
@@ -941,12 +959,40 @@ function SectionTitle({ value, fallback, onChange }) {
 }
 
 function SectionEditor({ section, sections, data, setData, files, setFiles, extraImages, setExtraImages, removedSchemaImages, setRemovedSchemaImages, selected, setSelected, children, onOpenImageEditor, editingImage, onFileChange, originals }) {
-  const enabled = selected.includes(section.id);
+  const enabled = section.dynamicAnalysis || selected.includes(section.id);
   const headingId = `heading__${section.id}`;
   const bodyKey = `body__${section.id}`;
   const standardText = getStandardSectionNarrative(section, data);
   const hasOverride = typeof data[bodyKey] === "string" && data[bodyKey] !== "";
+  const narrativeRef = useRef(null);
   const router = useRouter();
+
+  const insertNarrative = (before, after = "") => {
+    const field = narrativeRef.current;
+    const current = hasOverride ? String(data[bodyKey] || "") : standardText;
+    const start = field?.selectionStart ?? current.length;
+    const end = field?.selectionEnd ?? current.length;
+    const selectedText = current.slice(start, end);
+    const replacement = `${before}${selectedText || "text"}${after}`;
+    const next = `${current.slice(0, start)}${replacement}${current.slice(end)}`;
+    setData((currentData) => ({ ...currentData, [bodyKey]: next }));
+    requestAnimationFrame(() => {
+      if (!field) return;
+      field.focus();
+      const cursor = start + replacement.length;
+      field.setSelectionRange(cursor, cursor);
+    });
+  };
+
+  const insertNarrativeTable = () => {
+    const table = "\n| Item | Description | Value |\n| --- | --- | --- |\n| 1 | Enter description | Enter value |\n| 2 | Enter description | Enter value |\n";
+    const field = narrativeRef.current;
+    const current = hasOverride ? String(data[bodyKey] || "") : standardText;
+    const start = field?.selectionStart ?? current.length;
+    const end = field?.selectionEnd ?? current.length;
+    const next = `${current.slice(0, start)}${table}${current.slice(end)}`;
+    setData((currentData) => ({ ...currentData, [bodyKey]: next }));
+  };
   const sectionIds = sections.map((s) => s.id);
   const currentIndex = sectionIds.indexOf(section.id);
   const prevSection = currentIndex > 0 ? sections[currentIndex - 1] : null;
@@ -954,22 +1000,24 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
   const goTo = (id) => router.push(`/section/${id}`);
   // Certificate/title/summary-style sections have no designed figure slots
   // and therefore intentionally have no Evidence Images UI.
-  const sectionExtra = section.images.length ? (extraImages[section.id] || []) : [];
+  const sectionImages = Array.isArray(section.images) ? section.images : [];
+  const sectionFields = Array.isArray(section.fields) ? section.fields : [];
+  const sectionExtra = sectionImages.length ? (extraImages[section.id] || []) : [];
   const visibleSlotsKey = `visible_image_slots__${section.id}`;
-  const highestUploadedSchemaSlot = section.images.reduce(
+  const highestUploadedSchemaSlot = sectionImages.reduce(
     (highest, image, index) => (files[image.id] ? index + 1 : highest),
     0
   );
   // A section begins with one field. "Add Image" reveals the next designed
   // report slot before creating an appended, additional figure.
-  const visibleSchemaSlots = section.images.length
+  const visibleSchemaSlots = sectionImages.length
     ? Math.min(
-        section.images.length,
+        sectionImages.length,
         Math.max(1, Number(data[visibleSlotsKey]) || 1, highestUploadedSchemaSlot)
       )
     : 0;
   const allImages = [
-    ...section.images
+    ...sectionImages
       .slice(0, visibleSchemaSlots)
       .filter((img) => !removedSchemaImages[`${section.id}:${img.id}`])
       .map((img) => ({ ...img, source: "schema" })),
@@ -977,7 +1025,7 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
   ];
 
   const addImage = () => {
-    if (visibleSchemaSlots < section.images.length) {
+    if (visibleSchemaSlots < sectionImages.length) {
       setData((current) => ({ ...current, [visibleSlotsKey]: visibleSchemaSlots + 1 }));
       return;
     }
@@ -1000,9 +1048,17 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-semibold uppercase tracking-[.14em] text-[#83c6c0]">Section narrative &amp; description</p>
             </div>
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+              <button type="button" onClick={() => insertNarrative("**", "**")} className="rounded-md border border-[#2f5b75] bg-[#16415f] px-2.5 py-1.5 text-xs font-semibold text-[#d8e9ed] hover:border-[#f84f63]" title="Bold selected text">B</button>
+              <button type="button" onClick={() => insertNarrative("*", "*")} className="rounded-md border border-[#2f5b75] bg-[#16415f] px-2.5 py-1.5 text-xs italic text-[#d8e9ed] hover:border-[#f84f63]" title="Italic selected text">I</button>
+              <button type="button" onClick={() => insertNarrative("\n- ", "")} className="rounded-md border border-[#2f5b75] bg-[#16415f] px-2.5 py-1.5 text-xs text-[#d8e9ed] hover:border-[#f84f63]">Bullet list</button>
+              <button type="button" onClick={insertNarrativeTable} className="rounded-md border border-[#2f5b75] bg-[#16415f] px-2.5 py-1.5 text-xs text-[#d8e9ed] hover:border-[#f84f63]">+ Insert table</button>
+              <span className="ml-auto text-[10px] text-[#8fa9b5]">Tables use editable rows and columns in the report</span>
+            </div>
             <textarea
+              ref={narrativeRef}
               aria-label="Editable report content"
-              className={`${INPUT} min-h-[190px] resize-y !text-xs leading-6`}
+              className={`${INPUT} min-h-[220px] resize-y !text-sm leading-7`}
               value={hasOverride ? data[bodyKey] : standardText}
               onChange={(event) => setData((current) => ({ ...current, [bodyKey]: event.target.value }))}
               placeholder={`Add or replace the standard narrative for ${section.title}…`}
@@ -1018,14 +1074,32 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
             )}
           </div>
 
-          {section.fields.length > 0 && (
+          {section.dynamicAnalysis && section.calculationTemplate && (
+            <div className="rounded-lg border border-[#77c2bd]/25 bg-[#77c2bd]/5 px-3.5 py-3 text-xs leading-6 text-[#c4e1df]">
+              <p className="font-semibold text-[#8fd0c8]">Calculation inputs for this selected clause</p>
+              <p>
+                {({
+                  a1: "Enter the maximum stress, stress location and deformation below. The applied longitudinal force is calculated from the ATM value in Project details.",
+                  a2: "Enter the maximum stress, stress location and deformation below. The transverse thrust is calculated from the ATM value in Project details.",
+                  a3: "Enter the maximum stress, stress location and deformation below. The vertical force is calculated from the ATM value in Project details.",
+                  a4: "Confirm the towing vehicle mass and enter the stress and deformation results. The D-value and applied dynamic force are calculated from ATM and towing vehicle mass.",
+                  a5: "Enter the stress and deformation results. The vertical, resultant and braking loads are calculated from ATM in Project details.",
+                  a6: "Enter plate thickness, hole clearance, bolt count and (if selected) weld details. The chain load, per-bolt force, bearing stress and optional weld capacity are calculated from ATM.",
+                  a7: "Enter bolt count, bolt size, plate thickness and hole clearance. The 1.5G pulling force, per-bolt force and bearing stress are calculated from ATM.",
+                })[section.calculationTemplate]}
+              </p>
+              <p className="mt-1 text-[#9fb9c4]">Material and yield strength are taken from the Material library / Project details.</p>
+            </div>
+          )}
+
+          {sectionFields.length > 0 && (
             <div className="grid gap-4 md:grid-cols-2">
-              {section.fields.map((field) => (
+              {sectionFields.map((field) => (
                 <Field key={field.id} field={field} value={data[field.id]} onChange={(value) => setData((current) => ({ ...current, [field.id]: value }))} />
               ))}
             </div>
           )}
-          {section.images.length > 0 && (
+          {sectionImages.length > 0 && (
             <div className="grid gap-4 md:grid-cols-2">
               {allImages.map((image) => {
                 const isSchema = image.source === "schema";
@@ -1803,7 +1877,8 @@ export default function ReportGenix() {
   const [editorStates, setEditorStates] = useState(() => navigationMedia.editorStates); /* { [imageId]: saved layers } */
   const [preview, setPreview] = useState(null); /* { pages: [{page,dataUrl}], section_pages: {...} } */
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [sectionPreviewIndex, setSectionPreviewIndex] = useState(0);
+  const previewRequestRef = useRef(0);
+  const [pdfEdits, setPdfEdits] = useState({ items: {}, pages: {} }); /* PdfEditor overlay edits, kept across sections */
 
   useEffect(() => {
     navigationMedia = { files, originals, editorStates };
@@ -2191,16 +2266,56 @@ export default function ReportGenix() {
   const closeImageEditor = stopEditing;
 
   const handleEditorSave = useCallback(
-    (file, state) => {
+    async (file, state) => {
       if (!editingImage) return;
       const { id, originalFile } = editingImage;
       setOriginals((current) => ({ ...current, [id]: current[id] || originalFile }));
       setEditorStates((current) => ({ ...current, [id]: state }));
-      setFiles((current) => ({ ...current, [id]: file })); // flattened PNG replaces the slot image
-      stopEditing(); // right half returns to the PDF preview
+
+      if (editingImage.target === "pdf") {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        setPdfEdits((current) => ({
+          ...current,
+          items: {
+            ...current.items,
+            [editingImage.pdfKey]: (current.items?.[editingImage.pdfKey] || []).map((item) =>
+              item.id === editingImage.pdfItemId ? { ...item, src: dataUrl } : item
+            ),
+          },
+        }));
+      } else {
+        setFiles((current) => ({ ...current, [id]: file }));
+      }
+      stopEditing();
     },
     [editingImage, stopEditing]
   );
+
+  const openPdfImageEditor = useCallback(async ({ key, item }) => {
+    if (!item?.src) return;
+    const id = `pdf-image:${key}:${item.id}`;
+    let base = originals[id];
+    if (!base) {
+      const blob = await fetch(item.src).then((response) => response.blob());
+      base = new File([blob], `pdf-image-${item.id}.png`, { type: blob.type || "image/png" });
+      setOriginals((current) => ({ ...current, [id]: base }));
+    }
+    if (editingImage?.url) URL.revokeObjectURL(editingImage.url);
+    setEditingImage({
+      id,
+      label: "PDF image",
+      url: URL.createObjectURL(base),
+      originalFile: base,
+      target: "pdf",
+      pdfKey: key,
+      pdfItemId: item.id,
+    });
+  }, [originals, editingImage]);
 
   // Uploading a new file through the card's file input starts that slot fresh.
   const handleFileChange = useCallback(
@@ -2216,37 +2331,102 @@ export default function ReportGenix() {
   const reportRows = useMemo(
     () =>
       standards.flatMap((row) => {
-        if (row.picked?.length) return row.picked.map((p) => ({ standard: p.standard, requirement: p.requirement, conformity: row.conformity }));
-        return row.standard || row.requirement ? [{ standard: row.standard, requirement: row.requirement, conformity: row.conformity }] : [];
+        if (row.picked?.length) {
+          return row.picked.map((picked) => ({
+            id: `${row.id}-${picked.id}`,
+            standard: picked.standard,
+            requirement: picked.requirement,
+            conformity: row.conformity,
+          }));
+        }
+        return row.standard || row.requirement
+          ? [{
+              id: row.clauseId || row.id,
+              standard: row.standard,
+              requirement: row.requirement,
+              conformity: row.conformity,
+            }]
+          : [];
       }),
     [standards]
   );
 
+  // The Summary of Compliance is the source of truth for analysis pages.
+  // Every selected library clause (or completed manual compliance row) gets
+  // one Analysis page. The first seven retain their schema IDs so existing
+  // preview page anchors and evidence slots continue to work; later pages
+  // receive unique IDs and are still available in the editor/sidebar.
+  const reportSections = useMemo(() => {
+    const allSections = schema?.sections || [];
+    const analysisTemplates = allSections.filter((section) =>
+      /^a\d+$/i.test(String(section.id || "")) ||
+      /^analysis\s*\d+/i.test(String(section.title || ""))
+    );
+    const nonAnalysisSections = allSections.filter((section) => !analysisTemplates.includes(section));
+    const analysisPages = reportRows.map((row, index) => {
+      const number = index + 1;
+      const template = analysisTemplates[index] || {};
+      const rawRequirement = String(row.requirement || "").trim();
+      const clauseTitle = rawRequirement.split(/\r?\n/).map((part) => part.trim()).find(Boolean);
+      const heading = clauseTitle || String(row.standard || "").trim() || `Compliance item ${number}`;
+      const id = template.id || `analysis-${number}`;
+      const calculationTemplate = resolveCalculationTemplate(row);
+      const fieldTemplate = calculationTemplate
+        ? analysisTemplates.find((item) => item.id === calculationTemplate) || template
+        : template;
+      return {
+        ...template,
+        id,
+        title: `Analysis ${number} - ${heading}`,
+        dynamicAnalysis: true,
+        calculationTemplate,
+        complianceStandard: String(row.standard || ""),
+        complianceRequirement: rawRequirement || heading,
+        fields: Array.isArray(fieldTemplate.fields) ? fieldTemplate.fields : [],
+        images: Array.isArray(fieldTemplate.images) ? fieldTemplate.images : [],
+      };
+    });
+
+    const firstAnalysisPosition = allSections.findIndex((section) => analysisTemplates.includes(section));
+    if (firstAnalysisPosition < 0) return [...nonAnalysisSections, ...analysisPages];
+    const before = allSections.slice(0, firstAnalysisPosition).filter((section) => !analysisTemplates.includes(section));
+    const after = allSections.slice(firstAnalysisPosition).filter((section) => !analysisTemplates.includes(section));
+    return [...before, ...analysisPages, ...after];
+  }, [schema, reportRows]);
+
   const currentSectionId = pathname.startsWith("/section/") ? decodeURIComponent(pathname.slice("/section/".length)) : "";
-  const currentActiveSection = schema?.sections?.find((section) => section.id === currentSectionId);
+  const currentActiveSection = reportSections.find((section) => section.id === currentSectionId);
 
   /*
    * The API records where each section starts.  Its next section start is the
    * end of this section's range, so retain every rendered page in between.
    * This intentionally leaves the PDF/preview API and report engine untouched.
    */
-  const sectionPreviewPages = useMemo(() => {
-    if (!preview || !preview.pages?.length || !currentActiveSection) return null;
+  const previewTotalPages = preview?.page_count || preview?.pages?.length || 0;
+  const sectionPageNumbers = useMemo(() => {
+    if (!preview || !previewTotalPages || !currentActiveSection) return null;
     const startPage = preview.section_pages?.[currentActiveSection.id];
-    if (typeof startPage !== "number" || startPage < 1 || startPage > preview.pages.length) return null;
+    if (typeof startPage !== "number" || startPage < 1 || startPage > previewTotalPages) return null;
     const nextStart = Object.values(preview.section_pages || {})
       .filter((page) => typeof page === "number" && page > startPage)
       .sort((a, b) => a - b)[0];
-    const endPage = nextStart ? nextStart - 1 : preview.pages.length;
-    return preview.pages.slice(startPage - 1, endPage);
-  }, [preview, currentActiveSection]);
+    const endPage = nextStart ? nextStart - 1 : previewTotalPages;
+    return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+  }, [preview, previewTotalPages, currentActiveSection]);
 
-  const previewPage = sectionPreviewPages?.[sectionPreviewIndex] || null;
-
-  useEffect(() => {
-    // Always start at the first page when changing section or receiving a new render.
-    setSectionPreviewIndex(0);
-  }, [currentActiveSection?.id, preview]);
+  /* Stable per-page keys (sectionId:localIndex) so edits survive preview regeneration. */
+  const allPageKeys = useMemo(() => {
+    if (!preview || !previewTotalPages) return [];
+    const keys = Array.from({ length: previewTotalPages }, (_, i) => `p${i + 1}`);
+    const starts = Object.entries(preview.section_pages || {})
+      .filter(([, page]) => typeof page === "number")
+      .sort((a, b) => a[1] - b[1]);
+    starts.forEach(([id, startPage], idx) => {
+      const endPage = idx + 1 < starts.length ? starts[idx + 1][1] - 1 : previewTotalPages;
+      for (let n = startPage; n <= endPage && n <= previewTotalPages; n++) keys[n - 1] = `${id}:${n - startPage}`;
+    });
+    return keys;
+  }, [preview, previewTotalPages]);
 
   const loadPreview = useCallback(async () => {
     if (!schema || !currentActiveSection) return;
@@ -2273,15 +2453,16 @@ export default function ReportGenix() {
     Object.entries(files).forEach(([key, file]) => {
       if (file) form.append(`img__${key}`, file);
     });
+    const requestId = ++previewRequestRef.current;
     setPreviewLoading(true);
     try {
-      const response = await request("/api/preview/pages", { method: "POST", body: form });
+      const response = await request("/api/preview/pages?png=0", { method: "POST", body: form });
       const result = await response.json();
-      setPreview(result);
+      if (requestId === previewRequestRef.current) setPreview(result);
     } catch (error) {
-      console.error("Preview failed", error);
+      if (requestId === previewRequestRef.current) console.error("Preview failed", error);
     } finally {
-      setPreviewLoading(false);
+      if (requestId === previewRequestRef.current) setPreviewLoading(false);
     }
   }, [request, schema, currentActiveSection, data, reportRows, selected, layout, extraImages, removedSchemaImages, files]);
 
@@ -2577,7 +2758,15 @@ export default function ReportGenix() {
   const raeField = schema.general.find((field) => field.id === "rae_no");
   const preparedByField = schema.general.find((field) => field.id === "prepared_by");
   const sectionId = pathname.startsWith("/section/") ? decodeURIComponent(pathname.slice("/section/".length)) : "";
-  const activeSection = schema.sections.find((section) => section.id === sectionId);
+  const activeSection = reportSections.find((section) => section.id === sectionId);
+  const activeSectionIndex = reportSections.findIndex((section) => section.id === sectionId);
+  const previousSection = activeSectionIndex > 0 ? reportSections[activeSectionIndex - 1] : null;
+  const nextSection = activeSectionIndex >= 0 && activeSectionIndex < reportSections.length - 1
+    ? reportSections[activeSectionIndex + 1]
+    : null;
+  const navigateToSection = (section) => {
+    if (section) router.push(`/section/${encodeURIComponent(section.id)}`);
+  };
   /* /faq and /raq are the same page (Raised and Answered Questions) */
   const route =
     pathname === "/dashboard"
@@ -2613,13 +2802,12 @@ export default function ReportGenix() {
     ? [{ label: "Sections", href: "/projects" }, { label: data[`heading__${activeSection.id}`] || activeSection.title, href: null }]
     : [routeCrumb[route] || routeCrumb["not-found"]];
 
-  const reportSections = schema.sections.filter((section) => section.id !== "summary");
   const navClass = (active) => `rounded-md px-3 py-2 text-sm font-medium transition ${active ? "bg-[#f84f63] text-[#0a1f36]" : "text-[#c6dce2] hover:bg-white/5 hover:text-white"}`;
 
   /* ---- Sidebar data: built from the app's own routes and state ---- */
   const filled = (value) => String(value ?? "").trim() !== "";
   const sectionDone = (section) =>
-    section.fields.some((field) => filled(data[field.id])) || section.images.some((image) => Boolean(files[image.id]));
+    (section.fields || []).some((field) => filled(data[field.id])) || (section.images || []).some((image) => Boolean(files[image.id]));
 
   const sectionChildren = reportSections.map((section) => ({
   key: `section-${section.id}`,
@@ -2657,7 +2845,7 @@ const sidebarSteps = [
 
   return (
     <Shell>
-      {route !== "dashboard" && sidebarOpen && <div className="fixed inset-0 z-40 bg-[#0a1f36]/40 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      {route !== "dashboard" && route !== "section" && sidebarOpen && <div className="fixed inset-0 z-40 bg-[#0a1f36]/40 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
       {route !== "dashboard" && (
         <SidebarNav
           steps={sidebarSteps}
@@ -2673,8 +2861,8 @@ const sidebarSteps = [
 
       {/* Everything to the right of the fixed sidebar on large screens */}
         <div className={route === "dashboard" ? "" : "lg:pl-72"}>
-        <header className="sticky top-0 z-30 border-b border-[#2a5068]/60 bg-[#0a2744]/95 px-4 pt-3 pb-6 backdrop-blur sm:px-6 lg:px-6">
-          <div className="flex w-full items-center justify-between gap-3">
+        <header className="sticky top-0 z-30 w-full min-w-0 border-b border-[#2a5068]/60 bg-[#0a2744]/95 px-2 pt-3 pb-4 backdrop-blur sm:px-4 sm:pb-6 lg:px-6">
+          <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 sm:gap-3">
             {route !== "dashboard" && (
               <button
                 onClick={() => setSidebarOpen((prev) => !prev)}
@@ -2689,8 +2877,8 @@ const sidebarSteps = [
               <img src="/csa_logo.webp" alt="CSA Engineering" className="h-9 w-auto" />
               <span className="border-l border-[#2f5b75] pl-3 text-base font-semibold">ReportGenix</span>
             </Link>
-            <div className="ml-auto flex items-center gap-2">
-              <div data-tour="help-tabs" className="hidden items-center gap-1 md:flex">
+            <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+              <div data-tour="help-tabs" className="hidden shrink-0 items-center gap-1 md:flex">
                 <Link href="/dashboard" className={navClass(route === "dashboard")}>Dashboard</Link>
                 <button onClick={() => setTourOpen(true)} className={navClass(false)}>Help</button>
                 <Link href="/faq" className={navClass(route === "faq")}>FAQ</Link>
@@ -2711,15 +2899,15 @@ const sidebarSteps = [
   <span className="hidden max-w-[160px] truncate sm:inline">{user.full_name || user.email}</span>
 </button>
               <ActionButton variant="ghost" onClick={() => downloadTemplate("pdf")} className="hidden !px-4 !py-2 sm:inline-flex">Blank PDF</ActionButton>
-              <ActionButton variant="ghost" onClick={logout} className="!px-4 !py-2">Sign out</ActionButton>
+              <ActionButton variant="ghost" onClick={logout} className="shrink-0 !px-3 !py-2 sm:!px-4">Sign out</ActionButton>
             </div>
           </div>
         </header>
 
-        <div className={route === "dashboard" ? "px-4 py-4 sm:px-6" : "w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-6"}>
-          <div data-tour="page-header" className={`${route === "dashboard" ? "hidden " : ""}mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7`}><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? <SectionTitle key={activeSection.id} value={data[`heading__${activeSection.id}`]} fallback={activeSection.title} onChange={(v) => setData((current) => ({ ...current, [`heading__${activeSection.id}`]: v }))} /> : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Preview and Download</Link></div></div>
+        <div className={route === "section" ? "w-full p-0" : route === "dashboard" ? "px-4 py-4 sm:px-6" : "w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-6"}>
+          <div data-tour="page-header" className={`${route === "dashboard" || route === "section" ? "hidden " : ""}mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7`}><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? <SectionTitle key={activeSection.id} value={data[`heading__${activeSection.id}`]} fallback={activeSection.title} onChange={(v) => setData((current) => ({ ...current, [`heading__${activeSection.id}`]: v }))} /> : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Preview and Download</Link></div></div>
 
-          <nav className={`${route === "dashboard" ? "hidden " : ""}flex items-center gap-1 text-xs text-[#8fbcc0] mt-4 ml-2`} aria-label="Breadcrumb">
+          <nav className={`${route === "dashboard" || route === "section" ? "hidden " : ""}flex items-center gap-1 text-xs text-[#8fbcc0] mt-4 ml-2`} aria-label="Breadcrumb">
             <Link href="/" className="hover:text-[#c8dfe1]">Home</Link>
             {crumbs.map((crumb, i) => (
               <span key={`${crumb.label}-${i}`} className="flex items-center gap-1">
@@ -2796,76 +2984,67 @@ const sidebarSteps = [
           {route === "projects" && <div className="space-y-6"><MaterialEditor catalog={materialsCatalog} mode={materialMode} setMode={setMaterialMode} selectedId={selectedMaterialId} setSelectedId={setSelectedMaterialId} data={data} setData={setData} materialMeta={materialMeta} setMaterialMeta={setMaterialMeta} status={materialStatus} /><ComplianceEditor rows={standards} setRows={setStandards} catalog={standardsCatalog} request={request} /></div>}
 
           {route === "section" && (
-            <div className="flex h-[calc(100dvh-150px)] min-h-[480px] max-h-[calc(100dvh-150px)] flex-col overflow-hidden rounded-2xl border border-[#2a5068] bg-[#0b2b47] lg:h-[calc(100dvh-150px)] lg:min-h-0 lg:flex-row">
-              <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-[#0b2b47]/60 [scrollbar-gutter:stable]">
-                <SectionEditor sections={schema.sections} section={activeSection} data={data} setData={setData} files={files} setFiles={setFiles} extraImages={extraImages} setExtraImages={setExtraImages} removedSchemaImages={removedSchemaImages} setRemovedSchemaImages={setRemovedSchemaImages} selected={selected} setSelected={setSelected} onOpenImageEditor={openImageEditor} editingImage={editingImage} onFileChange={handleFileChange} originals={originals}>{activeSection.id === "requirements" && <p className="text-sm text-[#b7d1d2]">Requirements are generated from the Summary of Compliance entries in <Link href="/projects" className="font-semibold text-[#81c9c2] underline">Project </Link>.</p>}{activeSection.id === "cert" && <p className="text-sm text-[#b7d1d2]">The certificate QR code and Australia watermark are applied automatically in preview and final documents.</p>}</SectionEditor>
-              </div>
-              <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-t border-[#2a5068]/60 bg-[#0a2744] lg:border-l lg:border-t-0">
-                {editingImage ? (
-                  <div className="min-h-0 flex-1 p-3">
-                    <ImageEditor
-                      key={editingImage.id}
-                      imageUrl={editingImage.url}
-                      initialState={editorStates[editingImage.id]}
-                      title={editingImage.label}
-                      onSave={handleEditorSave}
-                      onClose={closeImageEditor}
+            <div className="fixed inset-x-0 bottom-0 top-[76px] z-20 flex h-auto w-auto min-h-0 min-w-0 flex-col overflow-hidden bg-[#0a2744] [padding-bottom:env(safe-area-inset-bottom)] sm:top-[82px] lg:left-72 lg:top-[82px]">
+              {editingImage ? (
+                <div className="min-h-0 flex-1 p-3">
+                  <ImageEditor
+                    key={editingImage.id}
+                    imageUrl={editingImage.url}
+                    initialState={editorStates[editingImage.id]}
+                    title={editingImage.label}
+                    onSave={handleEditorSave}
+                    onClose={closeImageEditor}
+                  />
+                </div>
+              ) : (
+                <div className="flex h-full w-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                  <div className="grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-b border-[#2a5068] bg-[#0b2b47] px-2 py-2 sm:flex sm:justify-between sm:gap-3 sm:px-5">
+                    <button
+                      type="button"
+                      onClick={() => navigateToSection(previousSection)}
+                      disabled={!previousSection}
+                      className="inline-flex min-h-9 items-center justify-center gap-1 rounded-lg border border-[#365f78] bg-[#123a57] px-2 py-2 text-xs font-semibold text-[#d8e9ed] transition hover:border-[#6bbfc2] hover:bg-[#194968] disabled:cursor-not-allowed disabled:opacity-35 sm:gap-2 sm:px-3 sm:text-sm"
+                      aria-label="Go to previous report section"
+                    >
+                      <span aria-hidden="true">←</span>
+                      <span>Back</span>
+                    </button>
+
+                    <div className="min-w-0 flex-1 text-center">
+                      <p className="truncate text-xs font-semibold text-[#d8e9ed] sm:text-sm">
+                        {activeSection?.title || "Report section"}
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-[#8fbcc0] sm:text-xs">
+                        Section {Math.max(activeSectionIndex + 1, 1)} of {reportSections.length}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => navigateToSection(nextSection)}
+                      disabled={!nextSection}
+                      className="inline-flex min-h-9 items-center justify-center gap-1 rounded-lg border border-[#f84f63]/60 bg-[#f84f63] px-2 py-2 text-xs font-semibold text-[#071f35] transition hover:bg-[#ff7181] disabled:cursor-not-allowed disabled:opacity-35 sm:gap-2 sm:px-3 sm:text-sm"
+                      aria-label="Go to next report section"
+                    >
+                      <span>Next</span>
+                      <span aria-hidden="true">→</span>
+                    </button>
+                  </div>
+
+                  <div className="flex h-full w-full min-h-0 min-w-0 flex-1 overflow-hidden">
+                    <PdfEditor
+                      pdfBase64={preview?.pdf || null}
+                      pageNumbers={sectionPageNumbers || []}
+                      allPageKeys={allPageKeys}
+                      title={activeSection?.title || "Report section"}
+                      edits={pdfEdits}
+                      onEditsChange={setPdfEdits}
+                      onEditImage={openPdfImageEditor}
+                      loading={previewLoading}
                     />
                   </div>
-                ) : (
-                  <div className="flex-1 flex flex-col border-b border-[#2a5068]/40 overflow-hidden">
-                    <div className="p-4 border-b border-[#2a5068]/40 bg-[#0a2744]/60">
-                      <p className="text-xs font-medium text-[#f84f63]">PDF preview</p>
-                      <h3 className="mt-1 text-sm font-semibold text-white">{activeSection.title}</h3>
-                      <div className="mt-2 flex items-center justify-between gap-3 text-xs text-[#9bbcc0]">
-                        <p>
-                          {previewPage
-                            ? `Page ${previewPage.page} of ${preview?.pages?.length || 0} · section page ${sectionPreviewIndex + 1} of ${sectionPreviewPages.length}`
-                            : "No rendered pages"}
-                        </p>
-                        {sectionPreviewPages?.length > 1 && (
-                          <div className="flex shrink-0 gap-1">
-                            <button
-                              type="button"
-                              aria-label="Previous section preview page"
-                              onClick={() => setSectionPreviewIndex((index) => Math.max(0, index - 1))}
-                              disabled={sectionPreviewIndex === 0}
-                              className="rounded border border-[#2a5068] px-2 py-0.5 text-[#b7d1d2] disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              Prev
-                            </button>
-                            <button
-                              type="button"
-                              aria-label="Next section preview page"
-                              onClick={() => setSectionPreviewIndex((index) => Math.min(sectionPreviewPages.length - 1, index + 1))}
-                              disabled={sectionPreviewIndex === sectionPreviewPages.length - 1}
-                              className="rounded border border-[#2a5068] px-2 py-0.5 text-[#b7d1d2] disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              Next
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex-1 overflow-auto p-4 bg-[#061d31] flex items-center justify-center">
-                      {previewLoading ? (
-                        <p className="text-xs text-[#9bbcc0]">Rendering preview…</p>
-                      ) : previewPage ? (
-                        <img
-                          src={previewPage.dataUrl}
-                          alt={`${activeSection.title}, page ${previewPage.page}`}
-                          className="max-w-full max-h-full object-contain border border-[#2a5068]/40 rounded-md bg-black"
-                        />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center h-full text-xs text-[#5c7a86]">
-                          <p>No preview available</p>
-                          <p className="mt-1 text-[10px] text-[#6b7c86]">Generate a preview to see this section's PDF page.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -3038,9 +3217,9 @@ const sidebarSteps = [
                     if (route === "home") router.push("/");
                     else if (route === "projects") router.push("/");
                     else if (route === "section") {
-                      const idx = schema.sections.findIndex((s) => s.id === activeSection.id);
-                      router.push(idx > 0 ? `/section/${schema.sections[idx - 1].id}` : "/projects");
-                    } else if (route === "issue") router.push("/section/" + (schema.sections[schema.sections.length - 1]?.id || ""));
+                      const idx = reportSections.findIndex((s) => s.id === activeSection.id);
+                      router.push(idx > 0 ? `/section/${reportSections[idx - 1].id}` : "/projects");
+                    } else if (route === "issue") router.push("/section/" + (reportSections[reportSections.length - 1]?.id || ""));
                   }}
                   className="min-h-10 flex-1 rounded-md px-4 py-2 text-sm font-semibold border border-[#2f5b75] bg-transparent text-[#b9d2d3] hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed sm:flex-none"
                 >
@@ -3050,12 +3229,12 @@ const sidebarSteps = [
                   onClick={() => {
                     if (route === "home") router.push("/projects");
                     else if (route === "projects") {
-                      const firstSection = schema.sections[0];
+                      const firstSection = reportSections[0];
                       router.push(firstSection ? `/section/${firstSection.id}` : "/issue");
                     }
                     else if (route === "section") {
-                      const idx = schema.sections.findIndex((s) => s.id === activeSection.id);
-                      router.push(idx < schema.sections.length - 1 ? `/section/${schema.sections[idx + 1].id}` : "/issue");
+                      const idx = reportSections.findIndex((s) => s.id === activeSection.id);
+                      router.push(idx < reportSections.length - 1 ? `/section/${reportSections[idx + 1].id}` : "/issue");
                     } else if (route === "issue") router.push("/issue");
                   }}
                   className="min-h-10 flex-1 rounded-md px-4 py-2 text-sm font-semibold border border-[#f84f63] bg-[#f84f63] text-[#0a1f36] hover:bg-[#ff667a] disabled:opacity-30 disabled:cursor-not-allowed sm:flex-none"

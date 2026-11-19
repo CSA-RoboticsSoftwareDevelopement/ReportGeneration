@@ -102,8 +102,25 @@ def _normalise_report_data(payload):
             if len(value) > 50000:
                 raise HTTPException(status_code=413, detail=f"Section content for {key[6:]} exceeds 50,000 characters.")
             data[key] = value
-    standards = payload.get("standards", [])
-    data["standards"] = standards if isinstance(standards, list) else []
+    standards = payload.get("standards", data.get("standards", []))
+    if not isinstance(standards, list):
+        standards = []
+    normalized_standards = []
+    for index, row in enumerate(standards, start=1):
+        if not isinstance(row, dict):
+            continue
+        standard = str(row.get("standard") or "").strip()
+        requirement = str(row.get("requirement") or "").strip()
+        conformity = str(row.get("conformity") or "Full Compliance").strip()
+        if not (standard or requirement):
+            continue
+        normalized_standards.append({
+            "id": str(row.get("id") or f"compliance-{index}")[:180],
+            "standard": standard[:2000],
+            "requirement": requirement[:50000],
+            "conformity": conformity[:120],
+        })
+    data["standards"] = normalized_standards
     return data
 
 
@@ -380,7 +397,7 @@ async def generate(request: Request):
 
 
 @app.post("/api/preview/pages")
-async def preview_pages(request: Request):
+async def preview_pages(request: Request, png: int = 1):
     """Render the report PDF and return every page as a base64 PNG, plus the
     section -> page-number mapping so the frontend can show the right page."""
     require_csrf(request)
@@ -405,9 +422,16 @@ async def preview_pages(request: Request):
     doc = fitz.open(stream=content, filetype="pdf")
     pages = []
     import base64
-    for i in range(len(doc)):
-        pix = doc[i].get_pixmap(matrix=fitz.Matrix(1.6, 1.6), alpha=False)
-        b64 = base64.b64encode(pix.tobytes("png")).decode()
-        pages.append({"page": i + 1, "dataUrl": "data:image/png;base64," + b64})
+    page_count = len(doc)
+    if png:  # ?png=0 skips the PNG rasters (the in-app PDF editor renders from the PDF itself)
+        for i in range(page_count):
+            pix = doc[i].get_pixmap(matrix=fitz.Matrix(1.6, 1.6), alpha=False)
+            b64 = base64.b64encode(pix.tobytes("png")).decode()
+            pages.append({"page": i + 1, "dataUrl": "data:image/png;base64," + b64})
     doc.close()
-    return JSONResponse({"pages": pages, "section_pages": section_pages})
+    return JSONResponse({
+        "pages": pages,
+        "page_count": page_count,
+        "section_pages": section_pages,
+        "pdf": base64.b64encode(content).decode(),
+    })

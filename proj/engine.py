@@ -427,6 +427,83 @@ class Ctx:
         return True, f"Thus the design is safe with a safety factor of {sf:.2f}."
 
 
+
+def _inline_report_markup(value):
+    """Escape user content while supporting a small, safe Markdown subset."""
+    text = escape(str(value or ""))
+    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+    text = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<i>\1</i>", text)
+    return text.replace("  ", " &nbsp;")
+
+
+def _body_flowables(c, body):
+    """Convert editable section text into flowing paragraphs, headings, lists and tables."""
+    lines = str(body or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    out, paragraph = [], []
+
+    def flush_paragraph():
+        if paragraph:
+            text = "<br/>".join(_inline_report_markup(line) for line in paragraph).strip()
+            if text:
+                out.append(c.P(text))
+            paragraph.clear()
+
+    def table_cells(line):
+        return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if not line:
+            flush_paragraph()
+            i += 1
+            continue
+
+        if "|" in line and i + 1 < len(lines) and re.match(
+            r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$", lines[i + 1]
+        ):
+            flush_paragraph()
+            raw_rows = [table_cells(line)]
+            i += 2
+            while i < len(lines) and "|" in lines[i] and lines[i].strip():
+                raw_rows.append(table_cells(lines[i]))
+                i += 1
+            column_count = max((len(row) for row in raw_rows), default=1)
+            normalized = [row + [""] * (column_count - len(row)) for row in raw_rows]
+            rows = [[Paragraph(_inline_report_markup(cell), c.s["cell"]) for cell in row] for row in normalized]
+            table = Table(rows, colWidths=[FW / column_count] * column_count, repeatRows=1, hAlign="LEFT")
+            table.setStyle(TableStyle([
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#8b9baa")),
+                ("BACKGROUND", (0, 0), (-1, 0), HEAD),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 5),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]))
+            out.extend([Spacer(1, 3), table, Spacer(1, 6)])
+            continue
+
+        if line.startswith("### "):
+            flush_paragraph()
+            out.append(c.P(_inline_report_markup(line[4:]), "h2"))
+        elif line.startswith("## "):
+            flush_paragraph()
+            out.append(c.P(_inline_report_markup(line[3:]), "h2"))
+        elif line.startswith("# "):
+            flush_paragraph()
+            out.append(c.P(_inline_report_markup(line[2:]), "h1"))
+        elif line.startswith(("- ", "* ")):
+            flush_paragraph()
+            out.append(c.P(f"&#8226;&nbsp;{_inline_report_markup(line[2:])}", "li"))
+        else:
+            paragraph.append(line)
+        i += 1
+
+    flush_paragraph()
+    return out
+
+
 def atm_kg(c): return c.n("atm")
 
 def sec_cert(c):
@@ -666,58 +743,220 @@ BUILD = dict(cert=sec_cert, title=sec_title, summary=sec_summary, background=sec
              a4=sec_a4, a5=sec_a5, a6=sec_a6, a7=sec_a7, conclusion=sec_concl)
 
 
+
+def _resolve_calculation_template(standard, requirement):
+    """Match only calculation cases already implemented by this report engine."""
+    source = f"{standard or ''} {requirement or ''}".lower()
+    patterns = [
+        ("a1", r"14\.2\.1\.1\.1|longitudinal tension"),
+        ("a2", r"14\.2\.1\.2\.1|transverse thrust"),
+        ("a3", r"14\.2\.1\.3\.1|vertical tension"),
+        ("a4", r"14\.2\.2\.1|drawbar dynamic|d-value"),
+        ("a5", r"as\s*4100|structural strength"),
+        ("a6", r"14\.4(?:\.1)?|safety chain"),
+        ("a7", r"analysis\s*7|coupling attachment|coupling plate|coupling bolts"),
+    ]
+    for template_id, pattern in patterns:
+        if re.search(pattern, source):
+            return template_id
+    return ""
+
+
+def _analysis_sections_for_report(c):
+    """Build one analysis section per selected Summary of Compliance row."""
+    rows = c.standards()
+    templates = {}
+    for section in SECTIONS:
+        match = re.fullmatch(r"a(\d+)", str(section.get("id", "")), re.I)
+        if match:
+            templates[int(match.group(1))] = section
+
+    sections = []
+    for number, row in enumerate(rows, start=1):
+        template_section = templates.get(number, {})
+        section_id = template_section.get("id") or f"analysis-{number}"
+        requirement = str(row.get("requirement") or "").strip()
+        standard = str(row.get("standard") or "").strip()
+        calculation_template = _resolve_calculation_template(standard, requirement)
+        calculation_section = templates.get(int(calculation_template[1:]), {}) if calculation_template else template_section
+        first_line = next((line.strip() for line in requirement.splitlines() if line.strip()), "")
+        clause_title = first_line or standard or f"Compliance item {number}"
+        images = calculation_section.get("images") or analysis_images(number)
+        sections.append({
+            "id": section_id,
+            "title": f"Analysis {number} - {clause_title}",
+            "compliance_standard": standard,
+            "compliance_requirement": requirement,
+            "calculation_template": calculation_template,
+            "images": images,
+            "analysis_number": number,
+        })
+    return sections
+
+
+def _build_compliance_analysis(c, section):
+    """Render the selected clause and, where supported, its built-in calculation."""
+    number = section["analysis_number"]
+    standard = section.get("compliance_standard") or ""
+    requirement = section.get("compliance_requirement") or ""
+    calculation_template = section.get("calculation_template") or ""
+
+    if calculation_template in {"a1", "a2", "a3", "a4", "a5", "a6", "a7"}:
+        out = []
+        if standard:
+            out.append(c.P(f"<b>Selected standard:</b> {escape(standard)}"))
+        if requirement:
+            out.append(c.P(f"<b>Selected clause requirement:</b> {escape(requirement).replace(chr(10), '<br/>')}"))
+        out.extend(BUILD[calculation_template](c))
+        return out
+
+    out = [c.P(escape(section["title"]), "h1")]
+    if standard:
+        out.append(c.P(f"<b>Standard:</b> {escape(standard)}"))
+    if requirement:
+        for paragraph in re.split(r"\n\s*\n", requirement.replace("\r\n", "\n")):
+            text = paragraph.strip()
+            if text:
+                out.extend(_body_flowables(c, text))
+    else:
+        out.append(c.P("Add the compliance requirement in Summary of Compliance."))
+
+    stress = c.n(f"a{number}_stress")
+    location = c.raw(f"a{number}_loc")
+    deformation = c.n(f"a{number}_def")
+    note = c.raw(f"a{number}_note")
+    if stress is not None or location or deformation is not None or note:
+        out.append(c.P("Analysis results", "h2"))
+        if stress is not None:
+            out.append(c.P(f"Maximum stress (neglecting local): {c.num(stress, '{:g}', 'stress')} MPa"))
+        if location:
+            out.append(c.P(f"Location of maximum stress: {escape(location)}"))
+        if deformation is not None:
+            out.append(c.P(f"Maximum deformation: {c.num(deformation, '{:g}', 'deformation')} mm"))
+        if note:
+            out.extend(_body_flowables(c, note))
+
+    for image in section.get("images", []):
+        out += c.slot(image["id"], image["label"], image["h"])
+    return out + [PageBreak()]
+
+
 def build(data=None, images=None, selected=None, template=False, layout=None, extras=None, removed=None):
     """Returns (pdf_bytes, warnings). template=True -> blank placeholders everywhere."""
     data = {} if template else (data or {})
     c = Ctx(data, images or {}, template, layout, extras, removed)
-    ids = selected or [s["id"] for s in SECTIONS]
+    ids = selected if selected is not None else [s["id"] for s in SECTIONS]
     section_pages = {}
     story = []
+    analysis_template_ids = {
+        s["id"] for s in SECTIONS
+        if re.fullmatch(r"a\d+", str(s.get("id", "")), re.I)
+    }
+    dynamic_analysis = [] if template else _analysis_sections_for_report(c)
+    analysis_inserted = False
+
     for s in SECTIONS:
-        if s["id"] in ids:
-            c.active = s["id"]
-            # An optional browser-preview override gives an editor full control
-            # of a section's wording while retaining its editable figures.
-            custom_body = c.raw("body__" + s["id"])
-            
-            if custom_body and not template:
-                section_heading = c.raw("heading__" + s["id"]) or s["title"]
-                section_story = [PageMarker(s["id"]), c.P(escape(section_heading), "h1")]
-                for paragraph in custom_body.replace("\r\n", "\n").split("\n\n"):
-                    text = paragraph.strip()
-                    if text:
-                        section_story.append(c.P(escape(text).replace("\n", "<br/>")))
-                for image_info in s["images"]:
-                    section_story += c.slot(image_info["id"], image_info["label"], image_info["h"])
+        if s["id"] in analysis_template_ids and not template:
+            if not analysis_inserted:
+                for analysis_section in dynamic_analysis:
+                    c.active = analysis_section["id"]
+                    dynamic_id = analysis_section["id"]
+                    custom_body = c.raw("body__" + dynamic_id)
+                    if custom_body:
+                        custom_heading = c.raw("heading__" + dynamic_id) or analysis_section["title"]
+                        section_story = [PageMarker(dynamic_id), c.P(escape(custom_heading), "h1")]
+                        section_story.extend(_body_flowables(c, custom_body))
+                        calculation_template = analysis_section.get("calculation_template") or ""
+                        if calculation_template in {"a1", "a2", "a3", "a4", "a5", "a6", "a7"}:
+                            calculation_story = BUILD[calculation_template](c)
+                            if calculation_story and isinstance(calculation_story[0], Paragraph) and calculation_story[0].style.name == "h1":
+                                calculation_story = calculation_story[1:]
+                            section_story.extend(calculation_story)
+                        for image_info in analysis_section.get("images", []):
+                            section_story += c.slot(image_info["id"], image_info["label"], image_info["h"])
+                        section_story.append(PageBreak())
+                    else:
+                        section_story = [
+                            PageMarker(dynamic_id),
+                            *_build_compliance_analysis(c, analysis_section),
+                        ]
+                    added_figures = c.extra_slots(analysis_section["id"])
+                    if added_figures:
+                        if section_story and isinstance(section_story[-1], PageBreak):
+                            section_story.pop()
+                        section_story += added_figures + [PageBreak()]
+                    story += section_story
+                analysis_inserted = True
+            # Selected Summary of Compliance rows replace fixed a1..a7.
+            continue
+
+        if s["id"] not in ids:
+            continue
+        c.active = s["id"]
+        custom_body = c.raw("body__" + s["id"])
+
+        if custom_body and not template:
+            section_heading = c.raw("heading__" + s["id"]) or s["title"]
+            section_story = [PageMarker(s["id"]), c.P(escape(section_heading), "h1")]
+            section_story.extend(_body_flowables(c, custom_body))
+            for image_info in s["images"]:
+                section_story += c.slot(image_info["id"], image_info["label"], image_info["h"])
+            section_story.append(PageBreak())
+        else:
+            section_story = [PageMarker(s["id"])] + BUILD[s["id"]](c)
+            custom_heading = c.raw("heading__" + s["id"])
+            if custom_heading and not template:
+                for flowable in section_story:
+                    if isinstance(flowable, Paragraph) and flowable.style.name == "h1":
+                        flowable.text = escape(custom_heading)
+                        break
+
+        added_figures = c.extra_slots(s["id"])
+        if added_figures:
+            ends_page = bool(section_story and isinstance(section_story[-1], PageBreak))
+            if ends_page:
+                section_story.pop()
+            section_story += added_figures
+            if ends_page:
                 section_story.append(PageBreak())
-            else:
-                section_story = [PageMarker(s["id"])] + BUILD[s["id"]](c)
-                custom_heading = c.raw("heading__" + s["id"])
-                if custom_heading and not template:
-                    for flowable in section_story:
-                        if isinstance(flowable, Paragraph) and flowable.style.name == "h1":
-                            flowable.text = escape(custom_heading)
-                            break
-            added_figures = c.extra_slots(s["id"])
-            if added_figures:
-                ends_page = bool(section_story and isinstance(section_story[-1], PageBreak))
-                if ends_page:
-                    section_story.pop()
-                section_story += added_figures
-                if ends_page:
-                    section_story.append(PageBreak())
-            story += section_story
-    while story and isinstance(story[-1], PageBreak): story.pop()
+        story += section_story
+
+    if dynamic_analysis and not analysis_inserted:
+        for analysis_section in dynamic_analysis:
+            c.active = analysis_section["id"]
+            story += [
+                PageMarker(analysis_section["id"]),
+                *_build_compliance_analysis(c, analysis_section),
+            ]
+
+    while story and isinstance(story[-1], PageBreak):
+        story.pop()
     buf = io.BytesIO()
-    doc = BaseDocTemplate(buf, pagesize=A4, title=c.raw("project_name") or "Trailer Certification Report", author="CSA Engineering")
-    doc.addPageTemplates([PageTemplate("p", frames=[Frame(FX, 20 * mm, FW, H - 20 * mm - 38 * mm, leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)], onPage=first_page_watermark)])
+    doc = BaseDocTemplate(
+        buf, pagesize=A4,
+        title=c.raw("project_name") or "Trailer Certification Report",
+        author="CSA Engineering",
+    )
+    doc.addPageTemplates([
+        PageTemplate(
+            "p",
+            frames=[Frame(
+                FX, 20 * mm, FW, H - 20 * mm - 38 * mm,
+                leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0,
+            )],
+            onPage=first_page_watermark,
+        )
+    ])
     foot = f"{c.raw('rae_no') or 'RAE'} | {c.raw('report_title') or 'Trailer Certification Report'}"
     canvas = functools.partial(NumCanvas, meta={"footer": foot}, section_pages=section_pages)
     doc.build(story, canvasmaker=canvas)
     out = buf.getvalue()
-    if template:                                   # tidy the form PDF (removes duplicate /Font keys)
+    if template:
         from pypdf import PdfReader, PdfWriter
-        w = PdfWriter(clone_from=PdfReader(io.BytesIO(out))); b2 = io.BytesIO(); w.write(b2); out = b2.getvalue()
+        writer = PdfWriter(clone_from=PdfReader(io.BytesIO(out)))
+        cleaned = io.BytesIO()
+        writer.write(cleaned)
+        out = cleaned.getvalue()
     return out, c.warn, section_pages
 
 
