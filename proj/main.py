@@ -10,6 +10,8 @@ import project_lookup
 import auth
 import standards_library
 import materials_library
+import pdf_studio
+import pdf_studio
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 AVATAR_DIR = os.path.join(HERE, "uploads", "avatars")
@@ -136,6 +138,8 @@ def require_user(request: Request):
         request.session.clear()
         raise HTTPException(status_code=401, detail="Your session has expired. Sign in again.")
     return user
+
+app.include_router(pdf_studio.create_router(require_user, require_csrf))
 
 @app.get("/", include_in_schema=False)
 def index():
@@ -429,9 +433,10 @@ async def preview_pages(request: Request, png: int = 1):
             b64 = base64.b64encode(pix.tobytes("png")).decode()
             pages.append({"page": i + 1, "dataUrl": "data:image/png;base64," + b64})
     doc.close()
-    return JSONResponse({
-        "pages": pages,
-        "page_count": page_count,
-        "section_pages": section_pages,
-        "pdf": base64.b64encode(content).decode(),
-    })
+    return JSONResponse({"pages": pages, "section_pages": section_pages})
+
+
+# PDF Studio: a local PDF workspace for editing, organising, converting and
+# protecting generated reports and arbitrary uploaded PDFs.  Sessions are
+# stored below proj/uploads/pdf-studio and scoped to the signed-in account.
+app.include_router(pdf_studio.create_router(require_user, require_csrf))

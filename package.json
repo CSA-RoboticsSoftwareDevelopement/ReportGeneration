@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "framer-motion": "^14.14.0"
+    "framer-motion": "^14.14.0",
+    "pdfjs-dist": "^6.5.438"
   }
 }
