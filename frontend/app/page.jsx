@@ -143,6 +143,43 @@ The compressive stress induced per bolt = [ force ] / (Plate thickness x Hole cl
 ];
 
 
+function buildDynamicAnalysisHeading(row, number) {
+  const standard = String(row?.standard || "").trim().replace(/^standard\s*:\s*/i, "");
+  const requirement = String(row?.requirement || "").trim().replace(/\r\n/g, "\n");
+  const lines = requirement.split("\n").map((line) => line.trim()).filter(Boolean);
+
+  // Prefer a clause number from the requirement; only fall back to the
+  // standard label if the user entered the clause identifier there.
+  const clausePattern = /\b(?:clause\s*)?(\d+(?:\.\d+)+)\b/i;
+  const clauseMatch = requirement.match(clausePattern) || standard.match(clausePattern);
+  const clauseNumber = clauseMatch?.[1] || "";
+
+  let description = "";
+  for (const line of lines) {
+    let candidate = line
+      .replace(/^\s*(?:clause\s*)?\d+(?:\.\d+)+\s*[:\-–—.)]?\s*/i, "")
+      .replace(/^\s*(?:ADR\s*62\/02|AS\s*4100(?:-\d{4})?)\s*[-:–—]?\s*/i, "")
+      .replace(/^\s*[-:–—]\s*/, "")
+      .trim();
+    if (candidate && !/^(?:standard|selected standard|selected clause requirement)\s*:/i.test(candidate)) {
+      description = candidate;
+      break;
+    }
+  }
+
+  const standardLabel = standard || "";
+  const standardAndClause = standardLabel
+    ? `${standardLabel}${clauseNumber ? `- ${clauseNumber}` : ""}`
+    : clauseNumber;
+
+  if (standardAndClause && description) {
+    return `ANALYSIS ${number} (${standardAndClause}) - ${description}`;
+  }
+  if (standardAndClause) return `ANALYSIS ${number} (${standardAndClause})`;
+  if (description) return `ANALYSIS ${number} - ${description}`;
+  return `ANALYSIS ${number}`;
+}
+
 function resolveCalculationTemplate(row) {
   const source = `${row?.standard || ""} ${row?.requirement || ""}`.toLowerCase();
   if (/14\.2\.1\.1\.1|longitudinal tension/.test(source)) return "a1";
@@ -1866,6 +1903,7 @@ export default function ReportGenix() {
   const [originals, setOriginals] = useState(() => navigationMedia.originals); /* { [imageId]: untouched original File } */
   const [editorStates, setEditorStates] = useState(() => navigationMedia.editorStates); /* { [imageId]: saved layers } */
   const [preview, setPreview] = useState(null); /* { pages: [{page,dataUrl}], section_pages: {...} } */
+  const [previewSectionId, setPreviewSectionId] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const previewRequestRef = useRef(0);
   const [pdfEdits, setPdfEdits] = useState({ items: {}, pages: {} }); /* PdfEditor overlay edits, kept across sections */
@@ -2357,8 +2395,8 @@ export default function ReportGenix() {
       const number = index + 1;
       const template = analysisTemplates[index] || {};
       const rawRequirement = String(row.requirement || "").trim();
-      const clauseTitle = rawRequirement.split(/\r?\n/).map((part) => part.trim()).find(Boolean);
-      const heading = clauseTitle || String(row.standard || "").trim() || `Compliance item ${number}`;
+      const rawStandard = String(row.standard || "").trim();
+      const heading = buildDynamicAnalysisHeading(row, number);
       const id = template.id || `analysis-${number}`;
       const calculationTemplate = resolveCalculationTemplate(row);
       const fieldTemplate = calculationTemplate
@@ -2367,13 +2405,22 @@ export default function ReportGenix() {
       return {
         ...template,
         id,
-        title: `Analysis ${number} - ${heading}`,
+        title: heading,
         dynamicAnalysis: true,
         calculationTemplate,
         complianceStandard: String(row.standard || ""),
         complianceRequirement: rawRequirement || heading,
-        fields: Array.isArray(fieldTemplate.fields) ? fieldTemplate.fields : [],
-        images: Array.isArray(fieldTemplate.images) ? fieldTemplate.images : [],
+        // Each sidebar analysis section must own its own fields and image slots.
+        // Reusing the source template IDs (for example a1_stress / a1_load)
+        // made later dynamic sections display or edit the first analysis data.
+        fields: (Array.isArray(fieldTemplate.fields) ? fieldTemplate.fields : []).map((field) => ({
+          ...field,
+          id: String(field.id || "").replace(/^a\d+_/, `${id}_`),
+        })),
+        images: (Array.isArray(fieldTemplate.images) ? fieldTemplate.images : []).map((image) => ({
+          ...image,
+          id: String(image.id || "").replace(/^a\d+_/, `${id}_`),
+        })),
       };
     });
 
@@ -2400,15 +2447,25 @@ export default function ReportGenix() {
    */
   const previewTotalPages = preview?.page_count || preview?.pages?.length || 0;
   const sectionPageNumbers = useMemo(() => {
-    if (!preview || !previewTotalPages || !currentActiveSection) return null;
-    const startPage = preview.section_pages?.[currentActiveSection.id];
-    if (typeof startPage !== "number" || startPage < 1 || startPage > previewTotalPages) return null;
-    const nextStart = Object.values(preview.section_pages || {})
-      .filter((page) => typeof page === "number" && page > startPage)
-      .sort((a, b) => a - b)[0];
+    if (!preview || !previewTotalPages || !currentActiveSection) return [];
+    const pageMap = preview.section_pages || {};
+    const startPage = pageMap[currentActiveSection.id];
+    if (!Number.isInteger(startPage) || startPage < 1 || startPage > previewTotalPages) return [];
+
+    // Follow the sidebar's actual order rather than guessing from arbitrary
+    // object values. This keeps dynamic Analysis 1..N ranges aligned with it.
+    const activeIndex = reportSections.findIndex((section) => section.id === currentActiveSection.id);
+    const nextStart = reportSections
+      .slice(activeIndex + 1)
+      .map((section) => pageMap[section.id])
+      .find((page) => Number.isInteger(page) && page > startPage);
     const endPage = nextStart ? nextStart - 1 : previewTotalPages;
-    return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
-  }, [preview, previewTotalPages, currentActiveSection]);
+
+    return Array.from(
+      { length: Math.max(0, endPage - startPage + 1) },
+      (_, index) => startPage + index
+    );
+  }, [preview, previewTotalPages, currentActiveSection?.id, reportSections]);
 
   /* Stable per-page keys (sectionId:localIndex) so edits survive preview regeneration. */
   const allPageKeys = useMemo(() => {
@@ -2450,13 +2507,21 @@ export default function ReportGenix() {
       if (file) form.append(`img__${key}`, file);
     });
     const requestId = ++previewRequestRef.current;
+    const requestedSectionId = currentActiveSection.id;
+    setPreviewSectionId("");
     setPreviewLoading(true);
     try {
       const response = await request("/api/preview/pages?png=0", { method: "POST", body: form });
       const result = await response.json();
-      if (requestId === previewRequestRef.current) setPreview(result);
+      if (requestId === previewRequestRef.current) {
+        setPreview(result);
+        setPreviewSectionId(requestedSectionId);
+      }
     } catch (error) {
-      if (requestId === previewRequestRef.current) console.error("Preview failed", error);
+      if (requestId === previewRequestRef.current) {
+        console.error("Preview failed", error);
+        setPreviewSectionId("");
+      }
     } finally {
       if (requestId === previewRequestRef.current) setPreviewLoading(false);
     }
