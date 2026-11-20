@@ -78,39 +78,44 @@ for _i in range(10):
 SECTIONS = [
     dict(id="cert", title="Certificate of Conformity", fields=[], images=[]),
     dict(id="title", title="Title page & Structural Certification", fields=[], images=[]),
+    dict(id="index", title="Report Index", fields=[], images=[]),
     dict(id="summary", title="Summary of Compliance", fields=[], images=[]),
-    dict(id="background", title="Background", fields=[], images=[I("bg_front", "3D Isometric Model in Autodesk Inventor - Front", 80), I("bg_back", "3D Isometric Model in Autodesk Inventor - Back", 80)]),
+    dict(id="background", title="Background & Scope of Work",
+         fields=[F("background_scope", "Project scope of work", "textarea"), F("background_objectives", "Analysis objectives", "textarea")],
+         images=[I("bg_front", "3D Isometric Model in Autodesk Inventor - Front", 80), I("bg_back", "3D Isometric Model in Autodesk Inventor - Back", 80)]),
     dict(id="geometry", title="The geometry of the Trailer",
          fields=[F("length_mm", "Overall length", "number", unit="mm"), F("width_mm", "Overall width", "number", unit="mm"),
                  F("susp_mm", "Distance coupling to suspension", "number", unit="mm"),
-                 F("geo_note", "Design note, e.g. stiffener plates / revisions (optional)", "textarea")],
+                 F("geo_note", "Geometry design note", "textarea")],
          images=[I("geo_iso", "3D Isometric Model", 70), I("geo_top", "Top View showing the length and width of the trailer", 55), I("geo_side", "Side View showing the distance of suspension from coupling", 40)]),
-    dict(id="requirements", title="Requirements", fields=[], images=[]),
+    dict(id="requirements", title="Requirements", fields=[F("requirements_note", "Project-specific requirements and assumptions", "textarea")], images=[]),
     dict(id="preproc", title="Analysis - Pre-Processing data (FEA, material, mesh)",
-         fields=[F("nodes", "Mesh nodes", "number"), F("elements", "Mesh elements", "number")],
+         fields=[F("nodes", "Mesh nodes", "number"), F("elements", "Mesh elements", "number"), F("preproc_note", "Analysis pre-processing note", "textarea")],
          images=[I("mesh", "Meshed model", 100)]),
     dict(id="a1", title="Analysis 1 - Longitudinal Tension and Compression (14.2.1.1.1)", fields=analysis_fields(1), images=analysis_images(1)),
     dict(id="a2", title="Analysis 2 - Transverse Thrust (14.2.1.2.1)", fields=analysis_fields(2, "Hanger"), images=analysis_images(2)),
     dict(id="a3", title="Analysis 3 - Vertical Tension and Compression (14.2.1.3.1)", fields=analysis_fields(3, "Chassis"), images=analysis_images(3)),
     dict(id="a4", title="Analysis 4 - Drawbar Dynamic Test (14.2.2.1)",
-         fields=[F("tow_mass", "Towing vehicle mass T", "number", "2", unit="t")] + analysis_fields(4),
+         fields=[F("tow_mass", "Towing vehicle mass T", "number", unit="t")] + analysis_fields(4),
          images=analysis_images(4)),
     dict(id="a5", title="Analysis 5 - Structural strength (AS4100)", fields=analysis_fields(5, "Chassis"),
          images=[I("a5_load", "Force acting on Chassis top surface & Spring Hangers", 85), I("a5_remote", "Remote Displacement at Coupling Mount holes and Spring Hanger Bracket", 70),
                  I("a5_react", "Reaction forces at Coupling and Spring Bracket respectively", 55), I("a5_stress_img", "Stress Distribution Plot for Analysis 5", 75),
                  I("a5_probe", "Stress Distribution Plot with the probe", 75), I("a5_disp", "Displacement Plot for Analysis 5", 75)]),
     dict(id="a6", title="Analysis 6 - Drawbar Safety Chain Attachment Points (14.4)",
-         fields=[F("sc_t", "Plate / RHS thickness", "number", "10", unit="mm"), F("sc_d", "Hole clearance diameter", "number", "15", unit="mm"),
-                 F("sc_n", "Number of bolts carrying chain", "number", "2"),
+         fields=[F("sc_t", "Plate / RHS thickness", "number", unit="mm"), F("sc_d", "Hole clearance diameter", "number", unit="mm"),
+                 F("sc_n", "Number of bolts carrying chain", "number"),
                  F("sc_weld", "Include weld check?", "select", "No", ["No", "Yes"]),
-                 F("sc_leg", "Weld leg size", "number", "4", unit="mm"), F("sc_wlen", "Total weld length", "number", "300", unit="mm"),
-                 F("sc_fuw", "Weld electrode tensile strength Fuw", "number", "410", unit="MPa")],
+                 F("sc_leg", "Weld leg size", "number", unit="mm"), F("sc_wlen", "Total weld length", "number", unit="mm"),
+                 F("sc_fuw", "Weld electrode tensile strength Fuw", "number", unit="MPa"),
+                 F("sc_note", "Safety chain analysis note", "textarea")],
          images=[I("sc_img", "Safety chain mount", 60)]),
     dict(id="a7", title="Analysis 7 - Coupling attachment points",
-         fields=[F("cp_n", "Number of coupling bolts", "number", "4"), F("cp_bolt", "Bolt size", default="M14"),
-                 F("cp_t", "Coupling plate thickness", "number", "6", unit="mm"), F("cp_d", "Hole clearance diameter", "number", "15", unit="mm")],
+         fields=[F("cp_n", "Number of coupling bolts", "number"), F("cp_bolt", "Bolt size"),
+                 F("cp_t", "Coupling plate thickness", "number", unit="mm"), F("cp_d", "Hole clearance diameter", "number", unit="mm"),
+                 F("cp_note", "Coupling analysis note", "textarea")],
          images=[]),
-    dict(id="conclusion", title="Conclusion", fields=[], images=[]),
+    dict(id="conclusion", title="Conclusion", fields=[F("conclusion_note", "Project conclusion", "textarea")], images=[]),
 ]
 
 def schema():
@@ -387,6 +392,10 @@ class Ctx:
         if k in ("date", "rev_date") and len(x) == 10 and x[4:5] == "-" and x[7:8] == "-":
             x = f"{x[8:10]}-{x[5:7]}-{x[:4]}"
         return escape(x) if x else self.ph(self.labels.get(k, k))
+    def text(self, k):
+        """Dynamic multi-line content. Empty values stay as clickable grey placeholders."""
+        x = self.raw(k)
+        return escape(x).replace("\n", "<br/>") if x else self.ph(self.labels.get(k, k))
     def n(self, k):
         try: return float(self.raw(k))
         except ValueError: return None
@@ -588,6 +597,25 @@ def sec_title(c):
            PageBreak()]
     return out
 
+def sec_index(c):
+    """Common report structure; individual analysis pages remain dynamic."""
+    s = c.s
+    rows = [[Paragraph("Section", s["celb"]), Paragraph("Contents", s["celb"])]]
+    for number, title in [
+        ("1", "Background & Scope of Work"),
+        ("2", "Summary of Compliance"),
+        ("3", "Requirements"),
+        ("4", "Analysis Pre-Processing"),
+        ("4.1", "Geometry"),
+        ("4.2", "Material and mesh"),
+        ("5", "Analysis & Results (applicable analyses)"),
+        ("6", "Conclusion"),
+    ]:
+        rows.append([Paragraph(number, s["cell"]), Paragraph(title, s["cell"])])
+    return [c.P("Report Index", "h1"),
+            c.P("The common report sections are listed below. Applicable analysis sections and their pages are included dynamically for this trailer."),
+            c.tbl(rows, [28 * mm, FW - 28 * mm]), PageBreak()]
+
 ROWS = [("ADR 62/02 - 14.2.1.1.1<br/>Static Design Load", "Longitudinal Tension and Compression<br/>For trailers up to 23.5 tonnes 'ATM', (N) 1.5 x 9.81 x 'ATM' (kg)"),
         ("ADR 62/02 - 14.2.1.2.1<br/>Static Design Load", "Transverse Thrust<br/>For trailers up to 4.5 tonnes 'ATM', (N) 0.5 x 9.81 x 'ATM' (kg)."),
         ("ADR 62/02 - 14.2.1.3.1<br/>Static Design Load", "Vertical Tension and Compression<br/>For trailers up to 4.5 tonnes 'ATM', (N) 0.5 x 9.81 x 'ATM' (kg)."),
@@ -615,8 +643,10 @@ def sec_summary(c):
     return [c.P("Summary of Compliance", "h1"), c.tbl(rows, widths), PageBreak()]
 
 def sec_background(c):
-    return [c.P("Background", "h1"),
+    return [c.P("Background & Scope of Work", "h1"),
             c.P(f"Structural analysis and certification services are required for a new build chassis and internal carrying member's design and analysis of a {c.v('trailer_type')}. The trailer requires certification as a {c.v('axle_type')} trailer type {c.v('atm')}kg ATM."),
+            c.P("Project scope of work", "h2"), c.P(c.text("background_scope")),
+            c.P("Analysis objectives", "h2"), c.P(c.text("background_objectives")),
             c.P("3D isometric images of an actual trailer from Autodesk Inventor software identify this product."), Spacer(1, 4 * mm)] \
         + c.slot("bg_front", "3D Isometric Model in Autodesk Inventor - Front", 80) + c.slot("bg_back", "3D Isometric Model in Autodesk Inventor - Back", 80) + [PageBreak()]
 
@@ -624,7 +654,7 @@ def sec_geometry(c):
     s = c.s
     out = [c.P("The geometry of the Trailer", "h1"),
            c.P(f"{c.v('client')} has provided the required 3D geometric data that was required for the structural analysis of the trailer. Shown following are the dimensions of the major structural members of the trailer which was used for the analysis.")]
-    if c.raw("geo_note"): out.append(c.P(escape(c.raw("geo_note"))))
+    out += [c.P("Project-specific geometry note", "h2"), c.P(c.text("geo_note"))]
     out.append(c.tbl([[Paragraph(x, s["celb"]) for x in ["Overall length", "Overall width", "Coupling to suspension"]],
                       [Paragraph(f"{c.v(k)} mm", s["cell"]) for k in ["length_mm", "width_mm", "susp_mm"]]], [FW / 3] * 3))
     out.append(Spacer(1, 4 * mm))
@@ -650,6 +680,7 @@ def sec_req(c):
             out.append(Paragraph(f"{i + 1}. {escape(text).replace(chr(10), '<br/>')}", c.s["li"]))
     else:
         out.append(c.P(c.ph("Add standards in the Summary of Compliance section.")))
+    out += [c.P("Project-specific requirements and assumptions", "h2"), c.P(c.text("requirements_note"))]
     return out + [PageBreak()]
 
 def sec_pre(c):
@@ -663,7 +694,8 @@ def sec_pre(c):
             c.P("The trailer is analyzed using the finite element analysis technique. The software used for analysis is ANSYS Workbench which is used in the automotive industry for over a decade. 3D elements have been used in modelling as these are the most appropriate for static structural analysis."),
             c.P("Material", "h2"), c.P("The material used for the analysis with the following mechanical properties is given in the below table."),
             c.tbl(mat, ws), Spacer(1, 6 * mm), c.P("Meshing", "h2"),
-            c.P(f"The fine mesh was created with the number of nodes as {c.v('nodes')} and the number of elements as {c.v('elements')}. Shown below are some images of the finite element model that was used for the analysis.")] \
+            c.P(f"The fine mesh was created with the number of nodes as {c.v('nodes')} and the number of elements as {c.v('elements')}. Shown below are some images of the finite element model that was used for the analysis."),
+            c.P("Project-specific analysis pre-processing note", "h2"), c.P(c.text("preproc_note"))] \
         + c.slot("mesh", "Meshed model", 100) + [PageBreak()]
 
 STATIC = {1: ("14.2.1.1.1", "Longitudinal Tension and Compression", 1.5, "coupling holes in the longitudinal direction"),
@@ -681,7 +713,7 @@ def results(c, n, limit_label="yield strength", limit=None):
     st, de = c.n(f"a{n}_stress"), c.n(f"a{n}_def")
     ok, tail = c.check(f"Analysis {display_n}", st, fy) if fy else (None, "")
     out = [c.P(f"As per the result shown in the stress distribution plot, neglecting local stresses, the max stress of {c.num(st, '{:g}', 'stress')} MPa was found on the {c.v(f'a{n}_loc')}, which is {'less than' if ok else 'compared with'} the yield strength of material {c.v('material')} which is {c.v('fy')} MPa. {tail}")]
-    if c.raw(f"a{n}_note"): out.append(c.P(escape(c.raw(f"a{n}_note"))))
+    out.append(c.P("Project-specific analysis note: " + c.text(f"a{n}_note")))
     return out, de
 
 
@@ -704,11 +736,13 @@ def sec_static(n):
 def sec_a4(c):
     T, C = c.n("tow_mass"), (atm_kg(c) / 1000 if atm_kg(c) else None)
     dc = G * T * C / (T + C) if T and C else None
+    coupling_force = dc * 600 if dc is not None else None
     out = [c.P("ANALYSIS 4 (ADR 62/02- 14.2.2.1)- Drawbar Dynamic Test", "h1"),
-           c.P(f"The D-value for the trailer is {c.num(dc, '{:.3f}', 'D-value')} kN. The force applied is 0.6 x Coupling D-value = 0.6 x {c.num(dc, '{:.3f}', 'D-value')} x 10<super>3</super> = {c.num(dc * 600 if dc else None, '{:,.1f}', 'force')} N."),
+           c.P(f"The D-value for the trailer is {c.num(dc, '{:.3f}', 'D-value')} kN. The force applied is 0.6 x Coupling D-value = 0.6 x {c.num(dc, '{:.3f}', 'D-value')} x 10<super>3</super> = {c.num(coupling_force, '{:,.1f}', 'force')} N."),
            c.P("D-value for this trailer is calculated as shown:<br/>D<sub>C</sub> = g . (T x C)/(T + C) (from AS2213.4:2008- 5.1)<br/>"
                f"Here, T = maximum design total mass in tonnes of the towing vehicle = {c.v('tow_mass')} t<br/>C = mass in tonnes transmitted to the ground by the axle of the centre-axle trailer loaded to its maximum design total mass = {c.num(C, '{:g}', 'ATM/1000')} t<br/>"
-               f"Therefore, D<sub>C</sub> = 9.81 x ({c.v('tow_mass')} x {c.num(C, '{:g}', 'C')})/({c.v('tow_mass')} + {c.num(C, '{:g}', 'C')}) = {c.num(dc, '{:.3f}', 'D-value')} kN")]
+               f"Therefore, D<sub>C</sub> = 9.81 x ({c.v('tow_mass')} x {c.num(C, '{:g}', 'C')})/({c.v('tow_mass')} + {c.num(C, '{:g}', 'C')}) = {c.num(dc, '{:.3f}', 'D-value')} kN"),
+           c.P(f"Force applied on the coupling holes in the -X direction = -0.6 x {c.num(dc, '{:.3f}', 'D-value')} x 10<super>3</super> = {c.num(-coupling_force if coupling_force is not None else None, '{:,.1f}', 'force')} N.")]
     out += c.slot("a4_load", "Load & constraints applied on the trailer", 85) + c.slot("a4_stress_img", "Stress Distribution Plot for Analysis 4", 75) + [PageBreak()]
     out += c.slot("a4_probe", "Stress Distribution Plot with the probe", 75)
     st = c.n("a4_stress"); fy = c.n("fy"); fat = 82.0
@@ -718,7 +752,7 @@ def sec_a4(c):
         else:
             verdict = '<font color="#B00020"><b>This exceeds the 82 MPa fatigue limit - engineer review required.</b></font>'; c.warn.append(f"Analysis 4: stress {st:g} MPa > 82 MPa fatigue limit")
     out.append(c.P(f"As per result, neglecting local stress the max stress induced in the drawbar of the trailer is {c.num(st, '{:g}', 'stress')} MPa, which is lower than the allowable yield limit of {c.v('fy')} MPa. The fatigue limit of 2 million cycles for {c.v('material')} material as per AS4100-1998, clause 11.6, is 82 MPa. {verdict or c.ph('verdict')}"))
-    if c.raw("a4_note"): out.append(c.P(escape(c.raw("a4_note"))))
+    out.append(c.P("Project-specific analysis note: " + c.text("a4_note")))
     out += [Slot(open(FATIGUE, "rb").read(), "Fatigue", 80), c.P("Fatigue Criteria as stated in AS4100-1998", "cap")]
     out += c.slot("a4_disp", "Displacement Plot for Analysis 4", 75)
     out.append(c.P(f"As shown above, the following is the deformation of the structure under the Analysis 4 loading condition. The maximum deformation is {c.num(c.n('a4_def'), '{:g}', 'deformation')} mm."))
@@ -764,28 +798,30 @@ def sec_a6(c):
         else: verdict = "<b>The bearing stress exceeds the allowable stress - engineer review required.</b>"; c.warn.append("Analysis 6: bearing stress >= allowable")
     out += [c.P(f"The longitudinal tension of 9.81 x 'ATM' kg is {c.num(F_, '{:,.0f}', 'force')} N (vertical tension 0.5 x 9.81 x 'ATM' = {c.num(F_ / 2 if F_ else None, '{:,.0f}', 'force')} N). As {c.v('sc_n')} bolt(s) will be supporting the safety chain, the force per bolt is {c.num(per, '{:,.0f}', 'force')} N. The plate thickness is {c.v('sc_t')}mm."),
             c.P(f"The compressive (bearing) stress induced per bolt = longitudinal force per bolt / (thickness x hole clearance) = {c.num(per, '{:,.0f}', 'force')} / ({c.v('sc_t')} x {c.v('sc_d')}) = {c.num(br, '{:.1f}', 'stress')} MPa"),
-            c.P(verdict or c.ph("verdict"))]
+            c.P(verdict or c.ph("verdict")),
+            c.P("Project-specific safety chain analysis note: " + c.text("sc_note"))]
     return out + c.slot("sc_img", "Safety chain mount", 60) + [PageBreak()]
 
 def sec_a7(c):
-    a, n, t, d, fy = atm_kg(c), c.n("cp_n"), c.n("cp_t"), c.n("cp_d"), c.n("fy")
+    a, n, t, d, fu = atm_kg(c), c.n("cp_n"), c.n("cp_t"), c.n("cp_d"), c.n("fu")
     F_ = 1.5 * G * a if a else None
     per = F_ / n if F_ and n else None
     br = per / (t * d) if per and t and d else None
     v = ""
-    if br is not None and fy:
-        if br < fy: v = f"The allowable stress for the material {c.v('material')} is {c.v('fy')} MPa (safety factor {fy / br:.2f})."
-        else: v = "<b>The bearing stress exceeds the allowable stress - engineer review required.</b>"; c.warn.append("Analysis 7: bearing stress >= allowable")
+    if br is not None and fu:
+        if br < fu: v = f"The ultimate tensile stress for the material {c.v('material')} is {c.v('fu')} MPa. Thus, the safety factor obtained is {fu / br:.2f}."
+        else: v = "<b>The bearing stress exceeds the material ultimate tensile strength - engineer review required.</b>"; c.warn.append("Analysis 7: bearing stress >= ultimate tensile strength")
     return [c.P("ANALYSIS 7 - Coupling", "h1"),
-            c.P(f"The pulling force at 1.5G (1.5 x 9.81 x 'ATM' kg) is {c.num(F_, '{:,.0f}', 'force')} N. As there are {c.v('cp_n')} bolts, this force per bolt is {c.num(per, '{:,.2f}', 'force')} N. The thickness of the coupling plate is {c.v('cp_t')} mm and the bolt size is {c.v('cp_bolt')}."),
-            c.P(f"The compressive stress induced per bolt = {c.num(per, '{:,.2f}', 'force')} / (Plate thickness x Hole clearance) = {c.num(per, '{:,.2f}', 'force')} / ({c.v('cp_t')} x {c.v('cp_d')}) = {c.num(br, '{:.2f}', 'stress')} MPa"),
-            c.P(v or c.ph("verdict")), PageBreak()]
+            c.P(f"The pulling force at 1.5G (1.5 x 9.81 x 'ATM' kg) is {c.num(F_, '{:,.1f}', 'force')} N. As there are {c.v('cp_n')} bolts, this force per bolt is {c.num(F_, '{:,.1f}', 'force')} / {c.v('cp_n')} = {c.num(per, '{:,.1f}', 'force')} N. The thickness of the coupling plate is {c.v('cp_t')} mm and the bolt size is {c.v('cp_bolt')}."),
+            c.P(f"The compressive stress induced per bolt = {c.num(per, '{:,.1f}', 'force')} N / (coupling plate thickness x hole clearance) = {c.num(per, '{:,.1f}', 'force')} / ({c.v('cp_t')} x {c.v('cp_d')}) = {c.num(br, '{:.2f}', 'stress')} MPa"),
+            c.P(v or c.ph("verdict")), c.P("Project-specific coupling analysis note: " + c.text("cp_note")), PageBreak()]
 
 def sec_concl(c):
     return [c.P("CONCLUSION", "h1"), c.P("The trailer fully complies with ADR 62/02 and AS 4100-1998."),
-            c.P("The analysis conducted assumes a new trailer with no material degradation and material are homogenous. Exposure to environmental effects in service may significantly reduce the material's strength capacity to support the full ATM of the trailer. Care must be taken as the trailer will not be able to perform to its full capacity in degraded (e.g., corroded) conditions and an inspection for safety reassessment should be organized by the equipment owner.")]
+            c.P("The analysis conducted assumes a new trailer with no material degradation and material are homogenous. Exposure to environmental effects in service may significantly reduce the material's strength capacity to support the full ATM of the trailer. Care must be taken as the trailer will not be able to perform to its full capacity in degraded (e.g., corroded) conditions and an inspection for safety reassessment should be organized by the equipment owner."),
+            c.P("Project conclusion", "h2"), c.P(c.text("conclusion_note"))]
 
-BUILD = dict(cert=sec_cert, title=sec_title, summary=sec_summary, background=sec_background, geometry=sec_geometry,
+BUILD = dict(cert=sec_cert, title=sec_title, index=sec_index, summary=sec_summary, background=sec_background, geometry=sec_geometry,
              requirements=sec_req, preproc=sec_pre, a1=sec_static(1), a2=sec_static(2), a3=sec_static(3),
              a4=sec_a4, a5=sec_a5, a6=sec_a6, a7=sec_a7, conclusion=sec_concl)
 
@@ -799,9 +835,9 @@ def _resolve_calculation_template(standard, requirement):
         ("a2", r"14\.2\.1\.2\.1|transverse thrust"),
         ("a3", r"14\.2\.1\.3\.1|vertical tension"),
         ("a4", r"14\.2\.2\.1|drawbar dynamic|d-value"),
-        ("a5", r"as\s*4100|structural strength"),
         ("a6", r"14\.4(?:\.1)?|safety chain"),
         ("a7", r"analysis\s*7|coupling attachment|coupling plate|coupling bolts"),
+        ("a5", r"as\s*4100|structural strength"),
     ]
     for template_id, pattern in patterns:
         if re.search(pattern, source):
@@ -940,8 +976,7 @@ def _build_compliance_analysis(c, section):
             out.append(c.P(f"Location of maximum stress: {escape(location)}"))
         if deformation is not None:
             out.append(c.P(f"Maximum deformation: {c.num(deformation, '{:g}', 'deformation')} mm"))
-        if note:
-            out.extend(_body_flowables(c, note))
+    out.append(c.P("Project-specific analysis note: " + c.text(f"a{number}_note")))
 
     for image in section.get("images", []):
         out += c.slot(image["id"], image["label"], image["h"])

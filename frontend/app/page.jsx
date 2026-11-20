@@ -19,7 +19,49 @@ const MATERIAL_IDS = new Set(["material", "fu", "fy", "young", "nu", "rho"]);
 const DRAFT_KEY = "reportgenix-draft-v2";
 const MEDIA = { files: {}, originals: {}, editorStates: {} };
 const WORK = { data: null };
-let navigationMedia = { files: {}, originals: {}, editorStates: {} };
+const MEDIA_DB_NAME = "reportgenix-media-v1";
+const MEDIA_STORE_NAME = "files";
+let navigationMedia = { files: {}, originals: {}, editorStates: {}, extraImages: {}, removedSchemaImages: {} };
+
+const openMediaDatabase = () => new Promise((resolve, reject) => {
+  const request = window.indexedDB.open(MEDIA_DB_NAME, 1);
+  request.onupgradeneeded = () => {
+    if (!request.result.objectStoreNames.contains(MEDIA_STORE_NAME)) request.result.createObjectStore(MEDIA_STORE_NAME, { keyPath: "id" });
+  };
+  request.onsuccess = () => resolve(request.result);
+  request.onerror = () => reject(request.error);
+});
+
+const restoreMediaFiles = async () => {
+  try {
+    const db = await openMediaDatabase();
+    const items = await new Promise((resolve, reject) => {
+      const request = db.transaction(MEDIA_STORE_NAME, "readonly").objectStore(MEDIA_STORE_NAME).getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return Object.fromEntries(items.filter((item) => item?.id && item.file instanceof Blob).map((item) => [item.id, item.file]));
+  } catch {
+    return {};
+  }
+};
+
+const persistMediaFiles = async (files) => {
+  try {
+    const db = await openMediaDatabase();
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction(MEDIA_STORE_NAME, "readwrite");
+      Object.entries(files).forEach(([id, file]) => { if (file instanceof Blob) transaction.objectStore(MEDIA_STORE_NAME).put({ id, file }); });
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+    db.close();
+  } catch {
+    // Image persistence is an enhancement; the current editor session remains usable.
+  }
+};
 
 const stripStaleBodies = (data) =>
   Object.fromEntries(
@@ -1039,7 +1081,6 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
   // Certificate/title/summary-style sections have no designed figure slots
   // and therefore intentionally have no Evidence Images UI.
   const sectionImages = Array.isArray(section.images) ? section.images : [];
-  const sectionFields = Array.isArray(section.fields) ? section.fields : [];
   const sectionExtra = extraImages[section.id] || [];
   const visibleSlotsKey = `visible_image_slots__${section.id}`;
   const highestUploadedSchemaSlot = sectionImages.reduce(
@@ -1119,13 +1160,6 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
             </div>
           )}
 
-          {sectionFields.length > 0 && (
-            <div className="grid gap-4 md:grid-cols-2">
-              {sectionFields.map((field) => (
-                <Field key={field.id} field={field} value={data[field.id]} onChange={(value) => setData((current) => ({ ...current, [field.id]: value }))} />
-              ))}
-            </div>
-          )}
           {allImages.length > 0 && (
             <div className="grid grid-cols-1 gap-4">
               {allImages.map((image) => {
@@ -1839,8 +1873,8 @@ export default function ReportGenix() {
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [materialMeta, setMaterialMeta] = useState({ material_type: "", category: "steel", source_standard_id: "", notes: "" });
   const [materialStatus, setMaterialStatus] = useState(null);
-  const [extraImages, setExtraImages] = useState({});
-  const [removedSchemaImages, setRemovedSchemaImages] = useState({});
+  const [extraImages, setExtraImages] = useState(() => navigationMedia.extraImages || {});
+  const [removedSchemaImages, setRemovedSchemaImages] = useState(() => navigationMedia.removedSchemaImages || {});
   const [step, setStep] = useState(1);
   const [previewUrl, setPreviewUrl] = useState("");
   const [previewExpanded, setPreviewExpanded] = useState(false);
@@ -1907,10 +1941,23 @@ export default function ReportGenix() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const previewRequestRef = useRef(0);
   const [pdfEdits, setPdfEdits] = useState({ items: {}, pages: {} }); /* PdfEditor overlay edits, kept across sections */
+  const [mediaRestored, setMediaRestored] = useState(false);
 
   useEffect(() => {
-    navigationMedia = { files, originals, editorStates };
-  }, [files, originals, editorStates]);
+    navigationMedia = { files, originals, editorStates, extraImages, removedSchemaImages };
+  }, [files, originals, editorStates, extraImages, removedSchemaImages]);
+
+  useEffect(() => {
+    let cancelled = false;
+    restoreMediaFiles().then((savedFiles) => {
+      if (!cancelled && Object.keys(savedFiles).length) setFiles((current) => ({ ...savedFiles, ...current }));
+    }).finally(() => { if (!cancelled) setMediaRestored(true); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (mediaRestored) void persistMediaFiles(files);
+  }, [files, mediaRestored]);
 
 
   const request = useCallback(
@@ -1950,7 +1997,14 @@ export default function ReportGenix() {
     try { window.localStorage.setItem("rg-bodies-clean-v2", "1"); } catch { /* ignore */ }
 
     setStandards(Array.isArray(saved.standards) ? saved.standards : []);
-    setSelected(Array.isArray(saved.selected) ? saved.selected : nextSchema.sections.map((section) => section.id));
+    // A saved draft may pre-date a new standard section (for example the
+    // Report Index).  Common sections are part of every report, so merge them
+    // into an old selection rather than silently building the old template.
+    const savedSelection = Array.isArray(saved.selected) ? saved.selected : [];
+    const commonSectionIds = nextSchema.sections
+      .filter((section) => !/^a\d+$/i.test(String(section.id || "")))
+      .map((section) => section.id);
+    setSelected([...new Set([...savedSelection, ...commonSectionIds])]);
     setLayout((current) => ({ ...current, ...(saved.layout || {}) }));
     setMaterialMode(saved.materialMode === "manual" ? "manual" : "library");
     setSelectedMaterialId(saved.selectedMaterialId || "");
@@ -2263,7 +2317,7 @@ export default function ReportGenix() {
       setActiveReportId("");
       sessionMedia.current = {};
       MEDIA.files = {}; MEDIA.originals = {}; MEDIA.editorStates = {};
-      navigationMedia = { files: {}, originals: {}, editorStates: {} };
+      navigationMedia = { files: {}, originals: {}, editorStates: {}, extraImages: {}, removedSchemaImages: {} };
       WORK.data = null;
       Object.keys(window.sessionStorage).filter((k) => k.startsWith("reportgenix-landed:")).forEach((k) => window.sessionStorage.removeItem(k));
       window.sessionStorage.removeItem(DRAFT_KEY);
@@ -2483,10 +2537,13 @@ export default function ReportGenix() {
 
   const loadPreview = useCallback(async () => {
     if (!schema || !currentActiveSection) return;
+    const commonSectionIds = schema.sections
+      .filter((section) => !/^a\d+$/i.test(String(section.id || "")))
+      .map((section) => section.id);
     const payload = {
       data,
       standards: reportRows,
-      selected,
+      selected: [...new Set([...selected, ...commonSectionIds])],
       layout,
       extra_images: {},
       removed_images: Object.keys(removedSchemaImages)
@@ -2547,12 +2604,16 @@ export default function ReportGenix() {
     const removedImagesPayload = Object.keys(removedSchemaImages)
       .filter((key) => removedSchemaImages[key])
       .map((key) => key.slice(key.indexOf(":") + 1));
+    const commonSectionIds = (schema?.sections || [])
+      .filter((section) => !/^a\d+$/i.test(String(section.id || "")))
+      .map((section) => section.id);
+    const selectedForReport = [...new Set([...selected, ...commonSectionIds])];
     form.append(
       "payload",
       JSON.stringify({
         data: { ...data, standards: reportRows },
         standards: reportRows,
-        selected,
+        selected: selectedForReport,
         layout,
         extra_images: extraImagesPayload,
         removed_images: removedImagesPayload,
@@ -2578,8 +2639,14 @@ export default function ReportGenix() {
     const removedImagesPayload = Object.keys(removedSchemaImages)
       .filter((key) => removedSchemaImages[key])
       .map((key) => key.slice(key.indexOf(":") + 1));
+    // Keep common sections present even if the browser has not yet written the
+    // saved-draft migration above (for example, on the first rebuild).
+    const commonSectionIds = (schema?.sections || [])
+      .filter((section) => !/^a\d+$/i.test(String(section.id || "")))
+      .map((section) => section.id);
+    const selectedForReport = [...new Set([...selected, ...commonSectionIds])];
     form.append("payload", JSON.stringify({
-      data: { ...data, standards: reportRows }, standards: reportRows, selected, layout,
+      data: { ...data, standards: reportRows }, standards: reportRows, selected: selectedForReport, layout,
       extra_images: extraImagesPayload, removed_images: removedImagesPayload, output,
     }));
     Object.entries(files).forEach(([key, file]) => { if (file) form.append(`img__${key}`, file); });
@@ -2916,25 +2983,22 @@ export default function ReportGenix() {
   const sectionDone = (section) =>
     (section.fields || []).some((field) => filled(data[field.id])) || (section.images || []).some((image) => Boolean(files[image.id]));
 
-  const sectionChildren = reportSections.map((section) => ({
-  key: `section-${section.id}`,
-  href: `/section/${section.id}`,
-  label: section.title,
-  active: route === "section" && activeSection?.id === section.id,
-  done: sectionDone(section),
-}));
+  // Keep the sidebar to the four main workflow stages. The Section stage opens
+  // the PDF editor directly; individual report sections are navigated inside
+  // that editor so they do not appear as a long nested sidebar list.
+  const firstReportSection = reportSections[0];
+  const sectionsComplete = reportSections.length > 0 && reportSections.every(sectionDone);
 
-const sidebarSteps = [
+  const sidebarSteps = [
   { key: "home", href: "/", label: "Project", sub: "Report details", active: route === "home", done: filled(data.rae_no) && filled(data.project_name) },
   { key: "projects", href: "/projects", label: "Libraries", sub: "Materials & compliance", active: route === "projects", done: standards.length > 0 && filled(data.material) },
   {
     key: "sections",
-    href: sectionChildren[0]?.href || "/projects",
+    href: firstReportSection ? `/section/${encodeURIComponent(firstReportSection.id)}` : "/projects",
     label: "Section",
     sub: "Report sections",
     active: route === "section",
-    done: sectionChildren.length > 0 && sectionChildren.every((c) => c.done),
-    children: sectionChildren,
+    done: sectionsComplete,
   },
   { key: "issue", href: "/issue", label: "Preview and Download", sub: "Preview & export", active: route === "issue", done: false },
 ];
@@ -3096,7 +3160,7 @@ const sidebarSteps = [
             <div className="h-[calc(100dvh-150px)] min-h-[520px]">
               <SectionPdfEditor
                 section={activeSection}
-                sections={schema.sections}
+                sections={reportSections}
                 schema={schema}
                 data={data}
                 setData={setData}
@@ -3127,10 +3191,16 @@ const sidebarSteps = [
                   },
                   edit: (id) => openImageEditor({ id, label: data[`cap__${id}`] || "Image" }),
                 }}
-                onBack={() => { const i = schema.sections.findIndex((s) => s.id === activeSection.id); router.push(i > 0 ? `/section/${schema.sections[i - 1].id}` : "/projects"); }}
-                onNext={() => { const i = schema.sections.findIndex((s) => s.id === activeSection.id); router.push(i < schema.sections.length - 1 ? `/section/${schema.sections[i + 1].id}` : "/issue"); }}
+                onBack={() => {
+                  const i = reportSections.findIndex((s) => s.id === activeSection.id);
+                  router.push(i > 0 ? `/section/${encodeURIComponent(reportSections[i - 1].id)}` : "/projects");
+                }}
+                onNext={() => {
+                  const i = reportSections.findIndex((s) => s.id === activeSection.id);
+                  router.push(i >= 0 && i < reportSections.length - 1 ? `/section/${encodeURIComponent(reportSections[i + 1].id)}` : "/issue");
+                }}
                 imagesPanel={
-                  <SectionEditor sections={schema.sections} section={activeSection} data={data} setData={setData} files={files} setFiles={setFiles} extraImages={extraImages} setExtraImages={setExtraImages} removedSchemaImages={removedSchemaImages} setRemovedSchemaImages={setRemovedSchemaImages} selected={selected} setSelected={setSelected} onOpenImageEditor={openImageEditor} editingImage={editingImage} onFileChange={handleFileChange} originals={originals} />
+                  <SectionEditor sections={reportSections} section={activeSection} data={data} setData={setData} files={files} setFiles={setFiles} extraImages={extraImages} setExtraImages={setExtraImages} removedSchemaImages={removedSchemaImages} setRemovedSchemaImages={setRemovedSchemaImages} selected={selected} setSelected={setSelected} onOpenImageEditor={openImageEditor} editingImage={editingImage} onFileChange={handleFileChange} originals={originals} />
                 }
               />
               {editingImage && (

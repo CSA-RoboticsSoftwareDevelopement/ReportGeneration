@@ -28,7 +28,7 @@ const readTb = (v) => { try { const o = typeof v === "string" ? JSON.parse(v) : 
 const r1 = (v) => Math.round(v * 10) / 10;
 
 const TOOLS = [
-  { id: "select", label: "Select (V)", icon: "cursor", hint: "Click an image or added text to select it. Drag to move, drag a corner to resize an image, arrow keys nudge." },
+  { id: "select", label: "Select (V)", icon: "cursor", hint: "Click a grey [ placeholder ] to enter its value. Click an image or added text to select it; drag to move and use arrow keys to nudge." },
   { id: "edit-text", label: "Edit text (T)", icon: "textCursor", hint: "Click a line of text to rewrite it. Values update their linked field." },
   { id: "textbox", label: "Add text (A)", icon: "text", hint: "Click where the text should go, then type. It uses the report's own font, size and margins." },
 ];
@@ -36,6 +36,29 @@ const TOOLS = [
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const PH = /\[ ([^\]]+?) \]/g;
+
+const normaliseFieldName = (value) => String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+function fieldForPlaceholder(text, section) {
+  const fields = Array.isArray(section?.fields) ? section.fields : [];
+  const labels = [...String(text || "").matchAll(PH)].map((match) => normaliseFieldName(match[1]));
+  for (const label of labels) {
+    const exact = fields.find((field) => normaliseFieldName(field.label) === label);
+    if (exact) return exact;
+    // PDF text extraction occasionally joins a unit or surrounding wording to
+    // a grey value.  Retain exact matching first, then accept a unique label
+    // contained in that extracted line (for example "Overall length ... mm").
+    const contained = fields.filter((field) => {
+      const name = normaliseFieldName(field.label);
+      return name && (label.includes(name) || name.includes(label));
+    });
+    if (contained.length === 1) return contained[0];
+    if (label.includes("stress")) return fields.find((field) => /_stress$/i.test(field.id));
+    if (label.includes("deformation")) return fields.find((field) => /_def$/i.test(field.id));
+    if (label.includes("location")) return fields.find((field) => /_loc$/i.test(field.id));
+  }
+  return null;
+}
 
 /* ---- map an edited line back to report fields ---- */
 function mapEdit(oldT, newT, secId, schema, data) {
@@ -217,6 +240,12 @@ export default function SectionPdfEditor({
     const nx = Object.values(sectionPages).filter((p) => typeof p === "number" && p > startOf).sort((a, b) => a - b)[0];
     return nx ? nx - 1 : pageCount;
   })();
+  const sectionStartPage = startOf || 1;
+  const sectionEndPage = endOf || Math.max(1, pageCount);
+  const sectionPageCount = Math.max(1, sectionEndPage - sectionStartPage + 1);
+  const sectionPageNumber = Math.min(sectionPageCount, Math.max(1, page - sectionStartPage + 1));
+  const hasPreviousPage = page > sectionStartPage;
+  const hasNextPage = page < sectionEndPage;
   useEffect(() => { if (startOf) setPage(startOf); }, [section?.id, startOf]);
 
   const imageBoxes = sectionPages.__images || {}; /* { [imageId]: { page, x, y, w, h, filled } } in PDF points */
@@ -313,9 +342,32 @@ export default function SectionPdfEditor({
     const r = overlayRef.current.getBoundingClientRect();
     return { x: clamp((e.clientX - r.left) / r.width, 0, 1), y: clamp((e.clientY - r.top) / r.height, 0, 1) };
   };
+  const openPlaceholderValue = async (p) => {
+    const d = await run("Reading value…", () => post("/text/hit", { page, x: p.x, y: p.y }));
+    if (!d?.hit) {
+      notify("Click directly on the grey [ value ] text to enter it.", "error");
+      return false;
+    }
+    const field = fieldForPlaceholder(d?.hit?.text, section);
+    if (!field) {
+      notify("That text is not a section input. Click a grey value in this section.", "error");
+      return false;
+    }
+    setDlg({
+      mode: "field",
+      field,
+      page: d.hit.page,
+      value: data[field.id] ?? field.default ?? "",
+    });
+    return true;
+  };
   const down = async (e) => {
-    if (tool === "select" || busy || e.button !== 0) return;
+    if (busy || e.button !== 0) return;
     const p = point(e);
+    if (tool === "select") {
+      await openPlaceholderValue(p);
+      return;
+    }
     if (tool === "edit-text") {
       const d = await run("Reading text…", () => post("/text/hit", { page, x: p.x, y: p.y }));
       if (!d) return;
@@ -339,6 +391,21 @@ export default function SectionPdfEditor({
   /* ---- save the text dialog ---- */
   const applyDialog = async () => {
     if (!dlg) return;
+    if (dlg.mode === "field") {
+      const field = dlg.field;
+      const value = String(dlg.value ?? "").trim();
+      if (!value) { notify(`Enter a value for ${field.label}.`, "error"); return; }
+      if (field.type === "number" && Number.isNaN(Number(value))) {
+        notify(`${field.label} must be a number.`, "error");
+        return;
+      }
+      const from = data[field.id] ?? field.default ?? "";
+      setData((current) => ({ ...current, [field.id]: value }));
+      setLog((entries) => [{ id: field.id, label: field.label, from, to: value, at: Date.now() }, ...entries]);
+      setDlg(null);
+      notify(`Saved ${field.label}. The preview and dependent calculations are updating.`, "success");
+      return;
+    }
     if (dlg.mode === "tb") {
       if (!dlg.text.trim()) { notify("Type the text first.", "error"); return; }
       const id = dlg.id || `tb${Date.now().toString(36)}`;
@@ -546,14 +613,20 @@ export default function SectionPdfEditor({
     <div className="studio-root flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-[#234b63] bg-[#071f35]">
       {/* options bar */}
       <div className="flex flex-wrap items-center gap-2 border-b border-[#234b63] bg-[#081f35] px-3 py-2">
-        <Btn size="sm" onClick={onBack} disabled={idx <= 0}>← Back</Btn>
+        <Btn size="sm" onClick={() => hasPreviousPage ? setPage((p) => p - 1) : onBack()} disabled={!hasPreviousPage && idx <= 0}>
+          {hasPreviousPage ? "← Previous page" : "← Previous section"}
+        </Btn>
         <div className="min-w-0 flex-1 px-1">
           <p className="truncate text-sm font-semibold text-white">{section?.title}</p>
           <p className="text-[10px] text-[#7f9dab]">Section {idx + 1} of {sections.length} · {TOOLS.find((t) => t.id === tool)?.hint}</p>
         </div>
-        <button type="button" className={ob} onClick={() => setPage((p) => Math.max(startOf || 1, p - 1))} aria-label="Previous page"><Icon name="chevron" className="h-4 w-4 rotate-90" /></button>
-        <span className="min-w-[56px] text-center text-[11px] font-semibold text-[#d7e9ec]">{page} / {pageCount || "–"}</span>
-        <button type="button" className={ob} onClick={() => setPage((p) => Math.min(endOf || pageCount, p + 1))} aria-label="Next page"><Icon name="chevron" className="h-4 w-4 -rotate-90" /></button>
+        <button type="button" className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-[#c9dfe3] hover:bg-white/10 disabled:opacity-30" onClick={() => setPage((p) => Math.max(sectionStartPage, p - 1))} disabled={page <= sectionStartPage} aria-label="Previous page in this section">
+          <Icon name="chevron" className="h-4 w-4 rotate-90" /> Previous page
+        </button>
+        <span className="min-w-[82px] text-center text-[11px] font-semibold text-[#d7e9ec]">Page {sectionPageNumber} of {sectionPageCount}</span>
+        <button type="button" className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-[#c9dfe3] hover:bg-white/10 disabled:opacity-30" onClick={() => setPage((p) => Math.min(sectionEndPage, p + 1))} disabled={page >= sectionEndPage} aria-label="Next page in this section">
+          Next page <Icon name="chevron" className="h-4 w-4 -rotate-90" />
+        </button>
         <span className="h-5 w-px bg-[#234b63]" />
         <button type="button" className={ob} onClick={() => setZoom((z) => clamp(z - 0.15, 0.3, 3.5))} aria-label="Zoom out"><Icon name="zoomOut" /></button>
         <button type="button" className="min-w-[44px] text-[11px] font-semibold text-[#d7e9ec]" onClick={() => setZoom(1)}>{Math.round(zoom * 100)}%</button>
@@ -565,7 +638,9 @@ export default function SectionPdfEditor({
         <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()}
           placeholder="Find in PDF" className="h-8 w-36 rounded-md border border-[#2d5871] bg-[#103a55] px-2 text-xs text-white outline-none focus:border-[#f84f63]" />
         {docId ? <a href={downloadUrl(docId)} download className="rounded-md border border-[#f84f63] bg-[#f84f63] px-3 py-1.5 text-xs font-bold text-[#081f35] hover:bg-[#ff6377]">Download</a> : null}
-        <Btn size="sm" variant="primary" onClick={onNext} disabled={idx >= sections.length - 1}>Next →</Btn>
+        <Btn size="sm" variant="primary" onClick={() => hasNextPage ? setPage((p) => p + 1) : onNext()} disabled={!hasNextPage && idx >= sections.length - 1}>
+          {hasNextPage ? "Next page →" : "Next section →"}
+        </Btn>
       </div>
 
       <div className="flex min-h-0 flex-1">
@@ -598,7 +673,7 @@ export default function SectionPdfEditor({
             <div className="mx-auto w-fit">
               <PageSurface pdf={pdf} pageNumber={clamp(page, 1, pageCount || 1)} scale={zoom} tool={tool} version={version}>
                 <div ref={overlayRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => setDrag(null)}
-                  className={`absolute inset-0 z-20 touch-none ${tool === "select" ? "pointer-events-none" : tool === "edit-text" ? "cursor-text" : "cursor-crosshair"}`}>
+                  className={`absolute inset-0 z-20 touch-none ${tool === "select" ? "cursor-pointer" : tool === "edit-text" ? "cursor-text" : "cursor-crosshair"}`}>
                   {hits.map((h, i) => (
                     <div key={i} className="pointer-events-none absolute border border-[#ffd54a] bg-[#ffd54a]/30"
                       style={{ left: `${h.rect.x * 100}%`, top: `${h.rect.y * 100}%`, width: `${h.rect.w * 100}%`, height: `${h.rect.h * 100}%` }} />
@@ -730,7 +805,7 @@ export default function SectionPdfEditor({
             {panel === "fields" ? (
               log.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-[#2d5871] p-4 text-center text-xs leading-5 text-[#8faebb]">
-                  Edit a value or fill a [ placeholder ] on the page. It is saved to its field here and reused everywhere.
+                  Click a grey [ placeholder ] directly in the PDF, enter its value, then press Enter. It is saved to the linked variable and reused everywhere.
                 </p>
               ) : (
                 <ul className="space-y-2">
@@ -769,12 +844,23 @@ export default function SectionPdfEditor({
       {dlg ? (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#03121f]/80 p-4">
           <div className="w-full max-w-lg rounded-2xl border border-[#2d5871] bg-[#0c2b44] p-5 shadow-2xl">
-            <h3 className="text-base font-semibold text-white">{dlg.mode === "tb" ? (dlg.id ? "Edit text" : "Add text") : `Edit line on page ${dlg.page}`}</h3>
+            <h3 className="text-base font-semibold text-white">{dlg.mode === "field" ? `Enter ${dlg.field.label}` : dlg.mode === "tb" ? (dlg.id ? "Edit text" : "Add text") : `Edit line on page ${dlg.page}`}</h3>
             <p className="mt-1 text-[11px] leading-4 text-[#8faebb]">
-              {dlg.mode === "tb" ? "Uses the same font, size, colour and margins as the report text. Leave size empty to match." : "Type a value in place of a [ placeholder ] or change a value. It is saved to its field."}
+              {dlg.mode === "field" ? (dlg.field.type === "textarea" ? `Variable: ${dlg.field.id}. Enter project-specific text, then press Ctrl+Enter or Save to update the preview.` : `Variable: ${dlg.field.id}. Press Enter to save and update the preview.`) : dlg.mode === "tb" ? "Uses the same font, size, colour and margins as the report text. Leave size empty to match." : "Type a value in place of a [ placeholder ] or change a value. It is saved to its field."}
             </p>
-            <textarea autoFocus className={`${INPUT} mt-3 h-28 resize-none`} value={dlg.text} onChange={(e) => setDlg({ ...dlg, text: e.target.value })} />
-            <div className="mt-2 grid grid-cols-3 gap-2">
+            {dlg.mode === "field" ? (
+              dlg.field.type === "select" ? (
+                <select autoFocus className={`${INPUT} mt-3`} value={dlg.value} onChange={(e) => setDlg({ ...dlg, value: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyDialog(); } }}>
+                  {dlg.field.opts.map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+              ) : dlg.field.type === "textarea" ? (
+                <textarea autoFocus className={`${INPUT} mt-3 h-36 resize-y`} value={dlg.value} onChange={(e) => setDlg({ ...dlg, value: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); applyDialog(); } }} />
+              ) : (
+                <input autoFocus className={`${INPUT} mt-3`} type={dlg.field.type === "number" ? "number" : dlg.field.type === "date" ? "date" : "text"} step={dlg.field.type === "number" ? "any" : undefined}
+                  value={dlg.value} onChange={(e) => setDlg({ ...dlg, value: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyDialog(); } }} />
+              )
+            ) : <textarea autoFocus className={`${INPUT} mt-3 h-28 resize-none`} value={dlg.text} onChange={(e) => setDlg({ ...dlg, text: e.target.value })} />}
+            {dlg.mode !== "field" ? <div className="mt-2 grid grid-cols-3 gap-2">
               <label className="block"><span className={LABEL}>Size</span>
                 <input type="number" className={INPUT} placeholder={dlg.mode === "tb" ? "Auto" : undefined} value={dlg.size} onChange={(e) => setDlg({ ...dlg, size: e.target.value })} /></label>
               {dlg.mode === "tb" ? <span /> : (
@@ -785,10 +871,10 @@ export default function SectionPdfEditor({
                 <label className="flex items-center gap-1"><input type="checkbox" className="accent-[#f84f63]" checked={!!dlg.bold} onChange={(e) => setDlg({ ...dlg, bold: e.target.checked })} />Bold</label>
                 <label className="flex items-center gap-1"><input type="checkbox" className="accent-[#f84f63]" checked={!!dlg.italic} onChange={(e) => setDlg({ ...dlg, italic: e.target.checked })} />Italic</label>
               </div>
-            </div>
+            </div> : null}
             <div className="mt-4 flex justify-end gap-2">
               <Btn variant="ghost" onClick={() => setDlg(null)}>Cancel</Btn>
-              <Btn variant="primary" icon="check" onClick={applyDialog}>Apply</Btn>
+              <Btn variant="primary" icon="check" onClick={applyDialog}>{dlg.mode === "field" ? "Save value" : "Apply"}</Btn>
             </div>
           </div>
         </div>
