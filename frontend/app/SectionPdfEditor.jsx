@@ -18,6 +18,36 @@ const ImagePlusIcon = (p) => <Glyph {...p}><path d="M14 4H5a1 1 0 0 0-1 1v14a1 1
 const PencilIcon = (p) => <Glyph {...p}><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" /></Glyph>;
 const SwapIcon = (p) => <Glyph {...p}><path d="M4 8h13l-3-3M20 16H7l3 3" /></Glyph>;
 const TrashIcon = (p) => <Glyph {...p}><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></Glyph>;
+const SparkleIcon = (p) => <Glyph {...p}><path d="M10 4l1.8 4.9L16.7 10.7l-4.9 1.8L10 17.4l-1.8-4.9L3.3 10.7l4.9-1.8zM18 14l.9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9z" /></Glyph>;
+
+/* Placeholder suggestions until a model is connected: replace this array with the response of your AI endpoint. */
+const AI_SUGGESTIONS = [
+  "The fine mesh was created with the number of nodes as 665059 and the number of elements as 98240. Shown below are some images of the finite element model that was used for the analysis.",
+  "A refined finite element mesh was generated for the trailer structure, with local refinement at the joints and load application points to capture stress concentrations accurately.",
+  "The figure below shows the meshed finite element model of the trailer chassis, including the element sizing and boundary conditions that were applied for the analysis.",
+];
+
+/* Frosted-glass suggestion list shown beside the selected image. */
+function AiSuggestions({ onPick, style }) {
+  return (
+    <div data-img-ui role="dialog" aria-label="AI suggestions"
+      className="pointer-events-auto absolute z-[60] w-[340px] rounded-[34px] border border-white/25 p-5 text-white shadow-[0_24px_60px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
+      style={{ background: "linear-gradient(100deg, rgba(168,180,192,0.86) 0%, rgba(98,114,134,0.58) 42%, rgba(38,58,84,0.34) 100%)", ...style }}>
+      <h4 className="mb-3.5 flex items-center justify-center gap-1.5 text-[17px] font-medium tracking-wide text-white/95">
+        AI Suggestions <SparkleIcon className="h-3.5 w-3.5" />
+      </h4>
+      <div className="space-y-3">
+        {AI_SUGGESTIONS.map((text, i) => (
+          <button key={i} type="button" onClick={() => onPick(text)}
+            className="block w-full rounded-[26px] border border-white/15 px-4 py-3 text-center text-[11px] leading-[1.4] text-white/95 transition hover:border-white/45 hover:brightness-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/60"
+            style={{ background: "linear-gradient(100deg, rgba(48,60,78,0.9), rgba(36,48,66,0.62))" }}>
+            {text}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const AlignIcon = ({ kind, ...p }) => {
   const d = { left: "M4 6h16M4 10h10M4 14h16M4 18h10", center: "M4 6h16M7 10h10M4 14h16M7 18h10", right: "M4 6h16M10 10h10M4 14h16M10 18h10", justify: "M4 6h16M4 10h16M4 14h16M4 18h16" }[kind];
@@ -36,6 +66,8 @@ const TOOLS = [
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const PH = /\[ ([^\]]+?) \]/g;
+
+
 
 /* ---- map an edited line back to report fields ---- */
 function mapEdit(oldT, newT, secId, schema, data) {
@@ -140,6 +172,7 @@ export default function SectionPdfEditor({
   const [live, setLive] = useState(null); /* { key, x, top, w, h } while dragging / resizing (PDF points, top-left origin) */
   const [pending, setPending] = useState({}); /* key -> rect already saved but not yet in the rebuilt PDF */
   const layerRef = useRef(null);
+  const [aiFor, setAiFor] = useState(null); /* image id whose AI suggestion list is open */
   const gesture = useRef(null);
   const commitSeq = useRef(0); /* numbers every saved move so a finished rebuild only clears what it already contains */
   const [ghosts, setGhosts] = useState({}); /* `${version}:${imageId}` -> snapshot of the image, shown instantly while the PDF rebuilds */
@@ -255,6 +288,7 @@ export default function SectionPdfEditor({
     return () => { dead = true; };
   }, [pdf, sel, version, sectionPages]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (tool !== "select") setSel(null); }, [tool]);
+  useEffect(() => { if (aiFor && !(sel?.kind === "img" && sel.id === aiFor)) setAiFor(null); }, [sel, aiFor]);
 
   const sectionOfPage = (p) => {
     const entries = Object.entries(sectionPages).filter(([, v]) => typeof v === "number" && v <= p).sort((a, b) => b[1] - a[1]);
@@ -474,6 +508,13 @@ export default function SectionPdfEditor({
     const t = readTb(data[`txt__${id}`]);
     if (t) setDlg({ mode: "tb", id, page: textRects[id]?.page || t.page, text: t.text || "", size: t.size || "", bold: !!t.bold, italic: !!t.italic });
   };
+  /* A suggestion becomes the image's description, placed above the image (same keys as Caption / Caption placement). */
+  const applySuggestion = (id, text) => {
+    setData((c) => ({ ...c, [`cap__${id}`]: text, [`cap_pos__${id}`]: "above" }));
+    setData((c) => ({ ...c, [`cap__${id}`]: text, [`cap_pos__${id}`]: "above", [`cap_style__${id}`]: "body" }));
+    setAiFor(null);
+    notify("Description added above the image.", "info");
+  };
   const removeImage = (id) => {
     setSel(null);
     setData((c) => { const n = { ...c }; delete n[`img_dx__${id}`]; delete n[`img_dy__${id}`]; delete n[`img_scale__${id}`]; return n; });
@@ -625,12 +666,17 @@ export default function SectionPdfEditor({
                       const isLive = live?.key === key;
                       const left = (r.x / pw) * 100, top = (r.top / ph) * 100, wPct = (r.w / pw) * 100, hPct = (r.h / ph) * 100;
                       const isImg = kind === "img";
-                      let tbPos;
+                      let tbPos, panelPos;
                       if (isImg) {
                         const roomRight = r.x + r.w <= pw - 44, roomLeft = r.x >= 44;
                         tbPos = roomRight ? { left: `calc(${left + wPct}% + 8px)`, top: `${top}%` }
                           : roomLeft ? { right: `calc(${100 - left}% + 8px)`, top: `${top}%` }
                           : { left: `calc(${left + wPct}% - 40px)`, top: `calc(${top}% + 8px)` };
+                        /* like the design: the panel's bottom lines up with the image's bottom (so it never runs off the page); near the top of the page it hangs from the image's top instead */
+                        const vert = (r.top + r.h) * pxPerPt >= 340 ? { bottom: `${100 - top - hPct}%` } : { top: `${top}%` };
+                        panelPos = roomRight ? { left: `calc(${left + wPct}% + 52px)`, ...vert }
+                          : roomLeft ? { right: `calc(${100 - left}% + 52px)`, ...vert }
+                          : { left: `${left + wPct / 2}%`, top: `calc(${top}% + 12px)`, transform: "translateX(-50%)" };
                       } else {
                         tbPos = r.top >= 44 ? { left: `${left}%`, top: `calc(${top}% - 44px)` } : { left: `${left}%`, top: `calc(${top + hPct}% + 8px)` };
                       }
@@ -682,6 +728,10 @@ export default function SectionPdfEditor({
                                     <button type="button" title="Remove image" aria-label="Remove image" onClick={() => removeImage(id)}
                                       className={`${fb} border-[#2d5871] bg-[#0c2b44]/95 text-[#ff9da9] hover:border-[#ff8e9c] hover:bg-[#ff8e9c]/20`}><TrashIcon className="h-4 w-4" /></button>
                                   ) : null}
+                                  {r.filled ? (
+                                    <button type="button" title="AI suggestions" aria-label="AI suggestions" aria-expanded={aiFor === id} onClick={() => setAiFor(aiFor === id ? null : id)}
+                                      className={`${fb} ${aiFor === id ? "border-[#8ec5ff] bg-[#1d4a78] text-white" : "border-[#2d5871] bg-[#0c2b44]/95 text-[#d7e9ec] hover:border-[#8ec5ff]"}`}><SparkleIcon className="h-4 w-4" /></button>
+                                  ) : null}
                                 </>
                               ) : (
                                 <>
@@ -698,6 +748,7 @@ export default function SectionPdfEditor({
                               )}
                             </div>
                           ) : null}
+                          {selected && !isLive && isImg && aiFor === id ? <AiSuggestions onPick={(text) => applySuggestion(id, text)} style={panelPos} /> : null}
                         </div>
                       );
                     })}

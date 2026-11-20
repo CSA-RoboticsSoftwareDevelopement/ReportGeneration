@@ -431,13 +431,23 @@ class Ctx:
         try: offset_y = float(self.raw("img_offset_y__" + sid) or 0)
         except ValueError: offset_y = 0
         image = Slot(self.im.get(sid), cap, h, image_align, offset_x, offset_y, sid=sid, snap=True)
-        cap_style = ParagraphStyle(
-            "cap_gap", parent=self.s["cap"],
-            spaceBefore=CAPTION_GAP_PT if caption_position != "above" else 0,
-            spaceAfter=CAPTION_GAP_PT if caption_position == "above" else self.s["cap"].spaceAfter,
-        )
+        if str(self.raw("cap_style__" + sid) or "").lower() == "body":
+            # A description (e.g. an accepted AI suggestion): same font, size, alignment and spacing as the report's body text.
+            if caption_position == "above":
+                cap_style = self.s["body"]
+            else:
+                cap_style = ParagraphStyle("body_gap", parent=self.s["body"], spaceBefore=CAPTION_GAP_PT)
+        else:
+            cap_style = ParagraphStyle(
+                "cap_gap", parent=self.s["cap"],
+                spaceBefore=CAPTION_GAP_PT if caption_position != "above" else 0,
+                spaceAfter=CAPTION_GAP_PT if caption_position == "above" else self.s["cap"].spaceAfter,
+            )
         caption = Paragraph(escape(cap), cap_style)
-        return [caption, image] if caption_position == "above" else [image, caption]
+        # Keep a description that sits above its image on the same page as that image.
+        return [KeepTogether([caption, image])] if caption_position == "above" else [image, caption]
+
+
     def extra_slots(self, section_id):
         """Extra figures added from the report builder for one report section."""
         out = []
