@@ -742,6 +742,7 @@ def create_router(require_user, require_csrf) -> APIRouter:
     async def text_hit(doc_id: str, request: Request):
         user = require_user(request)
         require_csrf(request)
+        _load_meta(doc_id, user)
         payload = await request.json()
         doc = _open_working(doc_id)
         try:
@@ -1185,8 +1186,8 @@ def create_router(require_user, require_csrf) -> APIRouter:
     async def extract_pages(doc_id: str, request: Request):
         user = require_user(request)
         require_csrf(request)
-        payload = await request.json()
         meta = _load_meta(doc_id, user)
+        payload = await request.json()
         source = _open_working(doc_id)
         indexes = sorted({_page_index(source, n) for n in payload.get("pages") or []})
         try:
@@ -1713,6 +1714,7 @@ def create_router(require_user, require_csrf) -> APIRouter:
     async def assistant(doc_id: str, request: Request):
         user = require_user(request)
         require_csrf(request)
+        _load_meta(doc_id, user)
         payload = await request.json()
         question = _input_text(payload.get("question")).strip()
         if not question:

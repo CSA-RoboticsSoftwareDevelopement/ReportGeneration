@@ -143,15 +143,38 @@ def ST(layout=None):
         warn=ParagraphStyle("warn", fontName="Helvetica-Bold", fontSize=9.5, leading=13, textColor=colors.HexColor("#B00020")),
     )
 
+# Gap (PDF points, 1pt = 1px at 100% zoom) between an image and its caption.
+CAPTION_GAP_PT = 20
 
 # ----------------------------------------------------------------- flowables
 class Slot(Flowable):
     """Image slot: fills with the uploaded image, otherwise leaves a dashed blank box for later editing."""
-    def __init__(self, data, label, h, align="center", offset_x=0, offset_y=0):
+    def __init__(self, data, label, h, align="center", offset_x=0, offset_y=0, sid=None, snap=False):
         super().__init__(); self.data, self.label, self.h = data, label, h * mm
         self.align, self.offset_x, self.offset_y = align, offset_x * mm, offset_y * mm
+        self.sid, self.snap = sid, snap
+        self._ch = self.h
     def wrap(self, aw, ah):
-        self.w = aw; return aw, self.h
+        self.w = aw
+        self._ch = self.h
+        if self.snap and self.data:
+            # Shrink the slot to the real picture height so the caption sits right under the image.
+            try:
+                iw, ih = ImageReader(io.BytesIO(self.data)).getSize()
+                self._ch = ih * min(aw / iw, self.h / ih)
+            except Exception:
+                pass
+        return aw, self._ch
+    def _record(self, x, y, w, h, filled):
+        """Remember where this image sits on the page (PDF points, origin bottom-left) for the editor's floating controls."""
+        if not self.sid:
+            return
+        try:
+            ax, ay = self.canv.absolutePosition(x, y)
+            boxes = self.canv._section_pages.setdefault("__images", {})
+            boxes[self.sid] = {"page": self.canv.getPageNumber(), "x": ax, "y": ay, "w": w, "h": h, "filled": filled}
+        except Exception:
+            pass
     def draw(self):
         c = self.canv
         if self.data:
@@ -160,14 +183,16 @@ class Slot(Flowable):
                 s = min(self.w / iw, self.h / ih); dw, dh = iw * s, ih * s
                 factor = {"left": 0, "center": .5, "centre": .5, "right": 1}.get(str(self.align).lower(), .5)
                 x = min(max((self.w - dw) * factor + self.offset_x, 0), max(self.w - dw, 0))
-                y = min(max((self.h - dh) / 2 + self.offset_y, 0), max(self.h - dh, 0))
-                c.drawImage(ir, x, y, dw, dh, mask="auto"); return
+                y = min(max((self._ch - dh) / 2 + self.offset_y, 0), max(self._ch - dh, 0))
+                c.drawImage(ir, x, y, dw, dh, mask="auto")
+                self._record(x, y, dw, dh, True)
+                return
             except Exception:
                 pass
         c.setStrokeColor(colors.HexColor("#9AA5B5")); c.setDash(4, 3); c.setLineWidth(0.8)
         c.rect(0, 0, self.w, self.h); c.setDash()
-        c.setFillColor(colors.HexColor("#9AA5B5")); c.setFont("Helvetica-Oblique", 8.5)
-        c.drawCentredString(self.w / 2, self.h / 2, f"[ IMAGE: {self.label} ]")
+        self._record(0, 0, self.w, self.h, False)
+    
 
 
 def make_qr_png(text, size_mm):
@@ -396,8 +421,13 @@ class Ctx:
         except ValueError: offset_x = 0
         try: offset_y = float(self.raw("img_offset_y__" + sid) or 0)
         except ValueError: offset_y = 0
-        image = Slot(self.im.get(sid), cap, h, image_align, offset_x, offset_y)
-        caption = self.P(escape(cap), "cap")
+        image = Slot(self.im.get(sid), cap, h, image_align, offset_x, offset_y, sid=sid, snap=True)
+        cap_style = ParagraphStyle(
+            "cap_gap", parent=self.s["cap"],
+            spaceBefore=CAPTION_GAP_PT if caption_position != "above" else 0,
+            spaceAfter=CAPTION_GAP_PT if caption_position == "above" else self.s["cap"].spaceAfter,
+        )
+        caption = Paragraph(escape(cap), cap_style)
         return [caption, image] if caption_position == "above" else [image, caption]
     def extra_slots(self, section_id):
         """Extra figures added from the report builder for one report section."""

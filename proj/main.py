@@ -1,4 +1,4 @@
-import json, os, secrets, urllib.parse
+import collections, hashlib, json, os, secrets, time, urllib.parse
 from fastapi import FastAPI, Request, UploadFile, File, Form
 from fastapi.responses import RedirectResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -11,7 +11,7 @@ import auth
 import standards_library
 import materials_library
 import pdf_studio
-import pdf_studio
+import report_overlays
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 AVATAR_DIR = os.path.join(HERE, "uploads", "avatars")
@@ -370,6 +370,31 @@ def template_word(request: Request):
     content, _ = engine.build_word(template=True)
     return Response(content, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", headers={"Content-Disposition": 'attachment; filename="Trailer_Report_TEMPLATE.docx"'})
 
+# Moving / resizing an image or adding text in the section editor changes only the overlay keys below.
+# The slow engine build is cached on everything else, so those edits only re-run the fast PDF overlay step.
+_OVERLAY_KEYS = ("img_dx__", "img_dy__", "img_scale__", "txt__")
+_BUILD_CACHE = collections.OrderedDict()
+_BUILD_CACHE_SIZE, _BUILD_CACHE_TTL = 6, 300
+
+
+def _build_pdf_cached(data, images, selected, layout, extras, removed):
+    core = {k: v for k, v in data.items() if not str(k).startswith(_OVERLAY_KEYS)}
+    h = hashlib.sha1(json.dumps([core, selected, layout, extras, removed], sort_keys=True, default=str).encode())
+    for k in sorted(images):
+        h.update(k.encode())
+        h.update(hashlib.sha1(images[k]).digest())
+    key = h.hexdigest()
+    hit = _BUILD_CACHE.get(key)
+    if hit and time.time() - hit[0] < _BUILD_CACHE_TTL:
+        _BUILD_CACHE.move_to_end(key)
+        return hit[1]
+    result = engine.build(data, images, selected, layout=layout, extras=extras, removed=removed)
+    _BUILD_CACHE[key] = (time.time(), result)
+    while len(_BUILD_CACHE) > _BUILD_CACHE_SIZE:
+        _BUILD_CACHE.popitem(last=False)
+    return result
+
+
 @app.post("/api/generate")
 async def generate(request: Request):
     require_csrf(request)
@@ -388,16 +413,20 @@ async def generate(request: Request):
     stem = data.get("rae_no") or "Trailer"
     if output == "word":
         content, warns = engine.build_word(data, images, selected, layout=layout, extras=extras, removed=removed)
+        section_pages = {}
         name = stem + "_Certification_Report.docx"
         media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     else:
-        content, warns, _section_pages = engine.build(data, images, selected, layout=layout, extras=extras, removed=removed)
+        content, warns, section_pages = _build_pdf_cached(data, images, selected, layout, extras, removed)
+        # re-apply what the user did by hand in the section editor (moved/resized images, added text)
+        content, section_pages = report_overlays.apply_editor_overlays(content, section_pages, data, images, layout)
         name = stem + "_Certification_Report.pdf"
         media_type = "application/pdf"
     return Response(content, media_type=media_type, headers={
         "Content-Disposition": f'attachment; filename="{name}"',
         "X-Warnings": urllib.parse.quote(json.dumps(warns)),
-        "Access-Control-Expose-Headers": "X-Warnings, Content-Disposition"})
+        "X-Section-Pages": urllib.parse.quote(json.dumps(section_pages)),
+        "Access-Control-Expose-Headers": "X-Warnings, X-Section-Pages, Content-Disposition"})
 
 
 @app.post("/api/preview/pages")
@@ -416,7 +445,8 @@ async def preview_pages(request: Request, png: int = 1):
     data = _normalise_report_data(p)
     selected, layout = p.get("selected"), p.get("layout", {})
     extras, removed = p.get("extra_images", {}), p.get("removed_images", [])
-    content, warns, section_pages = engine.build(data, images, selected, layout=layout, extras=extras, removed=removed)
+    content, warns, section_pages = _build_pdf_cached(data, images, selected, layout, extras, removed)
+    content, section_pages = report_overlays.apply_editor_overlays(content, section_pages, data, images, layout)
 
     try:
         import fitz  # PyMuPDF

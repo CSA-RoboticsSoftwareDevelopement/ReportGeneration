@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import ImageEditor from "./ImageEditor";
 import PdfEditor from "./PdfEditor";
 import TourGuide from "./TourGuide";
+import SectionPdfEditor from "./SectionPdfEditor";
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens (from the dark-technical login design)               */
@@ -1002,7 +1003,7 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
   // and therefore intentionally have no Evidence Images UI.
   const sectionImages = Array.isArray(section.images) ? section.images : [];
   const sectionFields = Array.isArray(section.fields) ? section.fields : [];
-  const sectionExtra = sectionImages.length ? (extraImages[section.id] || []) : [];
+  const sectionExtra = extraImages[section.id] || [];
   const visibleSlotsKey = `visible_image_slots__${section.id}`;
   const highestUploadedSchemaSlot = sectionImages.reduce(
     (highest, image, index) => (files[image.id] ? index + 1 : highest),
@@ -1024,18 +1025,7 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
     ...sectionExtra.map((img) => ({ ...img, source: "extra" })),
   ];
 
-  const addImage = () => {
-    if (visibleSchemaSlots < sectionImages.length) {
-      setData((current) => ({ ...current, [visibleSlotsKey]: visibleSchemaSlots + 1 }));
-      return;
-    }
-    const newId = `extra_${section.id}_${Date.now()}`;
-    setExtraImages((current) => ({
-      ...current,
-      [section.id]: [...(current[section.id] || []), { id: newId, label: "", h: 60 }],
-    }));
-    setData((current) => ({ ...current, [`cap__${newId}`]: "" }));
-  };
+
 
   return (
     <section className={`overflow-hidden rounded-2xl border ${enabled ? "border-[#2a5068] bg-[#0e3250]" : "border-[#2a5068]/50 bg-[#0b2b47]/60 opacity-70"}`}>
@@ -1099,8 +1089,8 @@ function SectionEditor({ section, sections, data, setData, files, setFiles, extr
               ))}
             </div>
           )}
-          {sectionImages.length > 0 && (
-            <div className="grid gap-4 md:grid-cols-2">
+          {allImages.length > 0 && (
+            <div className="grid grid-cols-1 gap-4">
               {allImages.map((image) => {
                 const isSchema = image.source === "schema";
                 const cardKey = isSchema ? `schema_${image.id}` : `extra_${image.id}`;
@@ -2387,12 +2377,18 @@ export default function ReportGenix() {
       };
     });
 
+
     const firstAnalysisPosition = allSections.findIndex((section) => analysisTemplates.includes(section));
     if (firstAnalysisPosition < 0) return [...nonAnalysisSections, ...analysisPages];
     const before = allSections.slice(0, firstAnalysisPosition).filter((section) => !analysisTemplates.includes(section));
     const after = allSections.slice(firstAnalysisPosition).filter((section) => !analysisTemplates.includes(section));
     return [...before, ...analysisPages, ...after];
   }, [schema, reportRows]);
+
+  const reportSig = useMemo(
+      () => JSON.stringify({ data, reportRows, selected, layout, extraImages, removedSchemaImages, files: Object.entries(files).map(([k, f]) => [k, f?.name, f?.size, f?.lastModified]) }),
+      [data, reportRows, selected, layout, extraImages, removedSchemaImages, files]
+  );
 
   const currentSectionId = pathname.startsWith("/section/") ? decodeURIComponent(pathname.slice("/section/".length)) : "";
   const currentActiveSection = reportSections.find((section) => section.id === currentSectionId);
@@ -2501,6 +2497,27 @@ export default function ReportGenix() {
     Object.entries(files).forEach(([key, file]) => {
       if (file) form.append(`img__${key}`, file);
     });
+    return form;
+  };
+
+  const buildReportForm = (output = "pdf") => {
+    const form = new FormData();
+    const extraImagesPayload = {};
+    Object.entries(extraImages).forEach(([sid, images]) => {
+      extraImagesPayload[sid] = images.map((img) => ({
+        id: img.id,
+        label: data[`cap__${img.id}`] || img.label || "",
+        h: Number(data[`img_height__${img.id}`] || img.h || 60),
+      }));
+    });
+    const removedImagesPayload = Object.keys(removedSchemaImages)
+      .filter((key) => removedSchemaImages[key])
+      .map((key) => key.slice(key.indexOf(":") + 1));
+    form.append("payload", JSON.stringify({
+      data: { ...data, standards: reportRows }, standards: reportRows, selected, layout,
+      extra_images: extraImagesPayload, removed_images: removedImagesPayload, output,
+    }));
+    Object.entries(files).forEach(([key, file]) => { if (file) form.append(`img__${key}`, file); });
     return form;
   };
 
@@ -3011,65 +3028,49 @@ const sidebarSteps = [
           {route === "projects" && <div className="space-y-6"><MaterialEditor catalog={materialsCatalog} mode={materialMode} setMode={setMaterialMode} selectedId={selectedMaterialId} setSelectedId={setSelectedMaterialId} data={data} setData={setData} materialMeta={materialMeta} setMaterialMeta={setMaterialMeta} status={materialStatus} /><ComplianceEditor rows={standards} setRows={setStandards} catalog={standardsCatalog} request={request} /></div>}
 
           {route === "section" && (
-            <div className="fixed inset-x-0 bottom-0 top-[76px] z-20 flex h-auto w-auto min-h-0 min-w-0 flex-col overflow-hidden bg-[#0a2744] [padding-bottom:env(safe-area-inset-bottom)] sm:top-[82px] lg:left-72 lg:top-[82px]">
-              {editingImage ? (
-                <div className="min-h-0 flex-1 p-3">
-                  <ImageEditor
-                    key={editingImage.id}
-                    imageUrl={editingImage.url}
-                    initialState={editorStates[editingImage.id]}
-                    title={editingImage.label}
-                    onSave={handleEditorSave}
-                    onClose={closeImageEditor}
-                  />
-                </div>
-              ) : (
-                <div className="flex h-full w-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                  <div className="grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-b border-[#2a5068] bg-[#0b2b47] px-2 py-2 sm:flex sm:justify-between sm:gap-3 sm:px-5">
-                    <button
-                      type="button"
-                      onClick={() => navigateToSection(previousSection)}
-                      disabled={!previousSection}
-                      className="inline-flex min-h-9 items-center justify-center gap-1 rounded-lg border border-[#365f78] bg-[#123a57] px-2 py-2 text-xs font-semibold text-[#d8e9ed] transition hover:border-[#6bbfc2] hover:bg-[#194968] disabled:cursor-not-allowed disabled:opacity-35 sm:gap-2 sm:px-3 sm:text-sm"
-                      aria-label="Go to previous report section"
-                    >
-                      <span aria-hidden="true">←</span>
-                      <span>Back</span>
-                    </button>
-
-                    <div className="min-w-0 flex-1 text-center">
-                      <p className="truncate text-xs font-semibold text-[#d8e9ed] sm:text-sm">
-                        {activeSection?.title || "Report section"}
-                      </p>
-                      <p className="mt-0.5 text-[10px] text-[#8fbcc0] sm:text-xs">
-                        Section {Math.max(activeSectionIndex + 1, 1)} of {reportSections.length}
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => navigateToSection(nextSection)}
-                      disabled={!nextSection}
-                      className="inline-flex min-h-9 items-center justify-center gap-1 rounded-lg border border-[#f84f63]/60 bg-[#f84f63] px-2 py-2 text-xs font-semibold text-[#071f35] transition hover:bg-[#ff7181] disabled:cursor-not-allowed disabled:opacity-35 sm:gap-2 sm:px-3 sm:text-sm"
-                      aria-label="Go to next report section"
-                    >
-                      <span>Next</span>
-                      <span aria-hidden="true">→</span>
-                    </button>
-                  </div>
-
-                  <div className="flex h-full w-full min-h-0 min-w-0 flex-1 overflow-hidden">
-                    <PdfEditor
-                      pdfBase64={preview?.pdf || null}
-                      pageNumbers={sectionPageNumbers || []}
-                      allPageKeys={allPageKeys}
-                      title={activeSection?.title || "Report section"}
-                      edits={pdfEdits}
-                      onEditsChange={setPdfEdits}
-                      onEditImage={openPdfImageEditor}
-                      loading={previewLoading}
-                    />
-                  </div>
+            <div className="h-[calc(100dvh-150px)] min-h-[520px]">
+              <SectionPdfEditor
+                section={activeSection}
+                sections={schema.sections}
+                schema={schema}
+                data={data}
+                setData={setData}
+                csrf={csrf}
+                buildForm={() => buildReportForm("pdf")}
+                reportSig={reportSig}
+                imageApi={{
+                  add: (file) => {
+                    const id = `extra_${activeSection.id}_${Date.now()}`;
+                    setExtraImages((current) => ({ ...current, [activeSection.id]: [...(current[activeSection.id] || []), { id, label: "", h: 60 }] }));
+                    setData((current) => ({ ...current, [`cap__${id}`]: "" }));
+                    setFiles((current) => ({ ...current, [id]: file }));
+                    return id;
+                  },
+                  replace: (id, file) => {
+                    if ((activeSection.images || []).some((img) => img.id === id)) {
+                      setRemovedSchemaImages((current) => ({ ...current, [`${activeSection.id}:${id}`]: false }));
+                    }
+                    handleFileChange(id, file);
+                  },
+                  remove: (id) => {
+                    handleFileChange(id, null);
+                    if ((activeSection.images || []).some((img) => img.id === id)) {
+                      setRemovedSchemaImages((current) => ({ ...current, [`${activeSection.id}:${id}`]: true }));
+                    } else {
+                      setExtraImages((current) => ({ ...current, [activeSection.id]: (current[activeSection.id] || []).filter((item) => item.id !== id) }));
+                    }
+                  },
+                  edit: (id) => openImageEditor({ id, label: data[`cap__${id}`] || "Image" }),
+                }}
+                onBack={() => { const i = schema.sections.findIndex((s) => s.id === activeSection.id); router.push(i > 0 ? `/section/${schema.sections[i - 1].id}` : "/projects"); }}
+                onNext={() => { const i = schema.sections.findIndex((s) => s.id === activeSection.id); router.push(i < schema.sections.length - 1 ? `/section/${schema.sections[i + 1].id}` : "/issue"); }}
+                imagesPanel={
+                  <SectionEditor sections={schema.sections} section={activeSection} data={data} setData={setData} files={files} setFiles={setFiles} extraImages={extraImages} setExtraImages={setExtraImages} removedSchemaImages={removedSchemaImages} setRemovedSchemaImages={setRemovedSchemaImages} selected={selected} setSelected={setSelected} onOpenImageEditor={openImageEditor} editingImage={editingImage} onFileChange={handleFileChange} originals={originals} />
+                }
+              />
+              {editingImage && (
+                <div className="fixed inset-0 z-[95] bg-[#03121f]/85 p-4">
+                  <ImageEditor key={editingImage.id} imageUrl={editingImage.url} initialState={editorStates[editingImage.id]} title={editingImage.label} onSave={handleEditorSave} onClose={closeImageEditor} />
                 </div>
               )}
             </div>
