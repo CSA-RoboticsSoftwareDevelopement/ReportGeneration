@@ -12,6 +12,7 @@ import standards_library
 import materials_library
 import pdf_studio
 import report_overlays
+import reports_store
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 AVATAR_DIR = os.path.join(HERE, "uploads", "avatars")
@@ -138,6 +139,8 @@ def require_user(request: Request):
         request.session.clear()
         raise HTTPException(status_code=401, detail="Your session has expired. Sign in again.")
     return user
+
+app.include_router(reports_store.create_router(require_user, require_csrf))
 
 app.include_router(pdf_studio.create_router(require_user, require_csrf))
 
