@@ -1905,6 +1905,8 @@ export default function ReportGenix() {
   const syncedImages = useRef({});           // { [reportId]: { current: {imageId: File}, original: {...} } }
   const lastSaved = useRef({});              // { [reportId]: change key }
   const hydratedRef = useRef("");
+  const historyCurrent = useRef(null);
+  const skipHistory = useRef(false);
 
   const restoreChangeSnapshot = useCallback((snapshot) => {
     if (!snapshot) return;

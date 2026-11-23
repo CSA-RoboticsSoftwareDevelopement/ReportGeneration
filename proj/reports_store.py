@@ -15,6 +15,57 @@ MAX_IMG = 25 * 1024 * 1024
 MAX_JSON = 20 * 1024 * 1024
 
 
+def _ensure_schema() -> None:
+    with closing(_conn()) as con:
+        with con.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS rg_reports (
+                    id VARCHAR(120) NOT NULL,
+                    owner VARCHAR(120) NOT NULL,
+                    title VARCHAR(255) DEFAULT '',
+                    rae VARCHAR(120) DEFAULT '',
+                    project VARCHAR(255) DEFAULT '',
+                    rev VARCHAR(40) DEFAULT '',
+                    axle VARCHAR(60) DEFAULT '',
+                    editor VARCHAR(255) DEFAULT '',
+                    status ENUM('draft','in_review','approved','archived') DEFAULT 'draft',
+                    starred TINYINT(1) DEFAULT 0,
+                    pinned TINYINT(1) DEFAULT 0,
+                    folder VARCHAR(60) DEFAULT '',
+                    sections INT DEFAULT 0,
+                    figures INT DEFAULT 0,
+                    thumb TEXT,
+                    sig VARCHAR(200000) DEFAULT '',
+                    snapshot LONGTEXT DEFAULT '',
+                    editor_states LONGTEXT DEFAULT '',
+                    updated BIGINT NOT NULL,
+                    created BIGINT NOT NULL,
+                    viewed BIGINT DEFAULT 0,
+                    PRIMARY KEY (id),
+                    KEY idx_reports_owner_updated (owner, updated)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS rg_folders (
+                    owner VARCHAR(120) NOT NULL,
+                    name VARCHAR(60) NOT NULL,
+                    PRIMARY KEY (owner, name)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS rg_images (
+                    report_id VARCHAR(120) NOT NULL,
+                    image_id VARCHAR(120) NOT NULL,
+                    kind ENUM('current','original') NOT NULL,
+                    filename VARCHAR(120) DEFAULT '',
+                    mime VARCHAR(100) DEFAULT '',
+                    PRIMARY KEY (report_id, image_id, kind),
+                    KEY idx_images_report (report_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """)
+        con.commit()
+
+
 def _conn():
     return pymysql.connect(
         host=os.getenv("DB_HOST", "127.0.0.1"),
@@ -69,6 +120,7 @@ def _pub(r):
 
 
 def create_router(require_user, require_csrf) -> APIRouter:
+    _ensure_schema()
     router = APIRouter(prefix="/api/report-store", tags=["Report store"])
 
     @router.get("/reports")
