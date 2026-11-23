@@ -3146,6 +3146,14 @@ export default function ReportGenix() {
     : [routeCrumb[route] || routeCrumb["not-found"]];
 
   const navClass = (active) => `rounded-md px-3 py-2 text-sm font-medium transition ${active ? "bg-[#f84f63] text-[#0a1f36]" : "text-[#c6dce2] hover:bg-white/5 hover:text-white"}`;
+  const workspaceClass = route === "dashboard"
+    ? "px-4 py-4 sm:px-6"
+    : route === "section"
+      ? "w-full px-1 py-1 sm:px-2 sm:py-2 lg:px-2"
+      : "w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-6";
+  const pageHeaderClass = route === "section"
+    ? "mb-0.5 w-full max-w-[420px] rounded-lg border border-[#2a5068] bg-[#0e3250] px-3 py-1.5"
+    : "mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7";
 
   /* ---- Sidebar data: built from the app's own routes and state ---- */
   const filled = (value) => String(value ?? "").trim() !== "";
@@ -3246,8 +3254,8 @@ export default function ReportGenix() {
           </div>
         </header>
 
-        <div className={route === "dashboard" ? "px-4 py-4 sm:px-6" : "w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-6"}>
-          <div data-tour="page-header" className={`${route === "dashboard" ? "hidden " : ""}mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7`}><div><p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "section" ? "Report section" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p><h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? <SectionTitle key={activeSection.id} value={data[`heading__${activeSection.id}`]} fallback={activeSection.title} onChange={(v) => setData((current) => ({ ...current, [`heading__${activeSection.id}`]: v }))} /> : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/studio" className={navClass(false)}>Studio</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Preview and Download</Link></div></div>
+        <div className={workspaceClass}>
+          <div data-tour="page-header" className={`${route === "dashboard" ? "hidden " : ""}${pageHeaderClass}`}><div>{route !== "section" && <p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p>}<h1 className={`${route === "section" ? "mt-0 text-lg" : "mt-1 text-2xl"} font-semibold text-white`}>{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? <SectionTitle key={activeSection.id} value={data[`heading__${activeSection.id}`]} fallback={activeSection.title} onChange={(v) => setData((current) => ({ ...current, [`heading__${activeSection.id}`]: v }))} /> : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/studio" className={navClass(false)}>Studio</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Preview and Download</Link></div></div>
 
           <nav className={`${route === "dashboard" || route === "section" ? "hidden " : ""}flex items-center gap-1 text-xs text-[#8fbcc0] mt-4 ml-2`} aria-label="Breadcrumb">
             <Link href="/" className="hover:text-[#c8dfe1]">Home</Link>
@@ -3326,7 +3334,7 @@ export default function ReportGenix() {
           {route === "projects" && <div className="space-y-6"><MaterialEditor catalog={materialsCatalog} mode={materialMode} setMode={setMaterialMode} selectedId={selectedMaterialId} setSelectedId={setSelectedMaterialId} data={data} setData={setData} materialMeta={materialMeta} setMaterialMeta={setMaterialMeta} status={materialStatus} /><ComplianceEditor rows={standards} setRows={setStandards} catalog={standardsCatalog} request={request} /></div>}
 
           {route === "section" && (
-            <div className="h-[calc(100dvh-150px)] min-h-[520px]">
+            <div className="h-[calc(100dvh-100px)] min-h-[520px]">
               <SectionPdfEditor
                 section={activeSection}
                 sections={reportSections}

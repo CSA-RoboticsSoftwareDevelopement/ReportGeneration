@@ -27,26 +27,50 @@ const AI_SUGGESTIONS = [
   "The figure below shows the meshed finite element model of the trailer chassis, including the element sizing and boundary conditions that were applied for the analysis.",
 ];
 
-/* Frosted-glass suggestion list shown beside the selected image. */
-function AiSuggestions({ onPick, style }) {
-  return (
-    <div data-img-ui role="dialog" aria-label="AI suggestions"
-      className="pointer-events-auto absolute z-[60] w-[340px] rounded-[34px] border border-white/25 p-5 text-white shadow-[0_24px_60px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
-      style={{ background: "linear-gradient(100deg, rgba(168,180,192,0.86) 0%, rgba(98,114,134,0.58) 42%, rgba(38,58,84,0.34) 100%)", ...style }}>
-      <h4 className="mb-3.5 flex items-center justify-center gap-1.5 text-[17px] font-medium tracking-wide text-white/95">
-        AI Suggestions <SparkleIcon className="h-3.5 w-3.5" />
-      </h4>
-      <div className="space-y-3">
+/* Desktop: anchored next to the image. Mobile: a touch-friendly bottom sheet. */
+function AiSuggestions({ onPick, onClose, style }) {
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 639px)");
+    const update = () => setMobile(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    const closeOnEscape = (event) => { if (event.key === "Escape") onClose(); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
+
+  const panel = (
+    <div data-img-ui role="dialog" aria-modal={mobile} aria-label="AI image descriptions"
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
+      className={mobile
+        ? "pointer-events-auto fixed inset-x-3 bottom-3 z-[90] max-h-[78dvh] overflow-y-auto rounded-3xl border border-[#56809a] bg-[#0c2b44] p-4 text-white shadow-[0_24px_60px_rgba(0,0,0,.55)]"
+        : "pointer-events-auto absolute z-[70] h-[235px] w-[330px] overflow-y-auto rounded-2xl border border-[#56809a] bg-[#0c2b44]/95 p-3 text-white shadow-[0_20px_45px_rgba(0,0,0,.5)] backdrop-blur-xl"}
+      style={mobile ? undefined : style}>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div>
+          <h4 className={`flex items-center gap-1.5 font-semibold text-white ${mobile ? "text-base" : "text-sm"}`}><SparkleIcon className={`${mobile ? "h-4 w-4" : "h-3.5 w-3.5"} text-[#8fd0c8]`} /> AI Suggestions</h4>
+          <p className={`mt-0.5 text-[#a9c8d2] ${mobile ? "text-[11px]" : "text-[9px]"}`}>Select one to add above the image.</p>
+        </div>
+        <button type="button" onClick={onClose} className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-[#2f5b75] text-base text-[#c9dfe3] hover:border-[#f84f63] hover:bg-[#f84f63]/15 hover:text-white" aria-label="Close AI suggestions">×</button>
+      </div>
+      <div className="space-y-1.5">
         {AI_SUGGESTIONS.map((text, i) => (
-          <button key={i} type="button" onClick={() => onPick(text)}
-            className="block w-full rounded-[26px] border border-white/15 px-4 py-3 text-center text-[11px] leading-[1.4] text-white/95 transition hover:border-white/45 hover:brightness-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/60"
-            style={{ background: "linear-gradient(100deg, rgba(48,60,78,0.9), rgba(36,48,66,0.62))" }}>
+          <button key={i} type="button" onClick={(event) => { event.stopPropagation(); onPick(text); }}
+            className={`block w-full rounded-xl border border-[#2f5b75] bg-[#103a55] px-3 text-left text-[#e8f2f3] transition hover:border-[#77c2bd] hover:bg-[#16415f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f84f63] ${mobile ? "py-3 text-sm leading-5" : "py-2 text-[10px] leading-[1.25]"}`}>
+            <span className={`mb-0.5 block font-bold tracking-wide text-[#8fd0c8] ${mobile ? "text-[10px]" : "text-[11px]"}`}>Suggestion {i + 1}</span>
             {text}
           </button>
         ))}
       </div>
     </div>
   );
+
+  return mobile ? <div data-img-ui className="fixed inset-0 z-[80] bg-[#03121f]/60 backdrop-blur-[1px]" onPointerDown={onClose}>{panel}</div> : panel;
 }
 
 const AlignIcon = ({ kind, ...p }) => {
@@ -598,7 +622,6 @@ export default function SectionPdfEditor({
   };
   /* A suggestion becomes the image's description, placed above the image (same keys as Caption / Caption placement). */
   const applySuggestion = (id, text) => {
-    setData((c) => ({ ...c, [`cap__${id}`]: text, [`cap_pos__${id}`]: "above" }));
     setData((c) => ({ ...c, [`cap__${id}`]: text, [`cap_pos__${id}`]: "above", [`cap_style__${id}`]: "body" }));
     setAiFor(null);
     notify("Description added above the image.", "info");
@@ -857,7 +880,7 @@ export default function SectionPdfEditor({
                               )}
                             </div>
                           ) : null}
-                          {selected && !isLive && isImg && aiFor === id ? <AiSuggestions onPick={(text) => applySuggestion(id, text)} style={panelPos} /> : null}
+                          {selected && !isLive && isImg && aiFor === id ? <AiSuggestions onPick={(text) => applySuggestion(id, text)} onClose={() => setAiFor(null)} style={panelPos} /> : null}
                         </div>
                       );
                     })}
