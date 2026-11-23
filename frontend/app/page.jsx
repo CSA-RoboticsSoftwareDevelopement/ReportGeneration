@@ -919,9 +919,20 @@ function ComplianceEditor({ rows, setRows, catalog, request }) {
               <div className="mt-4 space-y-2 rounded-lg border border-[#77c2bd]/20 bg-[#77c2bd]/5 p-3 text-sm">
                 <p className="text-xs font-semibold text-[#99cfca]">{row.picked.length} clause{row.picked.length > 1 ? "s" : ""} will be added to the report</p>
                 {row.picked.map((p) => (
-                  <div key={p.id} className="grid gap-2 border-t border-[#2a5068]/40 pt-2 md:grid-cols-2">
-                    <p><b className="font-semibold text-[#99cfca]">Standard:</b> {p.standard}</p>
-                    <p className="whitespace-pre-line"><b className="font-semibold text-[#99cfca]">Requirement:</b> {p.requirement}</p>
+                  <div key={p.id} className="flex items-start gap-3 border-t border-[#2a5068]/40 pt-2">
+                    <div className="grid min-w-0 flex-1 gap-2 md:grid-cols-2">
+                      <p><b className="font-semibold text-[#99cfca]">Standard:</b> {p.standard}</p>
+                      <p className="whitespace-pre-line"><b className="font-semibold text-[#99cfca]">Requirement:</b> {p.requirement}</p>
+                    </div>
+                    <button
+                      type="button"
+                      title="Remove this clause"
+                      aria-label={`Remove clause ${p.standard}`}
+                      onClick={() => pickClauses(row, (row.clauseIds || []).filter((id) => String(id) !== String(p.id)))}
+                      className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-[#e5334b] text-white transition hover:bg-[#ff4d63] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/70"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true"><path d="M6 12h12" /></svg>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -1549,9 +1560,9 @@ function Dashboard({ reports, folders, activeId, onOpen, onCreate, onDuplicate, 
   }, [reports, scope, tab, status, sort, query]);
 
   const openFolderModal = () => { setFolderName(""); setFolderError(""); setFolderModal(true); };
-  const submitFolder = (e) => {
+  const submitFolder = async (e) => {
     e.preventDefault();
-    const err = onAddFolder(folderName);
+    const err = await onAddFolder(folderName);
     if (err) setFolderError(err);
     else setFolderModal(false);
   };
@@ -1895,8 +1906,12 @@ export default function ReportGenix() {
   const [reportsLoaded, setReportsLoaded] = useState(false);
   const [activeReportId, setActiveReportId] = useState("");
   const pendingId = useRef("");
-  const sessionMedia = useRef({}); /* { [reportId]: { files, originals, editorStates } } */
   const raeTimer = useRef(null);
+  const [syncTick, setSyncTick] = useState(0);
+  const syncedReports = useRef(new Set());   // report ids that exist on the server
+  const syncedImages = useRef({});           // { [reportId]: { current: {imageId: File}, original: {...} } }
+  const lastSaved = useRef({});              // { [reportId]: change key }
+  const hydratedRef = useRef("");
 
   useEffect(() => {
     if (!previewExpanded) return;
@@ -2315,7 +2330,10 @@ export default function ReportGenix() {
       setFolders([]);
       setReportsLoaded(false);
       setActiveReportId("");
-      sessionMedia.current = {};
+      syncedReports.current = new Set();
+      syncedImages.current = {};
+      lastSaved.current = {};
+      hydratedRef.current = ""; 
       MEDIA.files = {}; MEDIA.originals = {}; MEDIA.editorStates = {};
       navigationMedia = { files: {}, originals: {}, editorStates: {}, extraImages: {}, removedSchemaImages: {} };
       WORK.data = null;
@@ -2714,30 +2732,26 @@ export default function ReportGenix() {
     /* ---------------- Dashboard: report records ---------------- */
 
   const userKey = user ? String(user.id ?? user.email) : "";
-  const storeKey = `reportgenix-reports-v1:${userKey}`;
 
   useEffect(() => {
-    if (!userKey) return;
-    try {
-      const raw = JSON.parse(window.localStorage.getItem(storeKey) || "{}");
-      setReports(Array.isArray(raw.reports) ? raw.reports : []);
-      setFolders(Array.isArray(raw.folders) ? raw.folders : []);
-    } catch {
-      setReports([]);
-      setFolders([]);
-    }
-    setReportsLoaded(true);
-  }, [userKey, storeKey]);
-
-  useEffect(() => {
-    if (!reportsLoaded || !userKey) return;
-    const write = (list) => window.localStorage.setItem(storeKey, JSON.stringify({ reports: list, folders }));
-    try {
-      write(reports);
-    } catch {
-      try { write(reports.map((r) => ({ ...r, thumb: "" }))); } catch { /* storage full */ }
-    }
-  }, [reports, folders, reportsLoaded, userKey, storeKey]);
+    if (!userKey || !csrf) return;
+    let dead = false;
+    (async () => {
+      try {
+        const [r, f] = await Promise.all([request("/api/report-store/reports"), request("/api/report-store/folders")]);
+        const rj = await r.json();
+        const fj = await f.json();
+        if (dead) return;
+        rj.reports.forEach((x) => syncedReports.current.add(x.id));
+        setReports(rj.reports);
+        setFolders(fj.folders);
+      } catch (e) {
+        console.error("Could not load reports", e);
+      }
+      if (!dead) setReportsLoaded(true);
+    })();
+    return () => { dead = true; };
+  }, [userKey, csrf, request]);
 
   /* Keep the current report's card up to date (only when something really changed). */
   useEffect(() => {
@@ -2785,9 +2799,88 @@ export default function ReportGenix() {
     return () => { dead = true; };
   }, [files, activeReportId]);
 
-  const stashMedia = () => {
-    if (activeReportId) sessionMedia.current[activeReportId] = { files, originals, editorStates };
+  useEffect(() => {
+    if (!reportsLoaded || !activeReportId) return;
+    const r = reports.find((x) => x.id === activeReportId);
+    if (!r || !r.snapshot) return;
+    const key = `${r.sig}|${r.figures}|${r.thumb?.length || 0}|${JSON.stringify(editorStates).length}`;
+    if (lastSaved.current[r.id] === key) return;
+    const timer = window.setTimeout(async () => {
+      try {
+        await request(`/api/report-store/reports/${r.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: r.title, rae: r.rae, project: r.project, rev: r.rev, axle: r.axle, editor: r.editor,
+            sections: r.sections, figures: r.figures, thumb: r.thumb || "", sig: r.sig,
+            snapshot: r.snapshot, editor_states: editorStates,
+          }),
+        });
+        syncedReports.current.add(r.id);
+        lastSaved.current[r.id] = key;
+        setSyncTick((n) => n + 1);
+      } catch (e) {
+        console.error("Report save failed", e);
+      }
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [reports, activeReportId, editorStates, reportsLoaded, request]);
+
+  useEffect(() => {
+    const id = activeReportId;
+    if (!id || !syncedReports.current.has(id)) return;
+    const timer = window.setTimeout(async () => {
+      const rec = (syncedImages.current[id] ||= { current: {}, original: {} });
+      try {
+        for (const [kind, map] of [["current", files], ["original", originals]]) {
+          for (const [iid, file] of Object.entries(map)) {
+            if (!file || rec[kind][iid] === file) continue;
+            const form = new FormData();
+            form.append("file", file);
+            await request(`/api/report-store/reports/${id}/images/${iid}?kind=${kind}`, { method: "PUT", body: form });
+            rec[kind][iid] = file;
+          }
+          for (const iid of Object.keys(rec[kind])) {
+            if (map[iid]) continue;
+            await request(`/api/report-store/reports/${id}/images/${iid}?kind=${kind}`, { method: "DELETE" });
+            delete rec[kind][iid];
+          }
+        }
+      } catch (e) {
+        console.error("Photo sync failed", e);
+      }
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [files, originals, activeReportId, syncTick, request]);
+
+  const loadServerMedia = async (id) => {
+    const res = await request(`/api/report-store/reports/${id}`);
+    const full = await res.json();
+    const f = {};
+    const o = {};
+    await Promise.all(full.images.map(async (im) => {
+      const r = await request(`/api/report-store/reports/${id}/images/${im.image_id}?kind=${im.kind}`);
+      const blob = await r.blob();
+      const file = new File([blob], im.filename || `${im.image_id}.png`, { type: im.mime || blob.type });
+      (im.kind === "original" ? o : f)[im.image_id] = file;
+    }));
+    syncedImages.current[id] = { current: { ...f }, original: { ...o } };
+    return { full, files: f, originals: o };
   };
+
+  useEffect(() => {
+    if (!reportsLoaded || !activeReportId || hydratedRef.current === activeReportId) return;
+    hydratedRef.current = activeReportId;
+    if (Object.values(files).some(Boolean) || !syncedReports.current.has(activeReportId)) return;
+    loadServerMedia(activeReportId)
+      .then((m) => {
+        setFiles(m.files);
+        setOriginals(m.originals);
+        setEditorStates(m.full.editor_states || {});
+      })
+      .catch((e) => console.error(e));
+  }, [reportsLoaded, activeReportId]); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   const resetWorkspace = () => {
     if (!schema) return;
@@ -2817,7 +2910,6 @@ export default function ReportGenix() {
   };
 
   const createReport = () => {
-    stashMedia();
     resetWorkspace();
     const blank = Object.fromEntries(
       schema.general.map((f) => [f.id, f.default || (f.type === "date" ? new Date().toISOString().slice(0, 10) : "")])
@@ -2831,66 +2923,91 @@ export default function ReportGenix() {
     router.push("/");
   };
 
-  const openReport = (id) => {
-    const rec = reports.find((r) => r.id === id);
-    if (!rec) return;
-    if (id !== activeReportId) {
-      stashMedia();
-      const s = rec.snapshot || {};
-      const media = sessionMedia.current[id] || {};
-      pendingId.current = "";
-      setData(s.data || {});
-      setStandards(s.standards || []);
-      setSelected(s.selected || schema.sections.map((x) => x.id));
-      setLayout(s.layout || layout);
-      setMaterialMode(s.materialMode === "manual" ? "manual" : "library");
-      setSelectedMaterialId(s.selectedMaterialId || "");
-      setMaterialMeta(s.materialMeta || { material_type: "", category: "steel", source_standard_id: "", notes: "" });
-      setExtraImages(s.extraImages || {});
-      setRemovedSchemaImages(s.removedSchemaImages || {});
-      setFiles(media.files || {});
-      setOriginals(media.originals || {});
-      setEditorStates(media.editorStates || {});
-      setEditingImage(null);
-      setPreview(null);
-      setActiveReportId(id);
+  const openReport = async (id) => {
+    if (!reports.find((r) => r.id === id)) return;
+    try {
+      if (id !== activeReportId) {
+        const { full, files: f, originals: o } = await loadServerMedia(id);
+        const s = full.snapshot || {};
+        const mat = { material_type: "", category: "steel", source_standard_id: "", notes: "" };
+        hydratedRef.current = id;
+        pendingId.current = "";
+        setData(s.data || {});
+        setStandards(s.standards || []);
+        setSelected(s.selected || schema.sections.map((x) => x.id));
+        setLayout(s.layout || layout);
+        setMaterialMode(s.materialMode === "manual" ? "manual" : "library");
+        setSelectedMaterialId(s.selectedMaterialId || "");
+        setMaterialMeta(s.materialMeta || mat);
+        setExtraImages(s.extraImages || {});
+        setRemovedSchemaImages(s.removedSchemaImages || {});
+        setFiles(f);
+        setOriginals(o);
+        setEditorStates(full.editor_states || {});
+        setEditingImage(null);
+        setPreview(null);
+        setReports((cur) => cur.map((r) => (r.id === id ? { ...r, snapshot: s } : r)));
+        setActiveReportId(id);
+        writeDraft({
+          data: s.data || {}, standards: s.standards || [], selected: s.selected || schema.sections.map((x) => x.id),
+          layout: s.layout || layout, materialMode: s.materialMode === "manual" ? "manual" : "library",
+          selectedMaterialId: s.selectedMaterialId || "", materialMeta: s.materialMeta || mat,
+          activeReportId: id, extraImages: s.extraImages || {}, removedSchemaImages: s.removedSchemaImages || {},
+        });
+      }
+      router.push("/");
+    } catch (e) {
+      window.alert(e.message || "Could not open this report.");
     }
-    const snap = rec.snapshot || {};
-    writeDraft({
-      data: snap.data || {}, standards: snap.standards || [], selected: snap.selected || schema.sections.map((x) => x.id),
-      layout: snap.layout || layout, materialMode: snap.materialMode === "manual" ? "manual" : "library",
-      selectedMaterialId: snap.selectedMaterialId || "", materialMeta: snap.materialMeta || { material_type: "", category: "steel", source_standard_id: "", notes: "" },
-      activeReportId: id, extraImages: snap.extraImages || {}, removedSchemaImages: snap.removedSchemaImages || {},
-    });
-    setReports((cur) => cur.map((r) => (r.id === id ? { ...r, lastViewedAt: Date.now() } : r)));
-    router.push("/");
   };
 
-  const updateReport = (id, patch) => setReports((cur) => cur.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-
-  const duplicateReport = (id) => {
-    const rec = reports.find((r) => r.id === id);
-    if (!rec) return;
-    const copyId = newId();
-    const media = id === activeReportId ? { files, originals, editorStates } : sessionMedia.current[id];
-    if (media) sessionMedia.current[copyId] = media;
-    const now = Date.now();
-    setReports((cur) => [{ ...rec, id: copyId, title: `${rec.title} (copy)`, status: "draft", starred: false, pinned: false, createdAt: now, updatedAt: now, lastViewedAt: now }, ...cur]);
+  const updateReport = (id, patch) => {
+    setReports((cur) => cur.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    const allowed = Object.fromEntries(Object.entries(patch).filter(([k]) => ["status", "starred", "pinned", "folder"].includes(k)));
+    if (Object.keys(allowed).length && syncedReports.current.has(id)) {
+      request(`/api/report-store/reports/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(allowed),
+      }).catch((e) => console.error(e));
+    }
   };
 
-  const deleteReport = (id) => {
-    if (!window.confirm("Delete this report from the dashboard? This can't be undone.")) return;
-    delete sessionMedia.current[id];
-    setReports((cur) => cur.filter((r) => r.id !== id));
-    if (id === activeReportId) resetWorkspace();
+  const duplicateReport = async (id) => {
+    try {
+      const res = await request(`/api/report-store/reports/${id}/duplicate`, { method: "POST" });
+      const copy = await res.json();
+      syncedReports.current.add(copy.id);
+      setReports((cur) => [copy, ...cur]);
+    } catch (e) {
+      window.alert(e.message || "Could not duplicate the report.");
+    }
   };
 
-  const addFolder = (rawName) => {
+  const deleteReport = async (id) => {
+    if (!window.confirm("Delete this report and its photos? This can't be undone.")) return;
+    try {
+      if (syncedReports.current.has(id)) await request(`/api/report-store/reports/${id}`, { method: "DELETE" });
+      syncedReports.current.delete(id);
+      delete syncedImages.current[id];
+      setReports((cur) => cur.filter((r) => r.id !== id));
+      if (id === activeReportId) resetWorkspace();
+    } catch (e) {
+      window.alert(e.message || "Could not delete the report.");
+    }
+  };
+
+  const addFolder = async (rawName) => {
     const name = String(rawName || "").trim();
     if (!name) return "Enter a folder name.";
     if (folders.some((f) => f.toLowerCase() === name.toLowerCase())) return "A folder with this name already exists.";
-    setFolders((cur) => [...cur, name]);
-    return "";
+    try {
+      await request("/api/report-store/folders", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }),
+      });
+      setFolders((cur) => [...cur, name]);
+      return "";
+    } catch (e) {
+      return e.message || "Could not create the folder.";
+    }
   };
 
   if (!ready) {

@@ -212,7 +212,9 @@ export default function SectionPdfEditor({
     return api(resolve(p), { csrf: csrfRef.current, method: "POST", body: form ? undefined : body, form: form ? body : undefined });
   };
 
-  const loadPdf = useCallback(async (id) => {
+  /* Opening a PDF and showing it are separate steps so a rebuild that has been superseded can be thrown away
+     before it touches the screen (otherwise a slow, older build could overwrite a newer one). */
+  const openPdf = useCallback(async (id) => {
     const r = await fetch(`/api/pdf/${id}/file`, { credentials: "include", cache: "no-store" });
     if (!r.ok) throw new Error("The PDF could not be loaded.");
     const buf = await r.arrayBuffer();
@@ -220,11 +222,15 @@ export default function SectionPdfEditor({
     pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
     const task = pdfjs.getDocument({ data: new Uint8Array(buf), cMapUrl: "/cmaps/", cMapPacked: true, standardFontDataUrl: "/standard_fonts/" });
     const proxy = await task.promise;
+    return { task, proxy };
+  }, []);
+  const showPdf = useCallback(({ task, proxy }) => {
     const prev = taskRef.current;
     taskRef.current = task;
     setPdf(proxy);
-    try { await prev?.destroy(); } catch { /* already gone */ }
+    Promise.resolve(prev?.destroy?.()).catch(() => { /* already gone */ });
   }, []);
+  const loadPdf = useCallback(async (id) => { showPdf(await openPdf(id)); }, [openPdf, showPdf]);
 
   /* build the working PDF from the report data */
   const rebuild = useCallback(async () => {
@@ -241,7 +247,12 @@ export default function SectionPdfEditor({
       f.append("file", new File([blob], "Report.pdf", { type: "application/pdf" }));
       const d = await api("/api/pdf/open", { csrf: csrfRef.current, method: "POST", form: f });
       if (seq !== seqRef.current) return;
-      await loadPdf(d.info.doc_id);
+      const loaded = await openPdf(d.info.doc_id);
+      if (seq !== seqRef.current) { /* a newer rebuild started while this PDF was loading: drop this one */
+        Promise.resolve(loaded.task.destroy?.()).catch(() => { /* ignore */ });
+        return;
+      }
+      showPdf(loaded);
       docRef.current = d.info.doc_id;
       setDocId(d.info.doc_id);
       setInfo(d.info);
@@ -254,7 +265,7 @@ export default function SectionPdfEditor({
     } finally {
       if (seq === seqRef.current) setBusy("");
     }
-  }, [buildForm, loadPdf, notify]);
+  }, [buildForm, openPdf, showPdf, notify]);
 
   const first = useRef(true);
   useEffect(() => {
