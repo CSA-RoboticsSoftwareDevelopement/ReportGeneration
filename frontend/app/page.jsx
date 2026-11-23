@@ -68,12 +68,79 @@ const stripStaleBodies = (data) =>
     Object.entries(data || {}).filter(([key, value]) => !(key.startsWith("body__") && /\[\s[^\]]+\s\]/.test(String(value))))
   );
 
+const joinList = (items) => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`);
+
+// "AS4100-1998" / "AS 4100" + edition 1998  ->  "AS 4100:1998"; other codes (e.g. "ADR 62/02") are kept as they are.
+const shortStandardName = ({ code, year }) => {
+  const m = code.match(/^AS\s*(\d{3,4})(?:\s*[-:.]\s*(\d{4}))?$/i);
+  if (!m) return code;
+  const yr = m[2] || year;
+  return `AS ${m[1]}${yr ? `:${yr}` : ""}`;
+};
+
+// "1) **ADR 62/02 –** Australian Design Rules 62/02 – Mechanical Connections Between Vehicles – 2007."
+const standardListLine = (item, index) => {
+  const title = item.title.replace(/[.\s]+$/, "");
+  if (!title) return `${index + 1}) **${item.code}**`;
+  const showYear = item.year && !item.code.includes(item.year) && !title.includes(item.year);
+  return `${index + 1}) **${item.code} –** ${title}${showYear ? ` – ${item.year}` : ""}.`;
+};
+
+// Everything the Background / Conclusion wording needs from the Summary of Compliance and the project fields.
+function buildNarrativeContext({ rows = [], catalog = [], reportRows = [], general = [] }) {
+  const list = [];
+  const seen = new Set();
+  const add = (item) => {
+    const code = String(item?.code || "").trim();
+    if (!code || seen.has(code.toLowerCase())) return;
+    seen.add(code.toLowerCase());
+    list.push({ code, year: String(item.edition_year || "").trim(), title: String(item.title || "").trim() });
+  };
+  rows.forEach((row) => {
+    if (!(row.picked?.length || row.standard || row.requirement)) return;
+    const entry = catalog.find((item) => String(item.id) === String(row.standardId));
+    if (entry) add(entry);
+    else if (row.manual?.code) add({ code: row.manual.code, edition_year: row.manual.edition_year, title: row.manual.standard_title });
+  });
+  if (!list.length) {
+    // Catalog not loaded yet: fall back to the label shown in the Summary of Compliance.
+    reportRows.forEach((row) => add({ code: String(row?.standard || "").replace(/^standard\s*:\s*/i, "").replace(/\s*[-–—]\s*\d+(?:\.\d+)+.*$/, "") }));
+  }
+  const adr = list.filter((item) => /^ADR/i.test(item.code));
+  const clientField = general.find((field) => /client|customer|company/i.test(`${field.id} ${field.label || ""}`));
+  return {
+    standardsText: joinList(list.map(shortStandardName)),
+    adrText: joinList((adr.length ? adr : list).map(shortStandardName)),
+    standardsList: list.map(standardListLine).join("\n"),
+    clientKey: clientField?.id || "",
+  };
+}
+
 const STANDARD_SECTION_NARRATIVES = [
   {
-    match: (title) => /background/i.test(title),
-    text: `Structural analysis and certification services are required for a new build chassis and internal carrying member's design and analysis of a trailer. The trailer requires certification as a Dual Axle trailer type [ ATM ]kg ATM.
+    match: (title) => /background|scope/i.test(title),
+    text: `This report has been prepared for **[ Client name ]** to evaluate the structural integrity of the **[ Project name ]**. Structural analysis has been carried out for the newly developed trailer chassis and its internal load-carrying members. The trailer has been certified as a Dual Axle Trailer rated for [ ATM ] kg ATM.
 
-3D isometric images of an actual trailer from Autodesk Inventor software identify this product.`,
+The scope of work undertaken by CSA Engineering includes:
+
+- Performing **Finite Element Analysis (FEA)** on Dual Axle Trailer stress distribution, structural strength.
+- Verifying compliance with safety and performance criteria, ensuring durability and operational efficiency.
+- Standards referred: The scope of this assessment is limited to the following standards:
+[ Standards list ]`,
+  },
+  {
+    match: (title) => /conclusion/i.test(title),
+    text: `The structural assessment of the **[ ATM ] kg ATM** trailer was carried out in accordance with the requirements of **[ Standards ]**.
+
+**This assessment assumes that the trailer is in a new condition with no material degradation, manufacturing defects, or damage.** Exposure to environmental and service-related effects, such as corrosion, wear, or mechanical damage, may significantly reduce the structural capacity of the trailer and its ability to safely support the rated ATM.
+
+The assessment included static and dynamic load cases in accordance with [ ADR standards ] to evaluate the structural response of the trailer, including stress distribution, fatigue performance, and the effects of braking. The applied loading and boundary conditions were selected to represent the actual loading conditions of the trailer, including load transfer through the coupling connection and suspension mounting locations
+
+The results demonstrate that the assessed components satisfy the applicable strength and fatigue requirements of [ Standards ] for a [ ATM ] kg ATM trailer.
+
+This assessment is limited to the standards and requirements specified in Chapter 2 – Summary of Compliance.
+
+The periodic inspection and maintenance should be undertaken, and a structural safety reassessment should be conducted if material degradation or damage is identified to ensure continued compliance with the applicable design requirements.`,
   },
   {
     match: (title) => /geometry/i.test(title),
@@ -234,7 +301,7 @@ function resolveCalculationTemplate(row) {
   return "";
 }
 
-function getStandardSectionNarrative(section, data = {}) {
+function getStandardSectionNarrative(section, data = {}, ctx = {}) {
   const title = String(section?.title || "");
   if (section?.dynamicAnalysis) {
     const standard = section.complianceStandard ? `Standard: ${section.complianceStandard}\n\n` : "";
@@ -266,11 +333,31 @@ function getStandardSectionNarrative(section, data = {}) {
     "ATM/1000": hasAtm ? String(C) : "",
     "C": hasAtm ? String(C) : "",
     "D-value": dc ? dc.toFixed(3) : "",
+    "Project name": String(data.project_name || "").trim(),
+    "Client name": String((ctx.clientKey && data[ctx.clientKey]) || data.client_name || data.client || data.customer || "").trim(),
+    "Standards": ctx.standardsText,
+    "ADR standards": ctx.adrText,
+    "Standards list": ctx.standardsList,
   };
   return text.replace(/\[ ([^\]]+) \]/g, (whole, key) => {
     const v = map[key];
     return v !== undefined && v !== null && String(v).trim() !== "" ? String(v) : whole;
   });
+}
+
+// Sections whose wording is sent to the PDF from this template (the backend default has no client / project / standards).
+const NARRATIVES_SENT_TO_REPORT = /background|scope|conclusion/i;
+
+function applyStandardNarratives(data, sections, ctx) {
+  const next = { ...data };
+  sections.forEach((section) => {
+    if (section.dynamicAnalysis || !NARRATIVES_SENT_TO_REPORT.test(String(section.title || ""))) return;
+    const key = `body__${section.id}`;
+    if (typeof next[key] === "string" && next[key] !== "") return; // the user's own wording always wins
+    const text = getStandardSectionNarrative(section, data, ctx);
+    if (text) next[key] = text;
+  });
+  return next;
 }
 
 
@@ -1040,11 +1127,11 @@ function SectionTitle({ value, fallback, onChange }) {
   );
 }
 
-function SectionEditor({ section, sections, data, setData, files, setFiles, extraImages, setExtraImages, removedSchemaImages, setRemovedSchemaImages, selected, setSelected, children, onOpenImageEditor, editingImage, onFileChange, originals }) {
+function SectionEditor({ section, sections, narrativeCtx, data, setData, files, setFiles, extraImages, setExtraImages, removedSchemaImages, setRemovedSchemaImages, selected, setSelected, children, onOpenImageEditor, editingImage, onFileChange, originals }) {
   const enabled = section.dynamicAnalysis || selected.includes(section.id);
   const headingId = `heading__${section.id}`;
   const bodyKey = `body__${section.id}`;
-  const standardText = getStandardSectionNarrative(section, data);
+  const standardText = getStandardSectionNarrative(section, data, narrativeCtx || {});
   const hasOverride = typeof data[bodyKey] === "string" && data[bodyKey] !== "";
   const narrativeRef = useRef(null);
   const router = useRouter();
@@ -2556,6 +2643,13 @@ export default function ReportGenix() {
     return [...before, ...analysisPages, ...after];
   }, [schema, reportRows]);
 
+  // Standards / client wording values, and the report data with the standard Background and Conclusion text filled in.
+  const narrativeCtx = useMemo(
+    () => buildNarrativeContext({ rows: standards, catalog: standardsCatalog, reportRows, general: schema?.general || [] }),
+    [standards, standardsCatalog, reportRows, schema]
+  );
+  const reportData = useMemo(() => applyStandardNarratives(data, reportSections, narrativeCtx), [data, reportSections, narrativeCtx]);
+
   const reportSig = useMemo(
       () => JSON.stringify({ data, reportRows, selected, layout, extraImages, removedSchemaImages, files: Object.entries(files).map(([k, f]) => [k, f?.name, f?.size, f?.lastModified]) }),
       [data, reportRows, selected, layout, extraImages, removedSchemaImages, files]
@@ -2611,7 +2705,7 @@ export default function ReportGenix() {
       .filter((section) => !/^a\d+$/i.test(String(section.id || "")))
       .map((section) => section.id);
     const payload = {
-      data,
+      data: reportData,
       standards: reportRows,
       selected: [...new Set([...selected, ...commonSectionIds])],
       layout,
@@ -2652,7 +2746,7 @@ export default function ReportGenix() {
     } finally {
       if (requestId === previewRequestRef.current) setPreviewLoading(false);
     }
-  }, [request, schema, currentActiveSection, data, reportRows, selected, layout, extraImages, removedSchemaImages, files]);
+  }, [request, schema, currentActiveSection, data, reportData, reportRows, selected, layout, extraImages, removedSchemaImages, files]);
 
   useEffect(() => {
     if (!schema || !currentActiveSection) return;
@@ -2681,7 +2775,7 @@ export default function ReportGenix() {
     form.append(
       "payload",
       JSON.stringify({
-        data: { ...data, standards: reportRows },
+        data: { ...reportData, standards: reportRows },
         standards: reportRows,
         selected: selectedForReport,
         layout,
@@ -2716,7 +2810,7 @@ export default function ReportGenix() {
       .map((section) => section.id);
     const selectedForReport = [...new Set([...selected, ...commonSectionIds])];
     form.append("payload", JSON.stringify({
-      data: { ...data, standards: reportRows }, standards: reportRows, selected: selectedForReport, layout,
+      data: { ...reportData, standards: reportRows }, standards: reportRows, selected: selectedForReport, layout,
       extra_images: extraImagesPayload, removed_images: removedImagesPayload, output,
     }));
     Object.entries(files).forEach(([key, file]) => { if (file) form.append(`img__${key}`, file); });
@@ -3381,7 +3475,7 @@ export default function ReportGenix() {
                   router.push(i >= 0 && i < reportSections.length - 1 ? `/section/${encodeURIComponent(reportSections[i + 1].id)}` : "/issue");
                 }}
                 imagesPanel={
-                  <SectionEditor sections={reportSections} section={activeSection} data={data} setData={setData} files={files} setFiles={setFiles} extraImages={extraImages} setExtraImages={setExtraImages} removedSchemaImages={removedSchemaImages} setRemovedSchemaImages={setRemovedSchemaImages} selected={selected} setSelected={setSelected} onOpenImageEditor={openImageEditor} editingImage={editingImage} onFileChange={handleFileChange} originals={originals} />
+                  <SectionEditor sections={reportSections} narrativeCtx={narrativeCtx} section={activeSection} data={data} setData={setData} files={files} setFiles={setFiles} extraImages={extraImages} setExtraImages={setExtraImages} removedSchemaImages={removedSchemaImages} setRemovedSchemaImages={setRemovedSchemaImages} selected={selected} setSelected={setSelected} onOpenImageEditor={openImageEditor} editingImage={editingImage} onFileChange={handleFileChange} originals={originals} />
                 }
               />
               {editingImage && (
