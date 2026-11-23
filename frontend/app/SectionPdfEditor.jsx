@@ -206,11 +206,13 @@ export default function SectionPdfEditor({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchBusy, setSearchBusy] = useState(false);
+  const [contextMenu, setContextMenu] = useState(null);
 
   const docRef = useRef("");
   const taskRef = useRef(null);
   const seqRef = useRef(0);
   const overlayRef = useRef(null);
+  const pageBoxRef = useRef(null);
   const scrollRef = useRef(null);
   const csrfRef = useRef(csrf);
   csrfRef.current = csrf;
@@ -440,6 +442,39 @@ export default function SectionPdfEditor({
     });
     return true;
   };
+  const editTextAt = async (p, targetPage = page) => {
+    setTool("edit-text");
+    const d = await run("Reading text…", () => post("/text/hit", { page: targetPage, x: p.x, y: p.y }));
+    if (!d) return;
+    if (!d.hit) { notify("No editable text there. Use Add text for a new box.", "error"); return; }
+    setDlg({ mode: "edit", ...d.hit, original: d.hit.text });
+  };
+  const openContextMenu = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!overlayRef.current) return;
+    setContextMenu({
+      x: clamp(event.clientX, 8, window.innerWidth - 224),
+      y: clamp(event.clientY, 8, window.innerHeight - 190),
+      p: point(event),
+      page,
+    });
+  };
+  useEffect(() => {
+    if (!contextMenu) return undefined;
+    const closeOutside = (event) => {
+      if (!event.target?.closest?.("[data-pdf-context-menu]")) setContextMenu(null);
+    };
+    const closeOnEscape = (event) => { if (event.key === "Escape") setContextMenu(null); };
+    window.addEventListener("pointerdown", closeOutside);
+    window.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("scroll", closeOutside, true);
+    return () => {
+      window.removeEventListener("pointerdown", closeOutside);
+      window.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("scroll", closeOutside, true);
+    };
+  }, [contextMenu]);
   const down = async (e) => {
     if (busy || e.button !== 0) return;
     const p = point(e);
@@ -448,10 +483,7 @@ export default function SectionPdfEditor({
       return;
     }
     if (tool === "edit-text") {
-      const d = await run("Reading text…", () => post("/text/hit", { page, x: p.x, y: p.y }));
-      if (!d) return;
-      if (!d.hit) { notify("No editable text there. Use Add text for a new box.", "error"); return; }
-      setDlg({ mode: "edit", ...d.hit, original: d.hit.text });
+      await editTextAt(p);
       return;
     }
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ }
@@ -733,9 +765,6 @@ export default function SectionPdfEditor({
         <span className="h-5 w-px bg-[#234b63]" />
         <button type="button" className={ob} onClick={undo} disabled={(!canUndoChange && !info?.can_undo) || !!busy} aria-label="Undo last change" title="Undo last change"><Icon name="undo" /></button>
         <button type="button" className={ob} onClick={redo} disabled={(!canRedoChange && !info?.can_redo) || !!busy} aria-label="Redo last change" title="Redo last change"><Icon name="redo" /></button>
-        <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()}
-          placeholder="Find in PDF" className="h-8 w-36 rounded-md border border-[#2d5871] bg-[#103a55] px-2 text-xs text-white outline-none focus:border-[#f84f63]" />
-        {docId ? <a href={downloadUrl(docId)} download className="rounded-md border border-[#f84f63] bg-[#f84f63] px-3 py-1.5 text-xs font-bold text-[#081f35] hover:bg-[#ff6377]">Download</a> : null}
         <Btn size="sm" variant="primary" onClick={() => hasNextPage ? setPage((p) => p + 1) : onNext()} disabled={!hasNextPage && idx >= sections.length - 1}>
           {hasNextPage ? "Next page →" : "Next section →"}
         </Btn>
@@ -768,7 +797,7 @@ export default function SectionPdfEditor({
           {!pdf ? (
             <p className="mt-24 text-center text-sm text-[#7f9dab]">{busy || "Preparing the editor…"}</p>
           ) : (
-            <div className="mx-auto w-fit">
+            <div ref={pageBoxRef} onContextMenu={openContextMenu} className="mx-auto w-fit">
               <PageSurface pdf={pdf} pageNumber={clamp(page, 1, pageCount || 1)} scale={zoom} tool={tool} version={version}>
                 <div ref={overlayRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => setDrag(null)}
                   className={`absolute inset-0 z-20 touch-none ${tool === "select" ? "cursor-pointer" : tool === "edit-text" ? "cursor-text" : "cursor-crosshair"}`}>
@@ -1010,6 +1039,35 @@ export default function SectionPdfEditor({
       {toast ? (
         <div className={`fixed bottom-4 left-4 z-[140] max-w-[min(92vw,440px)] rounded-xl border px-4 py-3 text-xs shadow-2xl ${toast.kind === "error" ? "border-[#f84f63]/60 bg-[#3a1620] text-[#ffd5da]" : "border-[#3a8f8a]/60 bg-[#0d3739] text-[#d4f5ef]"}`} role="status">
           {toast.text}
+        </div>
+      ) : null}
+      {contextMenu ? (
+        <div data-pdf-context-menu role="menu" aria-label="PDF tools"
+          className="fixed z-[150] w-56 overflow-hidden rounded-xl border border-[#2f5b75] bg-[#0e3250] p-1.5 text-white shadow-2xl"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onContextMenu={(event) => event.preventDefault()}>
+          <p className="px-2.5 pb-1 pt-1 text-[9px] font-bold uppercase tracking-wider text-[#8faebb]">PDF tools</p>
+          <button type="button" role="menuitem" onClick={() => { setTool("select"); setContextMenu(null); }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-[#d7e9ec] hover:bg-[#16415f]">
+            <Icon name="cursor" className="h-4 w-4 text-[#8ed0c9]" /><span className="flex-1">Select</span><kbd className="text-[10px] text-[#8faebb]">V</kbd>
+          </button>
+          <button type="button" role="menuitem" onClick={() => { const { p, page: targetPage } = contextMenu; setContextMenu(null); editTextAt(p, targetPage); }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-[#d7e9ec] hover:bg-[#16415f]">
+            <Icon name="textCursor" className="h-4 w-4 text-[#8ed0c9]" /><span className="flex-1">Edit text here</span><kbd className="text-[10px] text-[#8faebb]">T</kbd>
+          </button>
+          <button type="button" role="menuitem" onClick={() => {
+            const { p, page: targetPage } = contextMenu;
+            const height = info?.pages?.[targetPage - 1]?.height || PAGE_H;
+            setTool("textbox");
+            setDlg({ mode: "tb", id: null, page: targetPage, top: p.y * height, text: "", size: "", bold: false, italic: false });
+            setContextMenu(null);
+          }} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-[#d7e9ec] hover:bg-[#16415f]">
+            <Icon name="text" className="h-4 w-4 text-[#8ed0c9]" /><span className="flex-1">Add text here</span><kbd className="text-[10px] text-[#8faebb]">A</kbd>
+          </button>
+          {imageApi ? <button type="button" role="menuitem" onClick={() => { setContextMenu(null); addRef.current?.click(); }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-[#d7e9ec] hover:bg-[#16415f]">
+            <ImagePlusIcon className="h-4 w-4 text-[#8ed0c9]" /><span className="flex-1">Add image to section</span>
+          </button> : null}
         </div>
       ) : null}
     </div>

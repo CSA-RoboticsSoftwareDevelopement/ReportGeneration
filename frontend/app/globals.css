@@ -1,5 +1,50 @@
 @import "tailwindcss";
 
+/* PDF.js text layer used by both PDFStudio and SectionPdfEditor. Keep its
+   extracted spans aligned over the canvas and invisible except when selected. */
+.studio-text-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  letter-spacing: normal;
+  word-spacing: normal;
+  opacity: 1;
+  transform-origin: 0 0;
+  color-scheme: only light;
+  pointer-events: none;
+  --min-font-size: 1;
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+  --text-scale-factor: calc(var(--total-scale-factor, 1) * var(--min-font-size));
+}
+.studio-text-layer > :not(.markedContent),
+.studio-text-layer .markedContent span:not(.markedContent) {
+  position: absolute;
+  z-index: 1;
+  color: transparent;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  font-size: calc(var(--text-scale-factor) * var(--font-height, 12px));
+  -webkit-user-select: text;
+  user-select: text;
+}
+.studio-text-layer .markedContent { display: contents; }
+.studio-text-layer span,
+.studio-text-layer br {
+  color: transparent;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.studio-text-layer ::selection {
+  background: rgba(248, 79, 99, .28);
+  color: transparent;
+}
+.studio-root .studio-text-selectable { pointer-events: auto; }
+
 :root { color-scheme: dark; }
 
 * { box-sizing: border-box; }
