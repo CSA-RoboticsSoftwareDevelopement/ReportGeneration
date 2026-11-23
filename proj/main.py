@@ -13,6 +13,7 @@ import materials_library
 import pdf_studio
 import report_overlays
 import reports_store
+import html_master_template
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 AVATAR_DIR = os.path.join(HERE, "uploads", "avatars")
@@ -372,6 +373,42 @@ def template_word(request: Request):
     # becomes stale whenever template fields such as the standards table change.
     content, _ = engine.build_word(template=True)
     return Response(content, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", headers={"Content-Disposition": 'attachment; filename="Trailer_Report_TEMPLATE.docx"'})
+
+
+@app.get("/api/template/html/status")
+def html_template_status(request: Request):
+    """Expose whether the supplied pdf2htmlEX master is ready for export."""
+    require_user(request)
+    return html_master_template.status()
+
+
+@app.post("/api/template/html/pdf")
+async def html_template_pdf(request: Request):
+    """Export the supplied HTML master after filling its grey field tokens.
+
+    This is deliberately separate from /api/generate: the standard report
+    engine remains the editable, multi-page renderer used by Section Editor.
+    The HTML source can therefore be used as an exact visual master without
+    breaking section navigation, overlays, added figures, or calculations.
+    """
+    require_csrf(request)
+    require_user(request)
+    form = await request.form()
+    try:
+        payload = json.loads(form["payload"])
+    except (KeyError, TypeError, json.JSONDecodeError):
+        raise HTTPException(status_code=400, detail="Invalid report payload.")
+    data = _normalise_report_data(payload)
+    try:
+        content = html_master_template.build_pdf(data)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    stem = data.get("rae_no") or "Trailer"
+    return Response(content, media_type="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="{stem}_HTML_Master_Report.pdf"'
+    })
 
 # Moving / resizing an image or adding text in the section editor changes only the overlay keys below.
 # The slow engine build is cached on everything else, so those edits only re-run the fast PDF overlay step.

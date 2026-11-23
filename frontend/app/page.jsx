@@ -17,6 +17,7 @@ import SectionPdfEditor from "./SectionPdfEditor";
 
 const MATERIAL_IDS = new Set(["material", "fu", "fy", "young", "nu", "rho"]);
 const DRAFT_KEY = "reportgenix-draft-v2";
+const SIDEBAR_KEY = "rg-sidebar-collapsed";
 const MEDIA = { files: {}, originals: {}, editorStates: {} };
 const WORK = { data: null };
 const MEDIA_DB_NAME = "reportgenix-media-v1";
@@ -1390,6 +1391,7 @@ const ICONS = {
   users: "M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM21 20v-1.5a4 4 0 0 0-3-3.9M15.5 4.2a3.5 3.5 0 0 1 0 6.6",
   edit: "M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4",
   building: "M4 21V4h10v17M14 9h6v12M8 8h2M8 12h2M8 16h2M17 13h.01M17 17h.01",
+  chevronLeft: "M15 6l-6 6 6 6",
 };
 
 function Icon({ name, className = "h-4 w-4", fill = "none", sw = 1.8 }) {
@@ -1813,21 +1815,37 @@ function Dashboard({ reports, folders, activeId, onOpen, onCreate, onDuplicate, 
 /*  Sidebar: numbered step tracker (logo · steps · completeness)       */
 /*  Everything it needs is passed in as props because it lives         */
 /*  outside the ReportGenix component.                                 */
+/*  On lg+ screens it can collapse to a 76px icon rail.                */
 /* ------------------------------------------------------------------ */
 
-const SidebarNav = ({ steps, extraLinks, completeness, sidebarOpen, setSidebarOpen, user, openProfile, dashboardActive }) => {
+const SidebarNav = ({ steps, extraLinks, completeness, sidebarOpen, setSidebarOpen, collapsed, onToggleCollapse, user, openProfile, dashboardActive }) => {
   const close = () => setSidebarOpen(false);
+  // "collapsed" only applies on lg+ screens; the mobile drawer is always full width.
+  const hideWhenCollapsed = collapsed ? "lg:hidden" : "";
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-[#2a5068]/60 bg-[#0a2744] shadow-2xl transition-transform duration-300 lg:translate-x-0 lg:shadow-none ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+      className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-[#2a5068]/60 bg-[#0a2744] shadow-2xl transition-[transform,width] duration-300 lg:translate-x-0 lg:shadow-none ${collapsed ? "lg:w-[76px]" : "lg:w-72"} ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
       aria-label="Report navigation"
+      data-collapsed={collapsed ? "true" : "false"}
     >
+      {/* Desktop expand / collapse handle */}
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        aria-expanded={!collapsed}
+        title={collapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+        className="absolute -right-3.5 top-7 z-[60] hidden h-7 w-7 items-center justify-center rounded-full border border-[#2f5b75] bg-[#0e3250] text-[#c8dfe1] shadow-lg hover:border-[#f84f63] hover:bg-[#16415f] hover:text-white lg:flex"
+      >
+        <Icon name="chevronLeft" className={`h-4 w-4 transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`} sw={2.4} />
+      </button>
+
       {/* Brand */}
-      <div className="flex items-center justify-between px-6 pb-5 pt-6">
-        <Link href="/" onClick={close} className="flex items-center gap-3">
-          <img src="/csa_logo.webp" alt="CSA Engineering" className="h-9 w-auto object-contain" />
-          <span className="border-l border-[#2f5b75] pl-3 text-lg font-bold tracking-tight text-white">ReportGenix</span>
+      <div className={`flex items-center justify-between px-6 pb-5 pt-6 ${collapsed ? "lg:justify-center lg:px-3" : ""}`}>
+        <Link href="/" onClick={close} className="flex items-center gap-3" title="ReportGenix">
+          <img src="/csa_logo.webp" alt="CSA Engineering" className={`h-9 w-auto object-contain ${collapsed ? "lg:h-7 lg:max-w-[44px] lg:object-cover lg:object-left" : ""}`} />
+          <span className={`border-l border-[#2f5b75] pl-3 text-lg font-bold tracking-tight text-white ${hideWhenCollapsed}`}>ReportGenix</span>
         </Link>
         <button
           onClick={close}
@@ -1839,99 +1857,123 @@ const SidebarNav = ({ steps, extraLinks, completeness, sidebarOpen, setSidebarOp
       </div>
 
       {/* Dashboard */}
-      <div className="px-6 pb-2">
+      <div className={`px-6 pb-2 ${collapsed ? "lg:px-3" : ""}`}>
         <Link
           href="/dashboard"
           onClick={close}
-          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${dashboardActive ? "bg-[#f84f63] text-[#0a1f36]" : "border border-[#2f5b75] bg-[#0e3250] text-[#c8dfe1] hover:bg-white/5 hover:text-white"}`}
+          title="Dashboard"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${collapsed ? "lg:justify-center lg:px-0" : ""} ${dashboardActive ? "bg-[#f84f63] text-[#0a1f36]" : "border border-[#2f5b75] bg-[#0e3250] text-[#c8dfe1] hover:bg-white/5 hover:text-white"}`}
         >
-          <Icon name="grid" className="h-[18px] w-[18px]" />
-          <span>Dashboard</span>
+          <Icon name="grid" className="h-[18px] w-[18px] shrink-0" />
+          <span className={hideWhenCollapsed}>Dashboard</span>
         </Link>
       </div>
 
       {/* Steps */}
-     <nav
-          data-tour="sidebar-steps"
-          className="flex-1 overflow-y-auto px-6 py-4"
-          aria-label="Report steps"
-        >
+      <nav
+        data-tour="sidebar-steps"
+        className={`flex-1 overflow-y-auto overflow-x-hidden px-6 py-4 ${collapsed ? "lg:px-3" : ""}`}
+        aria-label="Report steps"
+      >
         <ol>
-  {steps.map((step, index) => {
-    const isLast = index === steps.length - 1;
-    const circle = step.active
-      ? "border-[#f84f63] bg-[#f84f63] text-[#0a1f36] ring-4 ring-[#f84f63]/25"
-      : step.done
-        ? "border-[#6fd08a] bg-[#6fd08a]/10 text-[#6fd08a]"
-        : "border-[#5b7f96] bg-transparent text-[#c8dfe1] group-hover:border-[#f84f63]";
-    return (
-      <li key={step.key} className={`relative ${isLast ? "" : "pb-7"}`}>
-        {!isLast && (
-          <span aria-hidden="true" className="absolute bottom-1 left-4 top-10 -translate-x-1/2 border-l-2 border-dashed border-[#2f5b75]" />
-        )}
-        <Link href={step.href} onClick={close} aria-current={step.active ? "step" : undefined} className="group relative flex items-center gap-4">
-          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition ${circle}`}>
-            {step.done && !step.active ? "✓" : index + 1}
-          </span>
-          <span className="min-w-0">
-            <span className={`block truncate text-[15px] ${step.active ? "font-semibold text-white" : "font-medium text-[#c8dfe1] group-hover:text-white"}`}>
-              {step.label}
-            </span>
-            {step.sub && <span className="block truncate text-[11px] text-[#7f9fae]">{step.sub}</span>}
-          </span>
-        </Link>
-
-        {step.children?.length > 0 && (
-          <ul className="relative mt-5 space-y-4">
-            {step.children.map((child) => {
-              const dot = child.active
-                ? "bg-[#f84f63] ring-4 ring-[#f84f63]/25"
-                : child.done
-                  ? "bg-[#6fd08a]"
-                  : "bg-[#5b7f96] group-hover:bg-[#f84f63]";
-              return (
-                <li key={child.key} className="relative">
-                  <Link href={child.href} onClick={close} aria-current={child.active ? "step" : undefined} className="group flex items-center gap-4">
-                    <span className="flex h-4 w-8 shrink-0 items-center justify-center">
-                      <span className={`h-2.5 w-2.5 rounded-full border-2 border-[#0a2744] transition ${dot}`} />
+          {steps.map((step, index) => {
+            const isLast = index === steps.length - 1;
+            const circle = step.active
+              ? "border-[#f84f63] bg-[#f84f63] text-[#0a1f36] ring-4 ring-[#f84f63]/25"
+              : step.done
+                ? "border-[#6fd08a] bg-[#6fd08a]/10 text-[#6fd08a]"
+                : "border-[#5b7f96] bg-transparent text-[#c8dfe1] group-hover:border-[#f84f63]";
+            return (
+              <li key={step.key} className={`relative ${isLast ? "" : "pb-7"}`}>
+                {!isLast && (
+                  <span
+                    aria-hidden="true"
+                    className={`absolute bottom-1 left-4 top-10 -translate-x-1/2 border-l-2 border-dashed border-[#2f5b75] ${collapsed ? "lg:left-1/2" : ""}`}
+                  />
+                )}
+                <Link
+                  href={step.href}
+                  onClick={close}
+                  title={collapsed ? `${step.label} — ${step.sub || ""}` : undefined}
+                  aria-current={step.active ? "step" : undefined}
+                  className={`group relative flex items-center gap-4 ${collapsed ? "lg:justify-center lg:gap-0" : ""}`}
+                >
+                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition ${circle}`}>
+                    {step.done && !step.active ? "✓" : index + 1}
+                  </span>
+                  <span className={`min-w-0 ${hideWhenCollapsed}`}>
+                    <span className={`block truncate text-[15px] ${step.active ? "font-semibold text-white" : "font-medium text-[#c8dfe1] group-hover:text-white"}`}>
+                      {step.label}
                     </span>
-                    <span className={`block truncate text-[13px] ${child.active ? "font-semibold text-white" : "text-[#c8dfe1] group-hover:text-white"}`}>
-                      {child.label}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </li>
-    );
-  })}
-</ol>
+                    {step.sub && <span className="block truncate text-[11px] text-[#7f9fae]">{step.sub}</span>}
+                  </span>
+                </Link>
 
-
+                {step.children?.length > 0 && (
+                  <ul className={`relative mt-5 space-y-4 ${hideWhenCollapsed}`}>
+                    {step.children.map((child) => {
+                      const dot = child.active
+                        ? "bg-[#f84f63] ring-4 ring-[#f84f63]/25"
+                        : child.done
+                          ? "bg-[#6fd08a]"
+                          : "bg-[#5b7f96] group-hover:bg-[#f84f63]";
+                      return (
+                        <li key={child.key} className="relative">
+                          <Link href={child.href} onClick={close} aria-current={child.active ? "step" : undefined} className="group flex items-center gap-4">
+                            <span className="flex h-4 w-8 shrink-0 items-center justify-center">
+                              <span className={`h-2.5 w-2.5 rounded-full border-2 border-[#0a2744] transition ${dot}`} />
+                            </span>
+                            <span className={`block truncate text-[13px] ${child.active ? "font-semibold text-white" : "text-[#c8dfe1] group-hover:text-white"}`}>
+                              {child.label}
+                            </span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
+        </ol>
       </nav>
 
-      {/* Completeness + profile */}
-     <div
-          data-tour="progress"
-          className="border-t border-[#2a5068]/60 px-6 py-5"
-        >
-        <p className="text-sm font-semibold text-white">Report completeness:</p>
-        <div className="mt-2 flex items-center gap-3">
-          <div
-            className="h-2 flex-1 overflow-hidden rounded-full bg-[#16405c]"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={completeness}
-            aria-label="Report completeness"
-          >
-            <div className="h-full rounded-full bg-[#f84f63] transition-all duration-500" style={{ width: `${completeness}%` }} />
+      {/* Completeness */}
+      <div data-tour="progress" className={`border-t border-[#2a5068]/60 px-6 py-5 ${collapsed ? "lg:px-2" : ""}`}>
+        {/* Expanded: label + bar */}
+        <div className={hideWhenCollapsed}>
+          <p className="text-sm font-semibold text-white">Report completeness:</p>
+          <div className="mt-2 flex items-center gap-3">
+            <div
+              className="h-2 flex-1 overflow-hidden rounded-full bg-[#16405c]"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={completeness}
+              aria-label="Report completeness"
+            >
+              <div className="h-full rounded-full bg-[#f84f63] transition-all duration-500" style={{ width: `${completeness}%` }} />
+            </div>
+            <span className="w-9 text-right text-xs font-semibold text-[#c8dfe1]">{completeness}%</span>
           </div>
-          <span className="w-9 text-right text-xs font-semibold text-[#c8dfe1]">{completeness}%</span>
         </div>
 
+        {/* Collapsed: compact percentage ring */}
+        {collapsed && (
+          <div className="hidden justify-center lg:flex" title={`Report completeness: ${completeness}%`}>
+            <div className="relative h-10 w-10">
+              <svg viewBox="0 0 36 36" className="h-10 w-10 -rotate-90" aria-hidden="true">
+                <circle cx="18" cy="18" r="15" fill="none" stroke="#16405c" strokeWidth="3.5" />
+                <circle
+                  cx="18" cy="18" r="15" fill="none" stroke="#f84f63" strokeWidth="3.5" strokeLinecap="round"
+                  strokeDasharray={`${(completeness / 100) * 94.25} 94.25`}
+                  className="transition-all duration-500"
+                />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-[#c8dfe1]">{completeness}</span>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );
@@ -1980,6 +2022,30 @@ export default function ReportGenix() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Restore the saved sidebar preference after mount (avoids a hydration mismatch).
+  useEffect(() => {
+    try { setSidebarCollapsed(window.localStorage.getItem(SIDEBAR_KEY) === "1"); } catch { /* ignore */ }
+  }, []);
+
+  const toggleSidebarCollapsed = useCallback(() => {
+    setSidebarCollapsed((value) => {
+      const next = !value;
+      try { window.localStorage.setItem(SIDEBAR_KEY, next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  // Ctrl/Cmd + B toggles the sidebar.
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") { e.preventDefault(); toggleSidebarCollapsed(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggleSidebarCollapsed]);
+
   /* Dashboard */
   const [reports, setReports] = useState([]);
   const [folders, setFolders] = useState([]);
@@ -2840,6 +2906,26 @@ export default function ReportGenix() {
     }
   };
 
+  const generateHtmlMaster = async () => {
+    setBusy("html-master");
+    try {
+      // The HTML master receives the identical payload as the normal report:
+      // entered grey-field values and calculated variables are never copied
+      // into a second client-side form.
+      const response = await request("/api/template/html/pdf", { method: "POST", body: buildGenerationForm("pdf") });
+      const blob = await response.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `${data.rae_no || "Trailer"}_HTML_Master_Report.pdf`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    } catch (error) {
+      window.alert(error.message);
+    } finally {
+      setBusy("");
+    }
+  };
+
   const openInStudio = async () => {
     setBusy("studio");
     try {
@@ -3243,7 +3329,7 @@ export default function ReportGenix() {
   const workspaceClass = route === "dashboard"
     ? "px-4 py-4 sm:px-6"
     : route === "section"
-      ? "w-full px-1 py-1 sm:px-2 sm:py-2 lg:px-2"
+      ? "w-full px-0 py-0 sm:px-1 sm:py-1 lg:px-1"
       : "w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-6";
   const pageHeaderClass = route === "section"
     ? "mb-0.5 w-full max-w-[420px] rounded-lg border border-[#2a5068] bg-[#0e3250] px-3 py-1.5"
@@ -3296,6 +3382,8 @@ export default function ReportGenix() {
           completeness={completeness}
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={toggleSidebarCollapsed}
           user={user}
           openProfile={openProfile}
           dashboardActive={false}
@@ -3303,8 +3391,8 @@ export default function ReportGenix() {
       )}
 
       {/* Everything to the right of the fixed sidebar on large screens */}
-        <div className={route === "dashboard" ? "" : "lg:pl-72"}>
-        <header className="sticky top-0 z-30 w-full min-w-0 border-b border-[#2a5068]/60 bg-[#0a2744]/95 px-2 pt-3 pb-4 backdrop-blur sm:px-4 sm:pb-6 lg:px-6">
+        <div className={`transition-[padding] duration-300 ${route === "dashboard" ? "" : sidebarCollapsed ? "lg:pl-[76px]" : "lg:pl-72"}`}>
+        <header className={`sticky top-0 z-30 w-full min-w-0 border-b border-[#2a5068]/60 bg-[#0a2744]/95 backdrop-blur ${route === "section" ? "px-2 py-2 sm:px-4 lg:px-6" : "px-2 pt-3 pb-4 sm:px-4 sm:pb-6 lg:px-6"}`}>
           <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 sm:gap-3">
             {route !== "dashboard" && (
               <button
@@ -3346,10 +3434,17 @@ export default function ReportGenix() {
               <ActionButton variant="ghost" onClick={logout} className="shrink-0 !px-3 !py-2 sm:!px-4">Sign out</ActionButton>
             </div>
           </div>
+          {route === "section" ? (
+            <div className="mt-2 flex w-full max-w-[460px] items-center rounded-lg border border-[#2f5b75] bg-[#0e3250] px-3 py-1 sm:min-w-[360px]">
+              <h1 className="min-w-0 truncate text-base font-semibold text-white">
+                <SectionTitle key={activeSection.id} value={data[`heading__${activeSection.id}`]} fallback={activeSection.title} onChange={(v) => setData((current) => ({ ...current, [`heading__${activeSection.id}`]: v }))} />
+              </h1>
+            </div>
+          ) : null}
         </header>
 
         <div className={workspaceClass}>
-          <div data-tour="page-header" className={`${route === "dashboard" ? "hidden " : ""}${pageHeaderClass}`}><div>{route !== "section" && <p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p>}<h1 className={`${route === "section" ? "mt-0 text-lg" : "mt-1 text-2xl"} font-semibold text-white`}>{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "section" ? <SectionTitle key={activeSection.id} value={data[`heading__${activeSection.id}`]} fallback={activeSection.title} onChange={(v) => setData((current) => ({ ...current, [`heading__${activeSection.id}`]: v }))} /> : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/studio" className={navClass(false)}>Studio</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Preview and Download</Link></div></div>
+          <div data-tour="page-header" className={`${route === "dashboard" || route === "section" ? "hidden " : ""}${pageHeaderClass}`}><div>{route !== "section" && <p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p>}<h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/studio" className={navClass(false)}>Studio</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Preview and Download</Link></div></div>
 
           <nav className={`${route === "dashboard" || route === "section" ? "hidden " : ""}flex items-center gap-1 text-xs text-[#8fbcc0] mt-4 ml-2`} aria-label="Breadcrumb">
             <Link href="/" className="hover:text-[#c8dfe1]">Home</Link>
@@ -3507,6 +3602,9 @@ export default function ReportGenix() {
                   </ActionButton>
                   <ActionButton variant="secondary" onClick={() => generate("pdf")} disabled={Boolean(busy)} className="flex-1 sm:flex-none">
                     {busy === "pdf" ? "Creating PDF…" : "Download PDF"}
+                  </ActionButton>
+                  <ActionButton variant="ghost" onClick={generateHtmlMaster} disabled={Boolean(busy)} className="flex-1 sm:flex-none">
+                    {busy === "html-master" ? "Creating master PDF..." : "Download HTML master PDF"}
                   </ActionButton>
                   <ActionButton variant="secondary" onClick={() => generate("word")} disabled={Boolean(busy)} className="flex-1 sm:flex-none">
                     {busy === "word" ? "Creating Word…" : "Download Word"}
