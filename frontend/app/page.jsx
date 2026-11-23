@@ -215,11 +215,11 @@ function buildDynamicAnalysisHeading(row, number) {
     : clauseNumber;
 
   if (standardAndClause && description) {
-    return `ANALYSIS ${number} (${standardAndClause}) - ${description}`;
+    return `5.${number} ANALYSIS ${number} (${standardAndClause}) - ${description}`;
   }
-  if (standardAndClause) return `ANALYSIS ${number} (${standardAndClause})`;
-  if (description) return `ANALYSIS ${number} - ${description}`;
-  return `ANALYSIS ${number}`;
+  if (standardAndClause) return `5.${number} ANALYSIS ${number} (${standardAndClause})`;
+  if (description) return `5.${number} ANALYSIS ${number} - ${description}`;
+  return `5.${number} ANALYSIS ${number}`;
 }
 
 function resolveCalculationTemplate(row) {
@@ -730,23 +730,19 @@ function ClausePicker({ clauses, selectedIds, disabled, onChange }) {
 /*  Summary of compliance                                              */
 /* ------------------------------------------------------------------ */
 
+const newComplianceRow = () => ({
+  id: crypto.randomUUID(), source: "library", conformity: "Full Compliance",
+  standardId: "", clauseId: "", clauses: [], standard: "", requirement: "",
+  manual: { code: "", edition_year: "", standard_title: "", clause_no: "", clause_title: "", requirement_text: "" },
+});
+
 function ComplianceEditor({ rows, setRows, catalog, request }) {
   const manualTimers = useRef({});
 
   const addRow = () =>
     setRows((current) => [
       ...current,
-      {
-        id: crypto.randomUUID(),
-        source: "library",
-        conformity: "Full Compliance",
-        standardId: "",
-        clauseId: "",
-        clauses: [],
-        standard: "",
-        requirement: "",
-        manual: { code: "", edition_year: "", standard_title: "", clause_no: "", clause_title: "", requirement_text: "" },
-      },
+      newComplianceRow(),
     ]);
 
   const update = (id, patch) => setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
@@ -813,6 +809,7 @@ function ComplianceEditor({ rows, setRows, catalog, request }) {
   };
 
   const removeRow = (id) => {
+    if (rows[0]?.id === id) return;
     window.clearTimeout(manualTimers.current[id]);
     setRows((current) => current.filter((item) => item.id !== id));
   };
@@ -826,20 +823,14 @@ function ComplianceEditor({ rows, setRows, catalog, request }) {
         </div>
         <ActionButton onClick={addRow} className="w-full sm:w-auto">+ Add standard</ActionButton>
       </div>
-      <p className="mb-5 text-sm text-[#b3ced0]">Select database records to build the report summary, or enter a manual row.</p>
-
-      {rows.length === 0 && (
-        <div className="rounded-xl border border-dashed border-[#2f5b75] p-6 text-center text-sm text-[#a9c1ca]">
-          No standards added yet. Use “Add standard” to create the first row.
-        </div>
-      )}
+      <p className="mb-5 text-sm text-[#b3ced0]">Row 1 is always available for the first standard. Add further rows only when needed.</p>
 
       <div className="space-y-4">
         {rows.map((row, index) => (
           <div key={row.id} className={INSET}>
             <div className="mb-4 flex items-center justify-between">
-              <span className="text-sm font-medium text-[#80bfbe]">Row {index + 1}</span>
-              <button onClick={() => removeRow(row.id)} className="text-sm font-semibold text-[#ff8393] hover:text-[#ffb0ba]">Remove</button>
+              <span className="text-sm font-medium text-[#80bfbe]">Row {index + 1}{index === 0 ? " (fixed)" : ""}</span>
+              {index === 0 ? <span className="text-xs font-semibold text-[#80bfbe]">Required row</span> : <button onClick={() => removeRow(row.id)} className="text-sm font-semibold text-[#ff8393] hover:text-[#ffb0ba]">Remove</button>}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[150px_minmax(0,1fr)_minmax(0,1fr)_190px]">
@@ -1875,6 +1866,8 @@ export default function ReportGenix() {
   const [materialStatus, setMaterialStatus] = useState(null);
   const [extraImages, setExtraImages] = useState(() => navigationMedia.extraImages || {});
   const [removedSchemaImages, setRemovedSchemaImages] = useState(() => navigationMedia.removedSchemaImages || {});
+  const [changeHistory, setChangeHistory] = useState([]);
+  const [changeRedo, setChangeRedo] = useState([]);
   const [step, setStep] = useState(1);
   const [previewUrl, setPreviewUrl] = useState("");
   const [previewExpanded, setPreviewExpanded] = useState(false);
@@ -1895,8 +1888,43 @@ export default function ReportGenix() {
   const [reportsLoaded, setReportsLoaded] = useState(false);
   const [activeReportId, setActiveReportId] = useState("");
   const pendingId = useRef("");
+  const historyCurrent = useRef(null);
+  const skipHistory = useRef(false);
   const sessionMedia = useRef({}); /* { [reportId]: { files, originals, editorStates } } */
   const raeTimer = useRef(null);
+
+  const restoreChangeSnapshot = useCallback((snapshot) => {
+    if (!snapshot) return;
+    skipHistory.current = true;
+    setData(snapshot.data || {});
+    setStandards(snapshot.standards || []);
+    setSelected(snapshot.selected || []);
+    setLayout(snapshot.layout || {});
+    setExtraImages(snapshot.extraImages || {});
+    setRemovedSchemaImages(snapshot.removedSchemaImages || {});
+  }, []);
+
+  const undoChange = useCallback(() => {
+    setChangeHistory((history) => {
+      const previous = history.at(-1);
+      if (!previous) return history;
+      const current = historyCurrent.current;
+      if (current) setChangeRedo((redo) => [current, ...redo].slice(0, 50));
+      restoreChangeSnapshot(previous);
+      return history.slice(0, -1);
+    });
+  }, [restoreChangeSnapshot]);
+
+  const redoChange = useCallback(() => {
+    setChangeRedo((redo) => {
+      const next = redo[0];
+      if (!next) return redo;
+      const current = historyCurrent.current;
+      if (current) setChangeHistory((history) => [...history, current].slice(-50));
+      restoreChangeSnapshot(next);
+      return redo.slice(1);
+    });
+  }, [restoreChangeSnapshot]);
 
   useEffect(() => {
     if (!previewExpanded) return;
@@ -1996,7 +2024,9 @@ export default function ReportGenix() {
     );
     try { window.localStorage.setItem("rg-bodies-clean-v2", "1"); } catch { /* ignore */ }
 
-    setStandards(Array.isArray(saved.standards) ? saved.standards : []);
+    const savedStandards = Array.isArray(saved.standards) ? saved.standards : [];
+    // Keep the first blank Summary of Compliance row available in every draft.
+    setStandards(savedStandards.length ? savedStandards : [newComplianceRow()]);
     // A saved draft may pre-date a new standard section (for example the
     // Report Index).  Common sections are part of every report, so merge them
     // into an old selection rather than silently building the old template.
@@ -2102,6 +2132,28 @@ export default function ReportGenix() {
     if (!schema) return;
     window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ data, standards, selected, layout, materialMode, selectedMaterialId, materialMeta, activeReportId, extraImages, removedSchemaImages }));
   }, [schema, data, standards, selected, layout, materialMode, selectedMaterialId, materialMeta, activeReportId, extraImages, removedSchemaImages]);
+
+  // Keep a compact report-level history. Files themselves stay in IndexedDB;
+  // their captions, placement, section data and visibility are all restored.
+  useEffect(() => {
+    if (!schema) return;
+    const snapshot = { data, standards, selected, layout, extraImages, removedSchemaImages };
+    const signature = JSON.stringify(snapshot);
+    const current = { ...snapshot, _signature: signature };
+    const previous = historyCurrent.current;
+    if (!previous) {
+      historyCurrent.current = current;
+      return;
+    }
+    if (previous._signature === signature) return;
+    historyCurrent.current = current;
+    if (skipHistory.current) {
+      skipHistory.current = false;
+      return;
+    }
+    setChangeHistory((history) => [...history, previous].slice(-50));
+    setChangeRedo([]);
+  }, [schema, data, standards, selected, layout, extraImages, removedSchemaImages]);
 
   useEffect(() => { MEDIA.files = files; }, [files]);
   useEffect(() => { MEDIA.originals = originals; }, [originals]);
@@ -3167,6 +3219,10 @@ export default function ReportGenix() {
                 csrf={csrf}
                 buildForm={() => buildReportForm("pdf")}
                 reportSig={reportSig}
+                onUndoChange={undoChange}
+                onRedoChange={redoChange}
+                canUndoChange={changeHistory.length > 0}
+                canRedoChange={changeRedo.length > 0}
                 imageApi={{
                   add: (file) => {
                     const id = `extra_${activeSection.id}_${Date.now()}`;

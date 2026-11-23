@@ -413,6 +413,24 @@ def _text_span_hit(page: pymupdf.Page, x: float, y: float) -> dict | None:
             text = "".join(span.get("text", "") for span in spans).strip()
             if not text:
                 continue
+            # Keep the closest individual PDF span as well as the full line.
+            # A report line can contain more than one grey placeholder (for
+            # example Mesh nodes and Mesh elements); returning only the line
+            # made every click resolve to the first placeholder.
+            span_text = ""
+            span_distance = 1e9
+            for span in spans:
+                candidate = str(span.get("text", "")).strip()
+                if not candidate:
+                    continue
+                span_rect = pymupdf.Rect(span.get("bbox"))
+                distance_to_span = 0.0 if span_rect.contains(point) else min(
+                    abs(point.x - span_rect.x0), abs(point.x - span_rect.x1),
+                    abs(point.y - span_rect.y0), abs(point.y - span_rect.y1),
+                )
+                if distance_to_span < span_distance:
+                    span_distance = distance_to_span
+                    span_text = candidate
             contains = rect.contains(point)
             distance = 0.0 if contains else min(
                 abs(point.x - rect.x0),
@@ -425,6 +443,7 @@ def _text_span_hit(page: pymupdf.Page, x: float, y: float) -> dict | None:
                 best_distance = distance
                 best = {
                     "text": text,
+                    "placeholder_text": span_text,
                     "rect": _display_rect(page, display),
                     "font": first.get("font", "Helvetica"),
                     "size": round(float(first.get("size", 11)), 2),

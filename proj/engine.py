@@ -1,7 +1,7 @@
 """CSA-style trailer certification report engine (ADR 62/02 + AS4100).
 Standard wording is fixed here (taken from the sample reports); users only supply the variable fields + images.
 """
-import io, os, functools
+import io, os, functools, json
 from xml.sax.saxutils import escape
 import qrcode
 from reportlab.lib.pagesizes import A4
@@ -79,17 +79,18 @@ SECTIONS = [
     dict(id="cert", title="Certificate of Conformity", fields=[], images=[]),
     dict(id="title", title="Title page & Structural Certification", fields=[], images=[]),
     dict(id="index", title="Report Index", fields=[], images=[]),
-    dict(id="summary", title="Summary of Compliance", fields=[], images=[]),
     dict(id="background", title="Background & Scope of Work",
          fields=[F("background_scope", "Project scope of work", "textarea"), F("background_objectives", "Analysis objectives", "textarea")],
          images=[I("bg_front", "3D Isometric Model in Autodesk Inventor - Front", 80), I("bg_back", "3D Isometric Model in Autodesk Inventor - Back", 80)]),
+    dict(id="summary", title="Summary of Compliance", fields=[], images=[]),
+    dict(id="requirements", title="Requirements", fields=[F("requirements_note", "Project-specific requirements and assumptions", "textarea")], images=[]),
+    dict(id="preproc", title="Analysis - Pre-Processing", fields=[], images=[]),
     dict(id="geometry", title="The geometry of the Trailer",
          fields=[F("length_mm", "Overall length", "number", unit="mm"), F("width_mm", "Overall width", "number", unit="mm"),
                  F("susp_mm", "Distance coupling to suspension", "number", unit="mm"),
                  F("geo_note", "Geometry design note", "textarea")],
          images=[I("geo_iso", "3D Isometric Model", 70), I("geo_top", "Top View showing the length and width of the trailer", 55), I("geo_side", "Side View showing the distance of suspension from coupling", 40)]),
-    dict(id="requirements", title="Requirements", fields=[F("requirements_note", "Project-specific requirements and assumptions", "textarea")], images=[]),
-    dict(id="preproc", title="Analysis - Pre-Processing data (FEA, material, mesh)",
+    dict(id="material_mesh", title="Material and mesh",
          fields=[F("nodes", "Mesh nodes", "number"), F("elements", "Mesh elements", "number"), F("preproc_note", "Analysis pre-processing note", "textarea")],
          images=[I("mesh", "Meshed model", 100)]),
     dict(id="a1", title="Analysis 1 - Longitudinal Tension and Compression (14.2.1.1.1)", fields=analysis_fields(1), images=analysis_images(1)),
@@ -622,6 +623,12 @@ def sec_index(c):
         ("6", "Conclusion"),
     ]:
         rows.append([Paragraph(number, s["cell"]), Paragraph(title, s["cell"])])
+        if number == "5":
+            for analysis_number, analysis in enumerate(_analysis_sections_for_report(c), start=1):
+                index_title = re.sub(r"^5\.\d+\s+", "", analysis["title"])
+                rows.append([Paragraph(f"5.{analysis_number}", s["cell"]), Paragraph(escape(index_title), s["cell"])])
+                for subsection_number, subsection in enumerate(_subsections(c, analysis["id"]), start=1):
+                    rows.append([Paragraph(f"5.{analysis_number}.{subsection_number}", s["cell"]), Paragraph(escape(subsection["title"]), s["cell"])])
     return [c.P("Report Index", "h1"),
             c.P("The common report sections are listed below. Applicable analysis sections and their pages are included dynamically for this trailer."),
             c.tbl(rows, [28 * mm, FW - 28 * mm]), PageBreak()]
@@ -650,10 +657,10 @@ def sec_summary(c):
             rows.append([Paragraph(str(i + 1), s["cell"]), Paragraph(std, s["cell"]), Paragraph(req, s["cell"]), Paragraph(cnf, s["cell"])])
     else:
         rows.append([Paragraph("", s["cell"]), Paragraph(c.ph("add standards in the report builder"), s["cell"]), Paragraph("", s["cell"]), Paragraph("", s["cell"])])
-    return [c.P("Summary of Compliance", "h1"), c.tbl(rows, widths), PageBreak()]
+    return [c.P("2 Summary of Compliance", "h1"), c.tbl(rows, widths), PageBreak()]
 
 def sec_background(c):
-    return [c.P("Background & Scope of Work", "h1"),
+    return [c.P("1 Background & Scope of Work", "h1"),
             c.P(f"Structural analysis and certification services are required for a new build chassis and internal carrying member's design and analysis of a {c.v('trailer_type')}. The trailer requires certification as a {c.v('axle_type')} trailer type {c.v('atm')}kg ATM."),
             c.P("Project scope of work", "h2"), c.P(c.text("background_scope")),
             c.P("Analysis objectives", "h2"), c.P(c.text("background_objectives")),
@@ -662,7 +669,7 @@ def sec_background(c):
 
 def sec_geometry(c):
     s = c.s
-    out = [c.P("The geometry of the Trailer", "h1"),
+    out = [c.P("4.1 Geometry", "h1"),
            c.P(f"{c.v('client')} has provided the required 3D geometric data that was required for the structural analysis of the trailer. Shown following are the dimensions of the major structural members of the trailer which was used for the analysis.")]
     out += [c.P("Project-specific geometry note", "h2"), c.P(c.text("geo_note"))]
     out.append(c.tbl([[Paragraph(x, s["celb"]) for x in ["Overall length", "Overall width", "Coupling to suspension"]],
@@ -679,7 +686,7 @@ REQ = ["ADR 62/02- Clause 14.2.1.1.1: Longitudinal Tension and Compression For T
        "Coupling mount check"]
 
 def sec_req(c):
-    out = [c.P("Requirements", "h1"), c.P("The following requirements apply for the trailer structural compliance as selected in the Summary of Compliance.")]
+    out = [c.P("3 Requirements", "h1"), c.P("The following requirements apply for the trailer structural compliance as selected in the Summary of Compliance.")]
     standards = c.standards()
     if c.tpl:
         for i in range(8):
@@ -694,14 +701,19 @@ def sec_req(c):
     return out + [PageBreak()]
 
 def sec_pre(c):
+    return [c.P("4 Analysis - Pre-Processing", "h1"),
+            c.P("The trailer is analyzed using the finite element analysis technique. The software used for analysis is ANSYS Workbench, with 3D elements selected as appropriate for static structural analysis."),
+            PageBreak()]
+
+
+def sec_material_mesh(c):
     s = c.s
     mat = [[Paragraph(x, s["celb"]) for x in ["Material", "Tensile Strength (MPa)", "Yield Strength (MPa)", "Young's Modulus (GPa)", "Poisson's Ratio", "Density (kg/m^3)"]],
            ]
     ws = [FW * x for x in (.24, .16, .16, .16, .14, .14)]
     keys = ["material", "fu", "fy", "young", "nu", "rho"]
     mat.append([CellField(w - 4, f"mat_{k}") if c.tpl else Paragraph(escape(c.raw(k)), s["cell"]) for w, k in zip(ws, keys)])
-    return [c.P("Analysis- Pre-Processing data", "h1"),
-            c.P("The trailer is analyzed using the finite element analysis technique. The software used for analysis is ANSYS Workbench which is used in the automotive industry for over a decade. 3D elements have been used in modelling as these are the most appropriate for static structural analysis."),
+    return [c.P("4.2 Material and mesh", "h1"),
             c.P("Material", "h2"), c.P("The material used for the analysis with the following mechanical properties is given in the below table."),
             c.tbl(mat, ws), Spacer(1, 6 * mm), c.P("Meshing", "h2"),
             c.P(f"The fine mesh was created with the number of nodes as {c.v('nodes')} and the number of elements as {c.v('elements')}. Shown below are some images of the finite element model that was used for the analysis."),
@@ -827,12 +839,12 @@ def sec_a7(c):
             c.P(v or c.ph("verdict")), c.P("Project-specific coupling analysis note: " + c.text("cp_note")), PageBreak()]
 
 def sec_concl(c):
-    return [c.P("CONCLUSION", "h1"), c.P("The trailer fully complies with ADR 62/02 and AS 4100-1998."),
+    return [c.P("6 Conclusion", "h1"), c.P("The trailer fully complies with ADR 62/02 and AS 4100-1998."),
             c.P("The analysis conducted assumes a new trailer with no material degradation and material are homogenous. Exposure to environmental effects in service may significantly reduce the material's strength capacity to support the full ATM of the trailer. Care must be taken as the trailer will not be able to perform to its full capacity in degraded (e.g., corroded) conditions and an inspection for safety reassessment should be organized by the equipment owner."),
             c.P("Project conclusion", "h2"), c.P(c.text("conclusion_note"))]
 
 BUILD = dict(cert=sec_cert, title=sec_title, index=sec_index, summary=sec_summary, background=sec_background, geometry=sec_geometry,
-             requirements=sec_req, preproc=sec_pre, a1=sec_static(1), a2=sec_static(2), a3=sec_static(3),
+             requirements=sec_req, preproc=sec_pre, material_mesh=sec_material_mesh, a1=sec_static(1), a2=sec_static(2), a3=sec_static(3),
              a4=sec_a4, a5=sec_a5, a6=sec_a6, a7=sec_a7, conclusion=sec_concl)
 
 
@@ -893,12 +905,40 @@ def _dynamic_analysis_heading(number, standard, requirement):
         standard_and_clause = f"{standard}{'- ' if standard else ''}{clause_number}"
 
     if standard_and_clause and description:
-        return f"ANALYSIS {number} ({standard_and_clause}) - {description}"
+        return f"5.{number} ANALYSIS {number} ({standard_and_clause}) - {description}"
     if standard_and_clause:
-        return f"ANALYSIS {number} ({standard_and_clause})"
+        return f"5.{number} ANALYSIS {number} ({standard_and_clause})"
     if description:
-        return f"ANALYSIS {number} - {description}"
-    return f"ANALYSIS {number}"
+        return f"5.{number} ANALYSIS {number} - {description}"
+    return f"5.{number} ANALYSIS {number}"
+
+
+def _subsections(c, section_id):
+    """Read user-added Analysis subsections safely from the report data."""
+    try:
+        entries = json.loads(c.raw("subsections__" + str(section_id)) or "[]")
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return []
+    if not isinstance(entries, list):
+        return []
+    out = []
+    for entry in entries[:30]:
+        if not isinstance(entry, dict):
+            continue
+        title = str(entry.get("title") or "").strip()[:250]
+        body = str(entry.get("body") or "").strip()[:20000]
+        if title:
+            out.append({"title": title, "body": body})
+    return out
+
+
+def _subsection_story(c, section_id, analysis_number):
+    out = []
+    for subsection_number, subsection in enumerate(_subsections(c, section_id), start=1):
+        out += [PageBreak(), c.P(f"5.{analysis_number}.{subsection_number} {escape(subsection['title'])}", "h2")]
+        if subsection["body"]:
+            out.extend(_body_flowables(c, subsection["body"]))
+    return out
 
 
 def _analysis_sections_for_report(c):
@@ -1037,6 +1077,11 @@ def build(data=None, images=None, selected=None, template=False, layout=None, ex
                         if section_story and isinstance(section_story[-1], PageBreak):
                             section_story.pop()
                         section_story += added_figures + [PageBreak()]
+                    subsection_story = _subsection_story(c, dynamic_id, analysis_section["analysis_number"])
+                    if subsection_story:
+                        if section_story and isinstance(section_story[-1], PageBreak):
+                            section_story.pop()
+                        section_story += subsection_story + [PageBreak()]
                     story += section_story
                 analysis_inserted = True
             # Selected Summary of Compliance rows replace fixed a1..a7.

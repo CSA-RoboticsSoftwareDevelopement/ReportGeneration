@@ -55,6 +55,7 @@ const AlignIcon = ({ kind, ...p }) => {
 };
 const ALIGNS = [["left", "Align left"], ["center", "Align centre"], ["right", "Align right"], ["justify", "Justify"]];
 const readTb = (v) => { try { const o = typeof v === "string" ? JSON.parse(v) : v; return o && typeof o === "object" ? o : null; } catch { return null; } };
+const readSubsections = (v) => { try { const o = JSON.parse(String(v || "[]")); return Array.isArray(o) ? o : []; } catch { return []; } };
 const r1 = (v) => Math.round(v * 10) / 10;
 
 const TOOLS = [
@@ -71,7 +72,11 @@ const normaliseFieldName = (value) => String(value || "").toLowerCase().replace(
 
 function fieldForPlaceholder(text, section) {
   const fields = Array.isArray(section?.fields) ? section.fields : [];
-  const labels = [...String(text || "").matchAll(PH)].map((match) => normaliseFieldName(match[1]));
+  const raw = String(text || "");
+  const labels = [...raw.matchAll(PH)].map((match) => normaliseFieldName(match[1]));
+  // Some PDF readers return an individual grey text span without its square
+  // brackets. Treat that span itself as a field label.
+  if (!labels.length && raw.trim()) labels.push(normaliseFieldName(raw));
   for (const label of labels) {
     const exact = fields.find((field) => normaliseFieldName(field.label) === label);
     if (exact) return exact;
@@ -157,7 +162,7 @@ function mapEdit(oldT, newT, secId, schema, data) {
 
 export default function SectionPdfEditor({
   section, sections, schema, data, setData, csrf, buildForm, reportSig,
-  onBack, onNext, imagesPanel, imageApi,
+  onBack, onNext, imagesPanel, imageApi, onUndoChange, onRedoChange, canUndoChange, canRedoChange,
 }) {
   const [docId, setDocId] = useState("");
   const [info, setInfo] = useState(null);
@@ -171,6 +176,7 @@ export default function SectionPdfEditor({
   const [busy, setBusy] = useState("");
   const [toast, setToast] = useState(null);
   const [dlg, setDlg] = useState(null);
+  const [subDlg, setSubDlg] = useState(null);
   const [log, setLog] = useState([]);
   const [drag, setDrag] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -339,8 +345,14 @@ export default function SectionPdfEditor({
     try { return await fn(); } catch (e) { notify(e?.message || "Something went wrong.", "error"); return null; } finally { setBusy(""); }
   }, [notify]);
 
-  const undo = () => run("Undoing…", () => mutate("/undo", {}));
-  const redo = () => run("Redoing…", () => mutate("/redo", {}));
+  const undo = () => {
+    if (canUndoChange) { onUndoChange?.(); notify("Reverted the last report change.", "info"); return; }
+    return run("Undoing…", () => mutate("/undo", {}));
+  };
+  const redo = () => {
+    if (canRedoChange) { onRedoChange?.(); notify("Restored the report change.", "info"); return; }
+    return run("Redoing…", () => mutate("/redo", {}));
+  };
 
   useEffect(() => {
     const h = (e) => {
@@ -380,7 +392,7 @@ export default function SectionPdfEditor({
       notify("Click directly on the grey [ value ] text to enter it.", "error");
       return false;
     }
-    const field = fieldForPlaceholder(d?.hit?.text, section);
+    const field = fieldForPlaceholder(d?.hit?.placeholder_text || d?.hit?.text, section);
     if (!field) {
       notify("That text is not a section input. Click a grey value in this section.", "error");
       return false;
@@ -635,6 +647,18 @@ export default function SectionPdfEditor({
   };
 
   const idx = sections.findIndex((x) => x.id === section?.id);
+  const analysisNumber = sections.filter((item) => item.dynamicAnalysis).findIndex((item) => item.id === section?.id) + 1;
+  const subsectionKey = `subsections__${section?.id || ""}`;
+  const saveSubsection = () => {
+    const title = String(subDlg?.title || "").trim();
+    if (!title) { notify("Enter a subsection title.", "error"); return; }
+    setData((current) => ({
+      ...current,
+      [subsectionKey]: JSON.stringify([...readSubsections(current[subsectionKey]), { title, body: String(subDlg?.body || "").trim() }]),
+    }));
+    setSubDlg(null);
+    notify(`Added subsection 5.${analysisNumber}.${readSubsections(data[subsectionKey]).length + 1}.`, "success");
+  };
   const hits = searchResults.filter((r) => r.page === page);
   const dragRect = drag && {
     left: `${Math.min(drag.start.x, drag.end.x) * 100}%`, top: `${Math.min(drag.start.y, drag.end.y) * 100}%`,
@@ -659,6 +683,7 @@ export default function SectionPdfEditor({
           <p className="truncate text-sm font-semibold text-white">{section?.title}</p>
           <p className="text-[10px] text-[#7f9dab]">Section {idx + 1} of {sections.length} · {TOOLS.find((t) => t.id === tool)?.hint}</p>
         </div>
+        {section?.dynamicAnalysis ? <button type="button" onClick={() => setSubDlg({ title: "", body: "" })} className="rounded-md border border-[#2f5b75] px-2.5 py-1.5 text-[11px] font-semibold text-[#c9dfe3] hover:border-[#f84f63] hover:bg-white/5">+ Add subsection</button> : null}
         <button type="button" className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-[#c9dfe3] hover:bg-white/10 disabled:opacity-30" onClick={() => setPage((p) => Math.max(sectionStartPage, p - 1))} disabled={page <= sectionStartPage} aria-label="Previous page in this section">
           <Icon name="chevron" className="h-4 w-4 rotate-90" /> Previous page
         </button>
@@ -672,8 +697,8 @@ export default function SectionPdfEditor({
         <button type="button" className={ob} onClick={() => setZoom((z) => clamp(z + 0.15, 0.3, 3.5))} aria-label="Zoom in"><Icon name="zoomIn" /></button>
         <button type="button" className={ob} onClick={fit} aria-label="Fit width"><Icon name="fit" /></button>
         <span className="h-5 w-px bg-[#234b63]" />
-        <button type="button" className={ob} onClick={undo} disabled={!info?.can_undo || !!busy} aria-label="Undo"><Icon name="undo" /></button>
-        <button type="button" className={ob} onClick={redo} disabled={!info?.can_redo || !!busy} aria-label="Redo"><Icon name="redo" /></button>
+        <button type="button" className={ob} onClick={undo} disabled={(!canUndoChange && !info?.can_undo) || !!busy} aria-label="Undo last change" title="Undo last change"><Icon name="undo" /></button>
+        <button type="button" className={ob} onClick={redo} disabled={(!canRedoChange && !info?.can_redo) || !!busy} aria-label="Redo last change" title="Redo last change"><Icon name="redo" /></button>
         <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()}
           placeholder="Find in PDF" className="h-8 w-36 rounded-md border border-[#2d5871] bg-[#103a55] px-2 text-xs text-white outline-none focus:border-[#f84f63]" />
         {docId ? <a href={downloadUrl(docId)} download className="rounded-md border border-[#f84f63] bg-[#f84f63] px-3 py-1.5 text-xs font-bold text-[#081f35] hover:bg-[#ff6377]">Download</a> : null}
@@ -884,6 +909,25 @@ export default function SectionPdfEditor({
             <div className="mt-4 flex justify-end gap-2">
               <Btn variant="ghost" onClick={() => setImgDlg(null)}>Skip</Btn>
               <Btn variant="primary" icon="check" onClick={saveImageTitle}>Add title</Btn>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {subDlg ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#03121f]/80 p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-[#2d5871] bg-[#0c2b44] p-5 shadow-2xl">
+            <h3 className="text-base font-semibold text-white">Add subsection 5.{analysisNumber}.{readSubsections(data[subsectionKey]).length + 1}</h3>
+            <p className="mt-1 text-[11px] leading-4 text-[#8faebb]">This subsection is added under the current Analysis and appears automatically in the Report Index.</p>
+            <label className="mt-4 block"><span className={LABEL}>Subsection title</span>
+              <input autoFocus className={`${INPUT} mt-1`} value={subDlg.title} onChange={(e) => setSubDlg({ ...subDlg, title: e.target.value })} placeholder="e.g. Load case assumptions" />
+            </label>
+            <label className="mt-3 block"><span className={LABEL}>Content</span>
+              <textarea className={`${INPUT} mt-1 h-32 resize-y`} value={subDlg.body} onChange={(e) => setSubDlg({ ...subDlg, body: e.target.value })} placeholder="Add the subsection text…" />
+            </label>
+            <div className="mt-4 flex justify-end gap-2">
+              <Btn variant="ghost" onClick={() => setSubDlg(null)}>Cancel</Btn>
+              <Btn variant="primary" icon="check" onClick={saveSubsection}>Add subsection</Btn>
             </div>
           </div>
         </div>
