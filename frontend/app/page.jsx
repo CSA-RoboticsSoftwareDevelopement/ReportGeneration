@@ -3392,7 +3392,7 @@ export default function ReportGenix() {
 
       {/* Everything to the right of the fixed sidebar on large screens */}
         <div className={`transition-[padding] duration-300 ${route === "dashboard" ? "" : sidebarCollapsed ? "lg:pl-[76px]" : "lg:pl-72"}`}>
-        <header className={`sticky top-0 z-30 w-full min-w-0 border-b border-[#2a5068]/60 bg-[#0a2744]/95 backdrop-blur ${route === "section" ? "px-2 py-2 sm:px-4 lg:px-6" : "px-2 pt-3 pb-4 sm:px-4 sm:pb-6 lg:px-6"}`}>
+        <header className={`sticky top-0 z-30 w-full min-w-0 border-b border-[#2a5068]/60 bg-[#0a2744]/95 backdrop-blur ${route === "section" ? "px-2 py-1 sm:px-4 lg:px-6" : "px-2 pt-3 pb-4 sm:px-4 sm:pb-6 lg:px-6"}`}>
           <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 sm:gap-3">
             {route !== "dashboard" && (
               <button
@@ -3408,6 +3408,13 @@ export default function ReportGenix() {
               <img src="/csa_logo.webp" alt="CSA Engineering" className="h-9 w-auto" />
               <span className="border-l border-[#2f5b75] pl-3 text-base font-semibold">ReportGenix</span>
             </Link>
+            {route === "section" ? (
+              <div className="min-w-0 flex-1 px-1 sm:px-2">
+                <h1 className="truncate text-base font-semibold text-white">
+                  <SectionTitle key={activeSection.id} value={data[`heading__${activeSection.id}`]} fallback={activeSection.title} onChange={(v) => setData((current) => ({ ...current, [`heading__${activeSection.id}`]: v }))} />
+                </h1>
+              </div>
+            ) : null}
             <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-1.5 sm:gap-2">
               <div data-tour="help-tabs" className="hidden shrink-0 items-center gap-1 md:flex">
                 <Link href="/dashboard" className={navClass(route === "dashboard")}>Dashboard</Link>
@@ -3434,13 +3441,6 @@ export default function ReportGenix() {
               <ActionButton variant="ghost" onClick={logout} className="shrink-0 !px-3 !py-2 sm:!px-4">Sign out</ActionButton>
             </div>
           </div>
-          {route === "section" ? (
-            <div className="mt-2 flex w-full max-w-[460px] items-center rounded-lg border border-[#2f5b75] bg-[#0e3250] px-3 py-1 sm:min-w-[360px]">
-              <h1 className="min-w-0 truncate text-base font-semibold text-white">
-                <SectionTitle key={activeSection.id} value={data[`heading__${activeSection.id}`]} fallback={activeSection.title} onChange={(v) => setData((current) => ({ ...current, [`heading__${activeSection.id}`]: v }))} />
-              </h1>
-            </div>
-          ) : null}
         </header>
 
         <div className={workspaceClass}>
@@ -3523,7 +3523,7 @@ export default function ReportGenix() {
           {route === "projects" && <div className="space-y-6"><MaterialEditor catalog={materialsCatalog} mode={materialMode} setMode={setMaterialMode} selectedId={selectedMaterialId} setSelectedId={setSelectedMaterialId} data={data} setData={setData} materialMeta={materialMeta} setMaterialMeta={setMaterialMeta} status={materialStatus} /><ComplianceEditor rows={standards} setRows={setStandards} catalog={standardsCatalog} request={request} /></div>}
 
           {route === "section" && (
-            <div className="h-[calc(100dvh-100px)] min-h-[520px]">
+            <div className="h-[calc(100dvh-52px)] min-h-[420px]">
               <SectionPdfEditor
                 section={activeSection}
                 sections={reportSections}
