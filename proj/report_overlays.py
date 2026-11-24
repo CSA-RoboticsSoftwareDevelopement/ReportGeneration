@@ -74,6 +74,18 @@ def _rgb(c):
     return (((c >> 16) & 255) / 255.0, ((c >> 8) & 255) / 255.0, (c & 255) / 255.0)
 
 
+def _parse_text_color(value, fallback):
+    if isinstance(value, str):
+        raw = value.strip().lstrip("#")
+        if len(raw) == 6:
+            try:
+                number = int(raw, 16)
+                return _rgb(number)
+            except ValueError:
+                pass
+    return fallback
+
+
 # --------------------------------------------------------------------------
 # measuring the report's own body text
 # --------------------------------------------------------------------------
@@ -325,10 +337,12 @@ def _apply_texts(fitz, doc, sp, data, layout):
         x = _clamp(x, 0, pw - w)
 
         size = _clamp(_f(t.get("size")) or style["size"], 4, 72)
-        lead = style["lead"] * size / style["size"]
-        bold = 1 if t.get("bold") else style["bold"]
-        italic = 1 if t.get("italic") else style["italic"]
-        fontname = _BASE14[(style["family"], bold, italic)]
+        lead = _clamp(_f(t.get("lead")) or style["lead"] * size / style["size"], 4, 144)
+        bold = (1 if t.get("bold") else 0) if "bold" in t else style["bold"]
+        italic = (1 if t.get("italic") else 0) if "italic" in t else style["italic"]
+        family = t.get("family") if t.get("family") in ("he", "ti", "co") else style["family"]
+        color = _parse_text_color(t.get("color"), style["color"])
+        fontname = _BASE14[(family, bold, italic)]
         font = fitz.Font(fontname)
         align = t.get("align") if t.get("align") in ALIGNS else default_align
         text = str(t["text"]).translate(_TYPO)
@@ -341,10 +355,10 @@ def _apply_texts(fitz, doc, sp, data, layout):
                 continue
             base_y = top + asc * size + i * lead
             for word, wx in line_x_positions(font, line, size, x, w, align, last):
-                page.insert_text(fitz.Point(wx, base_y), word, fontname=fontname, fontsize=size, color=style["color"])
-        r, g, b = style["color"]
+                page.insert_text(fitz.Point(wx, base_y), word, fontname=fontname, fontsize=size, color=color)
+        r, g, b = color
         out[tid] = {"page": pno + 1, "x": x, "top": top, "w": w, "h": h, "align": align, "size": size, "lead": lead,
-                    "family": style["family"], "bold": bold, "italic": italic,
+                    "family": family, "bold": bold, "italic": italic,
                     "color": f"rgb({round(r * 255)},{round(g * 255)},{round(b * 255)})"}
     return out
 

@@ -449,6 +449,20 @@ export default function SectionPdfEditor({
     if (!d.hit) { notify("No editable text there. Use Add text for a new box.", "error"); return; }
     setDlg({ mode: "edit", ...d.hit, original: d.hit.text });
   };
+  const composeTextAt = async (p, targetPage = page, top = null) => {
+    const result = await run("Matching nearby text style…", () => post("/text/hit", { page: targetPage, x: p.x, y: p.y }));
+    const hit = result?.hit;
+    const pageHeight = info?.pages?.[targetPage - 1]?.height || PAGE_H;
+    setTool("textbox");
+    setDlg({
+      mode: "tb", id: null, page: targetPage,
+      top: top == null ? p.y * pageHeight : top,
+      text: "", size: hit?.size ? String(hit.size) : "",
+      bold: !!hit?.bold, italic: !!hit?.italic,
+      align: hit?.align || "justify", lead: hit?.lead || null,
+      family: hit?.family || null, color: hit?.color || "#111111",
+    });
+  };
   const openContextMenu = (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -490,13 +504,13 @@ export default function SectionPdfEditor({
     setDrag({ start: p, end: p });
   };
   const move = (e) => { if (drag) setDrag({ ...drag, end: point(e) }); };
-  const up = (e) => {
+  const up = async (e) => {
     if (!drag) return;
     const end = point(e), s = drag.start;
     setDrag(null);
     const rect = { x: Math.min(s.x, end.x), y: Math.min(s.y, end.y), w: Math.abs(s.x - end.x), h: Math.abs(s.y - end.y) };
     const hh = info?.pages?.[page - 1]?.height || PAGE_H;
-    setDlg({ mode: "tb", id: null, page, top: rect.y * hh, text: "", size: "", bold: false, italic: false });
+    await composeTextAt(s, page, rect.y * hh);
   };
 
   /* ---- save the text dialog ---- */
@@ -526,6 +540,8 @@ export default function SectionPdfEditor({
         ...(prev || {}), sec: sectionOfPage(dlg.page), rel: typeof startPage === "number" ? dlg.page - startPage : null, page: dlg.page,
         top: prev ? prev.top : r1(dlg.top), x: prev ? prev.x : null, w: prev ? prev.w : null,
         text: dlg.text, size: dlg.size ? Number(dlg.size) : null, bold: !!dlg.bold, italic: !!dlg.italic,
+        align: dlg.align || prev?.align || "justify", lead: dlg.lead || prev?.lead || null,
+        family: dlg.family || prev?.family || null, color: dlg.color || prev?.color || "#111111",
       };
       setData((c) => ({ ...c, [`txt__${id}`]: JSON.stringify(box) }));
       setSel({ kind: "txt", id });
@@ -1002,7 +1018,7 @@ export default function SectionPdfEditor({
           <div className="w-full max-w-lg rounded-2xl border border-[#2d5871] bg-[#0c2b44] p-5 shadow-2xl">
             <h3 className="text-base font-semibold text-white">{dlg.mode === "field" ? `Enter ${dlg.field.label}` : dlg.mode === "tb" ? (dlg.id ? "Edit text" : "Add text") : `Edit line on page ${dlg.page}`}</h3>
             <p className="mt-1 text-[11px] leading-4 text-[#8faebb]">
-              {dlg.mode === "field" ? (dlg.field.type === "textarea" ? `Variable: ${dlg.field.id}. Enter project-specific text, then press Ctrl+Enter or Save to update the preview.` : `Variable: ${dlg.field.id}. Press Enter to save and update the preview.`) : dlg.mode === "tb" ? "Uses the same font, size, colour and margins as the report text. Leave size empty to match." : "Type a value in place of a [ placeholder ] or change a value. It is saved to its field."}
+              {dlg.mode === "field" ? (dlg.field.type === "textarea" ? `Variable: ${dlg.field.id}. Enter project-specific text, then press Ctrl+Enter or Save to update the preview.` : `Variable: ${dlg.field.id}. Press Enter to save and update the preview.`) : dlg.mode === "tb" ? "Matches nearby PDF text for font, size, alignment and line spacing, and uses the report's measured body margins." : "Type a value in place of a [ placeholder ] or change a value. It is saved to its field."}
             </p>
             {dlg.mode === "field" ? (
               dlg.field.type === "select" ? (
@@ -1058,9 +1074,8 @@ export default function SectionPdfEditor({
           <button type="button" role="menuitem" onClick={() => {
             const { p, page: targetPage } = contextMenu;
             const height = info?.pages?.[targetPage - 1]?.height || PAGE_H;
-            setTool("textbox");
-            setDlg({ mode: "tb", id: null, page: targetPage, top: p.y * height, text: "", size: "", bold: false, italic: false });
             setContextMenu(null);
+            composeTextAt(p, targetPage, p.y * height);
           }} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-[#d7e9ec] hover:bg-[#16415f]">
             <Icon name="text" className="h-4 w-4 text-[#8ed0c9]" /><span className="flex-1">Add text here</span><kbd className="text-[10px] text-[#8faebb]">A</kbd>
           </button>
