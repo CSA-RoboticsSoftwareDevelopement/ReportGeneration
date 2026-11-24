@@ -20,47 +20,19 @@ const DRAFT_KEY = "reportgenix-draft-v2";
 const SIDEBAR_KEY = "rg-sidebar-collapsed";
 const MEDIA = { files: {}, originals: {}, editorStates: {} };
 const WORK = { data: null };
-const MEDIA_DB_NAME = "reportgenix-media-v1";
-const MEDIA_STORE_NAME = "files";
+const LEGACY_MEDIA_DB_NAME = "reportgenix-media-v1";
+const LEGACY_MEDIA_CLEANED_KEY = "reportgenix-media-v1-removed";
 let navigationMedia = { files: {}, originals: {}, editorStates: {}, extraImages: {}, removedSchemaImages: {} };
 
-const openMediaDatabase = () => new Promise((resolve, reject) => {
-  const request = window.indexedDB.open(MEDIA_DB_NAME, 1);
-  request.onupgradeneeded = () => {
-    if (!request.result.objectStoreNames.contains(MEDIA_STORE_NAME)) request.result.createObjectStore(MEDIA_STORE_NAME, { keyPath: "id" });
-  };
-  request.onsuccess = () => resolve(request.result);
-  request.onerror = () => reject(request.error);
-});
-
-const restoreMediaFiles = async () => {
+const removeLegacyMediaDatabase = () => {
   try {
-    const db = await openMediaDatabase();
-    const items = await new Promise((resolve, reject) => {
-      const request = db.transaction(MEDIA_STORE_NAME, "readonly").objectStore(MEDIA_STORE_NAME).getAll();
-      request.onsuccess = () => resolve(request.result || []);
-      request.onerror = () => reject(request.error);
-    });
-    db.close();
-    return Object.fromEntries(items.filter((item) => item?.id && item.file instanceof Blob).map((item) => [item.id, item.file]));
+    if (!window.indexedDB || window.localStorage.getItem(LEGACY_MEDIA_CLEANED_KEY)) return;
+    const request = window.indexedDB.deleteDatabase(LEGACY_MEDIA_DB_NAME);
+    request.onsuccess = () => window.localStorage.setItem(LEGACY_MEDIA_CLEANED_KEY, "1");
+    request.onerror = () => { /* retry on the next application load */ };
+    request.onblocked = () => { /* another old tab still has the database open */ };
   } catch {
-    return {};
-  }
-};
-
-const persistMediaFiles = async (files) => {
-  try {
-    const db = await openMediaDatabase();
-    await new Promise((resolve, reject) => {
-      const transaction = db.transaction(MEDIA_STORE_NAME, "readwrite");
-      Object.entries(files).forEach(([id, file]) => { if (file instanceof Blob) transaction.objectStore(MEDIA_STORE_NAME).put({ id, file }); });
-      transaction.oncomplete = resolve;
-      transaction.onerror = () => reject(transaction.error);
-      transaction.onabort = () => reject(transaction.error);
-    });
-    db.close();
-  } catch {
-    // Image persistence is an enhancement; the current editor session remains usable.
+    // Browser storage can be unavailable in private or restricted contexts.
   }
 };
 
@@ -2137,23 +2109,12 @@ export default function ReportGenix() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const previewRequestRef = useRef(0);
   const [pdfEdits, setPdfEdits] = useState({ items: {}, pages: {} }); /* PdfEditor overlay edits, kept across sections */
-  const [mediaRestored, setMediaRestored] = useState(false);
 
   useEffect(() => {
     navigationMedia = { files, originals, editorStates, extraImages, removedSchemaImages };
   }, [files, originals, editorStates, extraImages, removedSchemaImages]);
 
-  useEffect(() => {
-    let cancelled = false;
-    restoreMediaFiles().then((savedFiles) => {
-      if (!cancelled && Object.keys(savedFiles).length) setFiles((current) => ({ ...savedFiles, ...current }));
-    }).finally(() => { if (!cancelled) setMediaRestored(true); });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    if (mediaRestored) void persistMediaFiles(files);
-  }, [files, mediaRestored]);
+  useEffect(() => { removeLegacyMediaDatabase(); }, []);
 
 
   const request = useCallback(
@@ -2162,7 +2123,11 @@ export default function ReportGenix() {
       const headers = new Headers(options.headers || {});
       if (method !== "GET" && method !== "HEAD" && csrf) headers.set("X-CSRF-Token", csrf);
       const response = await fetch(path, { ...options, headers, cache: options.cache || "no-store", credentials: "include" });
-      if (!response.ok) throw new Error(await messageFor(response));
+      if (!response.ok) {
+        const error = new Error(await messageFor(response));
+        error.status = response.status;
+        throw error;
+      }
       return response;
     },
     [csrf]
@@ -3091,10 +3056,15 @@ export default function ReportGenix() {
     const f = {};
     const o = {};
     await Promise.all(full.images.map(async (im) => {
-      const r = await request(`/api/report-store/reports/${id}/images/${im.image_id}?kind=${im.kind}`);
-      const blob = await r.blob();
-      const file = new File([blob], im.filename || `${im.image_id}.png`, { type: im.mime || blob.type });
-      (im.kind === "original" ? o : f)[im.image_id] = file;
+      try {
+        const r = await request(`/api/report-store/reports/${id}/images/${im.image_id}?kind=${im.kind}`);
+        const blob = await r.blob();
+        const file = new File([blob], im.filename || `${im.image_id}.png`, { type: im.mime || blob.type });
+        (im.kind === "original" ? o : f)[im.image_id] = file;
+      } catch (error) {
+        // A stale image row should not prevent the rest of the report from loading.
+        if (error.status !== 404) throw error;
+      }
     }));
     syncedImages.current[id] = { current: { ...f }, original: { ...o } };
     return { full, files: f, originals: o };

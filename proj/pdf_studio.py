@@ -60,7 +60,10 @@ except Exception:  # pragma: no cover
 
 ROOT = Path(__file__).with_name("uploads") / "pdf-studio"
 ROOT.mkdir(parents=True, exist_ok=True)
+QUARANTINE_ROOT = ROOT.parent / "pdf-studio-quarantine"
 SESSION_TTL = 10 * 24 * 60 * 60
+PREVIEW_SESSION_TTL = 60 * 60
+QUARANTINE_TTL = 7 * 24 * 60 * 60
 MAX_UPLOAD = 120 * 1024 * 1024
 LOCK = threading.RLock()
 DOC_ID_RE = re.compile(r"^[a-f0-9]{32}$")
@@ -120,13 +123,33 @@ def _clean_name(name: str, fallback: str = "document.pdf") -> str:
 
 
 def _cleanup_old_sessions() -> None:
-    cutoff = _now() - SESSION_TTL
+    now = _now()
     for entry in ROOT.iterdir():
         try:
-            if entry.is_dir() and entry.stat().st_mtime < cutoff:
+            if not entry.is_dir() or not DOC_ID_RE.match(entry.name):
+                continue
+            updated = entry.stat().st_mtime
+            kind = "studio"
+            meta_path = entry / "meta.json"
+            if meta_path.is_file():
+                try:
+                    meta = json.loads(meta_path.read_text("utf-8"))
+                    updated = float(meta.get("updated") or updated)
+                    kind = str(meta.get("kind") or kind)
+                except (OSError, TypeError, ValueError, json.JSONDecodeError):
+                    pass
+            ttl = PREVIEW_SESSION_TTL if kind == "section-preview" else SESSION_TTL
+            if updated < now - ttl:
                 shutil.rmtree(entry, ignore_errors=True)
         except OSError:
             continue
+    if QUARANTINE_ROOT.is_dir():
+        for entry in QUARANTINE_ROOT.iterdir():
+            try:
+                if entry.is_dir() and entry.stat().st_mtime < now - QUARANTINE_TTL:
+                    shutil.rmtree(entry, ignore_errors=True)
+            except OSError:
+                continue
 
 
 def _open_working(doc_id: str) -> pymupdf.Document:
@@ -188,6 +211,8 @@ def _new_session(
     data: bytes,
     *,
     was_protected: bool = False,
+    kind: str = "studio",
+    revision: int = 0,
 ) -> dict:
     _cleanup_old_sessions()
     doc_id = uuid.uuid4().hex
@@ -227,12 +252,61 @@ def _new_session(
         "updated": _now(),
         "was_protected": was_protected,
         "protected": False,
+        "kind": kind,
+        "revision": max(0, int(revision)),
         "undo": [],
         "redo": [],
         "shares": [],
     }
     _save_meta(doc_id, meta)
     return meta
+
+
+def _replace_preview(doc_id: str, user: dict, data: bytes, revision: int) -> tuple[dict, bool]:
+    """Atomically replace a generated section preview without adding undo history."""
+    with LOCK:
+        meta = _load_meta(doc_id, user)
+        if meta.get("kind") != "section-preview":
+            raise HTTPException(status_code=409, detail="Only a Section Editor preview can be replaced.")
+        current_revision = int(meta.get("revision") or 0)
+        if revision <= current_revision:
+            return meta, False
+
+        try:
+            doc = pymupdf.open(stream=data, filetype="pdf")
+        except Exception:
+            raise HTTPException(status_code=400, detail="That file isn't a valid PDF document.")
+        if doc.needs_pass or doc.page_count == 0:
+            doc.close()
+            raise HTTPException(status_code=400, detail="The preview PDF is not editable.")
+
+        directory = _session_dir(doc_id)
+        tmp = directory / f"preview-{uuid.uuid4().hex}.pdf"
+        try:
+            doc.save(str(tmp), garbage=3, deflate=True)
+            doc.close()
+            os.replace(tmp, _doc_file(doc_id))
+        except Exception as exc:
+            try:
+                doc.close()
+            except Exception:
+                pass
+            tmp.unlink(missing_ok=True)
+            raise HTTPException(status_code=400, detail=f"The preview PDF could not be prepared: {exc}")
+
+        for folder_name in ("undo", "redo"):
+            folder = directory / folder_name
+            if folder.is_dir():
+                for old in folder.iterdir():
+                    if old.is_file():
+                        old.unlink(missing_ok=True)
+        meta["undo"] = []
+        meta["redo"] = []
+        meta["protected"] = False
+        meta["revision"] = revision
+        _protected_file(doc_id).unlink(missing_ok=True)
+        _save_meta(doc_id, meta)
+        return meta, True
 
 
 def _mutate(doc_id: str, user: dict, fn) -> tuple[dict, Any]:
@@ -627,6 +701,8 @@ def _doc_info(doc_id: str, meta: dict, doc: pymupdf.Document) -> dict:
         "is_encrypted": bool(doc.is_encrypted),
         "was_protected": bool(meta.get("was_protected")),
         "protected": bool(meta.get("protected")),
+        "kind": meta.get("kind", "studio"),
+        "revision": int(meta.get("revision") or 0),
         "has_protection_copy": _protected_file(doc_id).is_file(),
         "file_size": _doc_file(doc_id).stat().st_size if _doc_file(doc_id).is_file() else 0,
         "can_undo": bool(meta.get("undo")),
@@ -728,6 +804,43 @@ def create_router(require_user, require_csrf) -> APIRouter:
             raise HTTPException(status_code=400, detail="The PDF has no pages.")
         meta = _new_session(user.get("id"), display_name, data, was_protected=was_protected)
         return JSONResponse({"info": _info(meta["id"], meta)})
+
+    @router.post("/preview")
+    async def open_or_replace_preview(
+        request: Request,
+        file: UploadFile = File(...),
+        doc_id: str = Form(""),
+        revision: int = Form(1),
+    ):
+        """Create one transient Section Editor session, then replace it in place."""
+        user = require_user(request)
+        require_csrf(request)
+        data = _read_upload(file)
+        revision = max(1, int(revision))
+        if doc_id:
+            meta, applied = _replace_preview(doc_id, user, data, revision)
+        else:
+            with LOCK:
+                meta = _new_session(
+                    user.get("id"),
+                    "Report.pdf",
+                    data,
+                    kind="section-preview",
+                    revision=revision,
+                )
+            applied = True
+        return JSONResponse({"info": _info(meta["id"], meta), "applied": applied})
+
+    @router.delete("/preview/{doc_id}", status_code=204)
+    def delete_preview(doc_id: str, request: Request):
+        user = require_user(request)
+        require_csrf(request)
+        with LOCK:
+            meta = _load_meta(doc_id, user)
+            if meta.get("kind") != "section-preview":
+                raise HTTPException(status_code=409, detail="Only a Section Editor preview can be deleted here.")
+            shutil.rmtree(_session_dir(doc_id))
+        return Response(status_code=204)
 
     @router.get("/{doc_id}/info")
     def info(doc_id: str, request: Request):
