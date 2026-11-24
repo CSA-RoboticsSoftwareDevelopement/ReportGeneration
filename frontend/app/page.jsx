@@ -3342,10 +3342,50 @@ export default function ReportGenix() {
   const evidenceRatio = Object.values(files).some(Boolean) ? 1 : 0;
   const completeness = Math.round(((projectRatio + complianceRatio + evidenceRatio) / 3) * 100);
 
+  const PANEL_COMPACT =
+  "[&_input]:!py-1.5 [&_input]:!text-xs [&_select]:!py-1.5 [&_select]:!text-xs [&_textarea]:!text-xs " +
+  "[&_label]:!text-[10px] [&_span]:!text-[10px] [&_h2]:!text-base [&_h3]:!text-sm [&_section]:!p-3 [&_section]:!rounded-xl";
+
+  const sectionFieldsPanel = (
+    <div className="space-y-3">
+      <details open className="rounded-xl border border-[#234b63] bg-[#0a2744]/60">
+        <summary className="cursor-pointer select-none px-3 py-2.5 text-[11px] font-bold uppercase tracking-wide text-[#c9dfe3]">Project</summary>
+        <div className={`grid gap-3 border-t border-[#234b63] p-2 ${PANEL_COMPACT}`}>
+          {raeField && (
+            <Labeled label={raeField.label + (raeField.unit ? " (" + raeField.unit + ")" : "") + " Lookup"}>
+              <div className="flex items-center gap-2">
+                <input className={INPUT} type="text" value={data.rae_no ?? ""} onChange={(e) => setData((current) => ({ ...current, rae_no: e.target.value }))} />
+                {raeLookup.status === "loading" && <span className="shrink-0 text-xs text-[#b9d2d3]">searching…</span>}
+                {raeLookup.status === "ok" && <span className="shrink-0 text-xs text-[#6fd08a]">{raeLookup.message}</span>}
+                {raeLookup.status === "error" && <span className="shrink-0 text-xs text-[#ff8e9c]">{raeLookup.message}</span>}
+              </div>
+            </Labeled>
+          )}
+          {preparedByField && (
+            <Labeled label={preparedByField.label + (preparedByField.unit ? " (" + preparedByField.unit + ")" : "")}>
+              <input className="w-full cursor-not-allowed rounded border border-[#2f5b75] bg-[#0a2744]/50 px-3 py-2 text-sm text-[#8fbcc0] focus:outline-none" type="text" value={data.prepared_by ?? user.initials ?? ""} readOnly />
+              <span className="text-xs text-[#6b7c86]">Auto-filled from your profile initials</span>
+            </Labeled>
+          )}
+          {generalFields.map((field) => (
+            <Field key={field.id} field={field} value={data[field.id]} onChange={(value) => setData((current) => ({ ...current, [field.id]: value }))} />
+          ))}
+        </div>
+      </details>
+      <details className="rounded-xl border border-[#234b63] bg-[#0a2744]/60">
+        <summary className="cursor-pointer select-none px-3 py-2.5 text-[11px] font-bold uppercase tracking-wide text-[#c9dfe3]">Libraries</summary>
+        <div className={`space-y-4 border-t border-[#234b63] p-2 ${PANEL_COMPACT}`}>
+          <MaterialEditor catalog={materialsCatalog} mode={materialMode} setMode={setMaterialMode} selectedId={selectedMaterialId} setSelectedId={setSelectedMaterialId} data={data} setData={setData} materialMeta={materialMeta} setMaterialMeta={setMaterialMeta} status={materialStatus} />
+          <ComplianceEditor rows={standards} setRows={setStandards} catalog={standardsCatalog} request={request} />
+        </div>
+      </details>
+    </div>
+  );
+
   return (
     <Shell>
       {route !== "dashboard" && route !== "section" && sidebarOpen && <div className="fixed inset-0 z-40 bg-[#0a1f36]/40 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
-      {route !== "dashboard" && (
+      {route !== "dashboard" && route !== "section" && (
         <SidebarNav
           steps={sidebarSteps}
           extraLinks={sidebarExtraLinks}
@@ -3361,10 +3401,10 @@ export default function ReportGenix() {
       )}
 
       {/* Everything to the right of the fixed sidebar on large screens */}
-        <div className={`transition-[padding] duration-300 ${route === "dashboard" ? "" : sidebarCollapsed ? "lg:pl-[76px]" : "lg:pl-72"}`}>
-        <header className={`sticky top-0 z-30 w-full min-w-0 border-b border-[#2a5068]/60 bg-[#0a2744]/95 backdrop-blur ${route === "section" ? "px-2 py-2 sm:px-4 lg:px-6" : "px-2 pt-3 pb-4 sm:px-4 sm:pb-6 lg:px-6"}`}>
+        <div className={`transition-[padding] duration-300 ${route === "dashboard" || route === "section" ? "" : sidebarCollapsed ? "lg:pl-[76px]" : "lg:pl-72"}`}>
+        <header className={`sticky top-0 z-30 w-full min-w-0 border-b border-[#2a5068]/60 bg-[#0a2744]/95 backdrop-blur ${route === "section" ? "px-2 py-1 sm:px-4 lg:px-6" : "px-2 pt-3 pb-4 sm:px-4 sm:pb-6 lg:px-6"}`}>
           <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 sm:gap-3">
-            {route !== "dashboard" && (
+            {route !== "dashboard" && route !== "section" && (
               <button
                 onClick={() => setSidebarOpen((prev) => !prev)}
                 className="rounded-md border border-[#2f5b75] bg-[#0e3250] px-3 py-1.5 text-base font-semibold text-[#c8dfe1] hover:bg-white/10 focus:outline-none focus:border-[#f84f63] lg:hidden"
@@ -3378,6 +3418,13 @@ export default function ReportGenix() {
               <img src="/csa_logo.webp" alt="CSA Engineering" className="h-9 w-auto" />
               <span className="border-l border-[#2f5b75] pl-3 text-base font-semibold">ReportGenix</span>
             </Link>
+            {route === "section" ? (
+              <div className="min-w-0 flex-1 px-1 sm:px-2">
+                <h1 className="truncate text-base font-semibold text-white">
+                  <SectionTitle key={activeSection.id} value={data[`heading__${activeSection.id}`]} fallback={activeSection.title} onChange={(v) => setData((current) => ({ ...current, [`heading__${activeSection.id}`]: v }))} />
+                </h1>
+              </div>
+            ) : null}
             <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-1.5 sm:gap-2">
               <div data-tour="help-tabs" className="hidden shrink-0 items-center gap-1 md:flex">
                 <Link href="/dashboard" className={navClass(route === "dashboard")}>Dashboard</Link>
@@ -3404,13 +3451,6 @@ export default function ReportGenix() {
               <ActionButton variant="ghost" onClick={logout} className="shrink-0 !px-3 !py-2 sm:!px-4">Sign out</ActionButton>
             </div>
           </div>
-          {route === "section" ? (
-            <div className="mt-2 flex w-full max-w-[460px] items-center rounded-lg border border-[#2f5b75] bg-[#0e3250] px-3 py-1 sm:min-w-[360px]">
-              <h1 className="min-w-0 truncate text-base font-semibold text-white">
-                <SectionTitle key={activeSection.id} value={data[`heading__${activeSection.id}`]} fallback={activeSection.title} onChange={(v) => setData((current) => ({ ...current, [`heading__${activeSection.id}`]: v }))} />
-              </h1>
-            </div>
-          ) : null}
         </header>
 
         <div className={workspaceClass}>
@@ -3493,7 +3533,7 @@ export default function ReportGenix() {
           {route === "projects" && <div className="space-y-6"><MaterialEditor catalog={materialsCatalog} mode={materialMode} setMode={setMaterialMode} selectedId={selectedMaterialId} setSelectedId={setSelectedMaterialId} data={data} setData={setData} materialMeta={materialMeta} setMaterialMeta={setMaterialMeta} status={materialStatus} /><ComplianceEditor rows={standards} setRows={setStandards} catalog={standardsCatalog} request={request} /></div>}
 
           {route === "section" && (
-            <div className="h-[calc(100dvh-100px)] min-h-[520px]">
+            <div className="h-[calc(100dvh-52px)] min-h-[420px]">
               <SectionPdfEditor
                 section={activeSection}
                 sections={reportSections}
@@ -3539,9 +3579,7 @@ export default function ReportGenix() {
                   const i = reportSections.findIndex((s) => s.id === activeSection.id);
                   router.push(i >= 0 && i < reportSections.length - 1 ? `/section/${encodeURIComponent(reportSections[i + 1].id)}` : "/issue");
                 }}
-                imagesPanel={
-                  <SectionEditor sections={reportSections} narrativeCtx={narrativeCtx} section={activeSection} data={data} setData={setData} files={files} setFiles={setFiles} extraImages={extraImages} setExtraImages={setExtraImages} removedSchemaImages={removedSchemaImages} setRemovedSchemaImages={setRemovedSchemaImages} selected={selected} setSelected={setSelected} onOpenImageEditor={openImageEditor} editingImage={editingImage} onFileChange={handleFileChange} originals={originals} />
-                }
+                fieldsPanel={sectionFieldsPanel}                
               />
               {editingImage && (
                 <div className="fixed inset-0 z-[95] bg-[#03121f]/85 p-4">
