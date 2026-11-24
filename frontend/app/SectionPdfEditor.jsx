@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import PageSurface from "./studio/PageSurface";
-import ToolsPanel from "./studio/ToolsPanel";
-import AskPanel from "./studio/AskPanel";
 import { api, downloadUrl } from "./studio/api";
 import { Btn, Icon, INPUT, LABEL } from "./studio/ui";
 
@@ -116,6 +114,27 @@ function AiSuggestions({ anchor, onPick, onClose }) {
   return createPortal(
     mobile ? <div data-img-ui className="fixed inset-0 z-[125] bg-[#03121f]/60" onPointerDown={onClose}>{panel}</div> : panel,
     document.body
+  );
+}
+
+/* A thumbnail that only renders once it scrolls near the viewport, so long reports stay fast. */
+function LazyThumb({ pdf, number, scale, height, version, active, onClick }) {
+  const ref = useRef(null);
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || seen) return undefined;
+    const io = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) { setSeen(true); io.disconnect(); } }, { rootMargin: "400px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [seen]);
+  return (
+    <button ref={ref} type="button" data-thumb={number} onClick={onClick} aria-label={`Go to page ${number}`} aria-current={active ? "page" : undefined}
+      className={`relative block w-full overflow-hidden rounded-sm border-2 bg-white transition ${active ? "border-[#f84f63] shadow-[0_0_0_2px_rgba(248,79,99,.25)]" : "border-transparent hover:border-[#7fd3c9]/70"}`}
+      style={{ minHeight: seen ? undefined : height }}>
+      {seen ? <PageSurface pdf={pdf} pageNumber={number} scale={scale} tool="thumb" version={version} /> : null}
+      <span className={`absolute bottom-1 left-1 rounded px-1 text-[9px] font-bold ${active ? "bg-[#f84f63] text-[#081f35]" : "bg-[#081f35]/85 text-[#d7e9ec]"}`}>{number}</span>
+    </button>
   );
 }
 
@@ -304,7 +323,7 @@ function mapEdit(oldT, newT, secId, schema, data) {
 
 export default function SectionPdfEditor({
   section, sections, schema, data, setData, csrf, buildForm, reportSig,
-  onBack, onNext, imagesPanel, imageApi, onUndoChange, onRedoChange, canUndoChange, canRedoChange,
+  onBack, onNext, fieldsPanel, imageApi, onUndoChange, onRedoChange, canUndoChange, canRedoChange,
 }) {
   const [docId, setDocId] = useState("");
   const [info, setInfo] = useState(null);
@@ -315,7 +334,7 @@ export default function SectionPdfEditor({
   const [zoom, setZoom] = useState(1);
   const [autoFit, setAutoFit] = useState(true); /* page follows the available width (e.g. when the sidebar collapses) until the user zooms manually */
   const [tool, setTool] = useState("select");
-  const [panel, setPanel] = useState("tools");
+  const [ocr, setOcr] = useState(null); /* null = closed, else { languages, available, lang, force, text, loading } */
   const [busy, setBusy] = useState("");
   const [toast, setToast] = useState(null);
   const [dlg, setDlg] = useState(null);
@@ -325,6 +344,7 @@ export default function SectionPdfEditor({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchBusy, setSearchBusy] = useState(false);
+  const [dockW, setDockW] = useState(700);
 
   const docRef = useRef("");
   const taskRef = useRef(null);
@@ -333,6 +353,10 @@ export default function SectionPdfEditor({
   const disposedRef = useRef(false);
   const overlayRef = useRef(null);
   const scrollRef = useRef(null);
+  const thumbsRef = useRef(null);
+  const blobRef = useRef(null); /* the latest built report PDF, kept so click-to-edit can open it as an editable document */
+  const fitAuto = useRef(true); /* stays true until the user zooms by hand */
+  const fitRef = useRef(null);
   const csrfRef = useRef(csrf);
   csrfRef.current = csrf;
   const [imgDlg, setImgDlg] = useState(null); /* { id, title } - "add a title" prompt after an image is added */
@@ -366,6 +390,20 @@ export default function SectionPdfEditor({
   const post = (p, body) => {
     const form = body instanceof FormData;
     return api(resolve(p), { csrf: csrfRef.current, method: "POST", body: form ? undefined : body, form: form ? body : undefined });
+  };
+  /* Reads the text under a click. If the preview document isn't editable on the server, open the same PDF as an editable
+     document once and retry, so click-to-enter-value keeps working. */
+  const textHit = async (payload) => {
+    try {
+      return await post("/text/hit", payload);
+    } catch (e) {
+      if (![404, 405, 410].includes(e?.status) || !blobRef.current) throw e;
+      const f = new FormData();
+      f.append("file", new File([blobRef.current], "Report.pdf", { type: "application/pdf" }));
+      const d = await api("/api/pdf/open", { csrf: csrfRef.current, method: "POST", form: f });
+      docRef.current = d.info.doc_id;
+      return post("/text/hit", payload);
+    }
   };
 
   /* Opening a PDF and showing it are separate steps so a rebuild that has been superseded can be thrown away
@@ -402,6 +440,7 @@ export default function SectionPdfEditor({
       let sp = {};
       try { sp = JSON.parse(decodeURIComponent(res.headers.get("X-Section-Pages") || "{}")); } catch { /* none */ }
       const blob = await res.blob();
+      blobRef.current = blob;
       if (seq !== seqRef.current) return;
       const previewForm = (id = "") => {
         const form = new FormData();
@@ -614,12 +653,18 @@ export default function SectionPdfEditor({
     return { x: clamp((e.clientX - r.left) / r.width, 0, 1), y: clamp((e.clientY - r.top) / r.height, 0, 1) };
   };
   const openPlaceholderValue = async (p) => {
-    const d = await run("Reading value…", () => post("/text/hit", { page, x: p.x, y: p.y }));
+    const d = await run("Reading value…", () => textHit({ page, x: p.x, y: p.y }));
     if (!d?.hit) {
       notify("Click directly on the grey [ value ] text to enter it.", "error");
       return false;
     }
-    const field = fieldForPlaceholder(d?.hit?.placeholder_text || d?.hit?.text, section);
+    const hitText = d?.hit?.placeholder_text || d?.hit?.text;
+    const owner = sections.find((x) => x.id === sectionOfPage(d.hit.page));
+    const field =
+      (owner && fieldForPlaceholder(hitText, owner)) ||
+      fieldForPlaceholder(hitText, section) ||
+      sections.map((x) => fieldForPlaceholder(hitText, x)).find(Boolean) ||
+      fieldForPlaceholder(hitText, { fields: schema.general });
     if (!field) {
       notify("That text is not a section input. Click a grey value in this section.", "error");
       return false;
@@ -633,14 +678,15 @@ export default function SectionPdfEditor({
     return true;
   };
   const down = async (e) => {
-    if (busy || e.button !== 0) return;
+    if (e.button !== 0) return;
+    if (busy) { notify("Still applying your last change. Try again in a moment.", "info"); return; }
     const p = point(e);
     if (tool === "select") {
       await openPlaceholderValue(p);
       return;
     }
     if (tool === "edit-text") {
-      const d = await run("Reading text…", () => post("/text/hit", { page, x: p.x, y: p.y }));
+      const d = await run("Reading text…", () => textHit({ page, x: p.x, y: p.y }));
       if (!d) return;
       if (!d.hit) { notify("No editable text there. Use Add text for a new box.", "error"); return; }
       setDlg({ mode: "edit", ...d.hit, original: d.hit.text });
@@ -1063,11 +1109,26 @@ export default function SectionPdfEditor({
   const fb = "grid h-8 w-8 place-items-center rounded-full border shadow-lg transition";
   const tbBtn = "h-7 whitespace-nowrap rounded-full px-2 text-[11px] font-semibold text-[#d7e9ec] hover:bg-white/10";
 
-  const s = {
-    info, docId, version, get, post, mutate, run, notify,
-    openInfo: (i) => window.open(`/studio?doc=${i.doc_id}`, "_blank"),
-    pageNumber: page, setPageNumber: (n) => setPage(clamp(n, 1, Math.max(1, pageCount))),
-    searchQuery, setSearchQuery, searchResults, searchBusy, search,
+  const langCode = (l) => (typeof l === "string" ? l : l?.code ?? l?.id ?? "");
+  const langName = (l) => (typeof l === "string" ? l : l?.name ?? l?.label ?? langCode(l));
+  const openOcr = async () => {
+    if (ocr) { setOcr(null); return; }
+    if (!docRef.current) return;
+    setOcr({ languages: [], available: true, lang: "eng", force: false, text: null, loading: false });
+    try {
+      const d = await get("/ocr/languages");
+      const languages = d?.languages || [];
+      const codes = languages.map(langCode);
+      setOcr((o) => o && ({ ...o, languages, available: d?.available !== false, lang: codes.includes("eng") ? "eng" : codes[0] || "eng" }));
+    } catch (e) { notify(e.message || "Could not load OCR languages.", "error"); }
+  };
+  const runOcr = async () => {
+    if (!ocr) return;
+    setOcr((o) => ({ ...o, loading: true }));
+    const d = await run("Running OCR…", () => mutate("/ocr", { language: ocr.lang, force: ocr.force, pages: "all" }));
+    const text = (d?.result?.text || []).map((t) => `--- Page ${t.page} ---\n${t.text}`).join("\n\n");
+    setOcr((o) => o && ({ ...o, loading: false, text: d ? (text || "No text was recognised.") : o.text }));
+    if (d) notify("OCR finished.", "success");
   };
 
   const idx = sections.findIndex((x) => x.id === section?.id);
@@ -1125,8 +1186,38 @@ export default function SectionPdfEditor({
     left: `${Math.min(drag.start.x, drag.end.x) * 100}%`, top: `${Math.min(drag.start.y, drag.end.y) * 100}%`,
     width: `${Math.abs(drag.start.x - drag.end.x) * 100}%`, height: `${Math.abs(drag.start.y - drag.end.y) * 100}%`,
   };
-  const fit = () => setAutoFit(true);
-  const tabs = [["tools", "Tools"], ["ask", "Ask"], ["fields", `Fields${log.length ? ` (${log.length})` : ""}`], ...(imagesPanel ? [["images", "Images"]] : [])];
+
+  const fit = () => {
+    const el = scrollRef.current;
+    const pg = info?.pages?.[page - 1];
+    if (!el || !pg) return;
+    const cs = getComputedStyle(el);
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const zw = (el.clientWidth - padX) / pg.width;
+    const zh = (el.clientHeight - padY) / pg.height;
+    const next = clamp(Math.min(zw, zh) * 0.99, 0.3, 3.5);
+    setZoom((z) => (Math.abs(z - next) < 0.005 ? z : next));
+  };
+  fitRef.current = fit;
+  const zoomBy = (fn) => { fitAuto.current = false; setZoom(fn); };
+  const fitNow = () => { fitAuto.current = true; fit(); };
+
+  useEffect(() => { if (fitAuto.current) fitRef.current?.(); }, [info, page, pdf]);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    let raf = 0;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => { if (fitAuto.current) fitRef.current?.(); });
+    });
+    ro.observe(el);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+  }, [pdf]);
+  useEffect(() => {
+    thumbsRef.current?.querySelector(`[data-thumb="${page}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [page, info]);
   const ob = "grid h-8 w-8 place-items-center rounded-md text-[#c9dfe3] hover:bg-white/10 disabled:opacity-30";
   const isTableDlg = !!dlg && (dlg.mode === "tbl" || dlg.mode === "tbset");
 
@@ -1150,16 +1241,48 @@ export default function SectionPdfEditor({
           Next page <Icon name="chevron" className="h-4 w-4 -rotate-90" />
         </button>
         <span className="h-5 w-px bg-[#234b63]" />
-        <button type="button" className={ob} onClick={() => { setAutoFit(false); setZoom((z) => clamp(z - 0.15, 0.3, 3.5)); }} aria-label="Zoom out"><Icon name="zoomOut" /></button>
-        <button type="button" className="min-w-[44px] text-[11px] font-semibold text-[#d7e9ec]" onClick={() => { setAutoFit(false); setZoom(1); }}>{Math.round(zoom * 100)}%</button>
-        <button type="button" className={ob} onClick={() => { setAutoFit(false); setZoom((z) => clamp(z + 0.15, 0.3, 3.5)); }} aria-label="Zoom in"><Icon name="zoomIn" /></button>
-        <button type="button" className={ob} onClick={fit} aria-label="Fit width"><Icon name="fit" /></button>
+        <button type="button" className={ob} onClick={() => { fitAuto.current = false; setZoom((z) => clamp(z - 0.15, 0.3, 3.5)); }} aria-label="Zoom out"><Icon name="zoomOut" /></button>
+        <button type="button" className="min-w-[44px] text-[11px] font-semibold text-[#d7e9ec]" onClick={() => { fitAuto.current = false; setZoom(1); }} title="Reset to 100%">{Math.round(zoom * 100)}%</button>
+        <button type="button" className={ob} onClick={() => { fitAuto.current = false; setZoom((z) => clamp(z + 0.15, 0.3, 3.5)); }} aria-label="Zoom in"><Icon name="zoomIn" /></button>
+        <button type="button" className={ob} onClick={() => { fitAuto.current = true; fit(); }} aria-label="Fit page to screen" title="Fit page to screen"><Icon name="fit" /></button>
         <span className="h-5 w-px bg-[#234b63]" />
         <button type="button" className={ob} onClick={undo} disabled={(!canUndoChange && !info?.can_undo) || !!busy} aria-label="Undo last change" title="Undo last change"><Icon name="undo" /></button>
         <button type="button" className={ob} onClick={redo} disabled={(!canRedoChange && !info?.can_redo) || !!busy} aria-label="Redo last change" title="Redo last change"><Icon name="redo" /></button>
         <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()}
           placeholder="Find in PDF" className="h-8 w-36 rounded-md border border-[#2d5871] bg-[#103a55] px-2 text-xs text-white outline-none focus:border-[#f84f63]" />
         {docId ? <a href={downloadUrl(docId)} download className="rounded-md border border-[#f84f63] bg-[#f84f63] px-3 py-1.5 text-xs font-bold text-[#081f35] hover:bg-[#ff6377]">Download</a> : null}
+        <span className="h-5 w-px bg-[#234b63]" />
+        <div className="relative">
+          <button type="button" onClick={openOcr} disabled={!info || !!busy} aria-expanded={!!ocr} title="Recognise text in scanned pages (OCR)"
+            className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[11px] font-semibold disabled:opacity-30 ${ocr ? "bg-white/10 text-white" : "text-[#c9dfe3] hover:bg-white/10"}`}>
+            <Icon name="text" className="h-4 w-4" /> OCR
+          </button>
+          {ocr ? (
+            <div className="absolute right-0 top-full z-[80] mt-2 w-[340px] rounded-xl border border-[#2f5b75] bg-[#0e3250] p-3 text-white shadow-2xl">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-[#8faebb]">OCR</p>
+                <button type="button" onClick={() => setOcr(null)} aria-label="Close OCR" className="grid h-6 w-6 place-items-center rounded-full text-base text-[#c9dfe3] hover:bg-white/10">×</button>
+              </div>
+              {!ocr.available ? <p className="mb-2 rounded-lg border border-[#f84f63]/50 bg-[#3a1620] p-2 text-[11px] text-[#ffd5da]">OCR is not installed on the server.</p> : null}
+              <label className="block"><span className={LABEL}>Language</span>
+                <select className={INPUT} value={ocr.lang} onChange={(e) => setOcr({ ...ocr, lang: e.target.value })}>
+                  {ocr.languages.length ? ocr.languages.map((l) => <option key={langCode(l)} value={langCode(l)}>{langName(l)}</option>) : <option value="eng">English</option>}
+                </select>
+              </label>
+              <label className="mt-2 flex items-center gap-2 text-[11px] text-[#c9dfe3]">
+                <input type="checkbox" className="accent-[#f84f63]" checked={ocr.force} onChange={(e) => setOcr({ ...ocr, force: e.target.checked })} />
+                Re-run on pages that already have text
+              </label>
+              <Btn size="sm" variant="primary" className="mt-3 w-full" onClick={runOcr} disabled={!ocr.available || ocr.loading || !!busy}>{ocr.loading ? "Recognising…" : "Run OCR on all pages"}</Btn>
+              {ocr.text ? (
+                <>
+                  <textarea readOnly className={`${INPUT} mt-3 h-40 resize-y text-[11px]`} value={ocr.text} />
+                  <button type="button" onClick={() => navigator.clipboard?.writeText(ocr.text)} className="mt-1.5 text-[10px] font-bold uppercase text-[#f84f63] hover:underline">Copy text</button>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
         <Btn size="sm" variant="primary" onClick={() => hasNextPage ? setPage((p) => p + 1) : onNext()} disabled={!hasNextPage && idx >= sections.length - 1}>
           {hasNextPage ? "Next page →" : "Next section →"}
         </Btn>
@@ -1186,6 +1309,22 @@ export default function SectionPdfEditor({
             </>
           ) : null}
         </div>
+
+        {/* page thumbnails */}
+        {pdf && info ? (
+          <aside style={{ flex: "0 0 130px", width: 130, minWidth: 130, maxWidth: 130 }}
+            className="hidden flex-col border-r border-[#234b63] bg-[#071f35] lg:flex">
+            <div ref={thumbsRef} className="studio-scroll min-h-0 flex-1 space-y-2.5 overflow-y-auto p-2.5">
+              {info.pages.map((p) => {
+                const sc = 90 / Math.max(1, p.width);
+                return (
+                  <LazyThumb key={p.number} pdf={pdf} number={p.number} scale={sc} height={p.height * sc} version={version}
+                    active={p.number === page} onClick={() => setPage(p.number)} />
+                );
+              })}
+            </div>
+          </aside>
+        ) : null}       
 
         {/* canvas */}
         <div ref={scrollRef} onWheel={onCanvasWheel} onPointerDown={(e) => { if (!e.target.closest?.("[data-img-ui]")) setSel(null); }} className="studio-scroll relative min-w-0 flex-1 overflow-auto bg-[#061a2c] p-6">
@@ -1363,22 +1502,31 @@ export default function SectionPdfEditor({
         </div>
 
         {/* right dock */}
-        <aside className="hidden w-[340px] shrink-0 flex-col border-l border-[#234b63] bg-[#081f35] lg:flex">
-          <div className="flex shrink-0 border-b border-[#234b63]">
-            {tabs.map(([id, label]) => (
-              <button key={id} type="button" onClick={() => setPanel(id)}
-                className={`flex-1 border-b-2 px-2 py-2 text-[10px] font-bold uppercase tracking-wide transition ${panel === id ? "border-[#f84f63] bg-[#f84f63]/10 text-white" : "border-transparent text-[#8faebb] hover:text-white"}`}>
-                {label}
-              </button>
-            ))}
+        {/* right panel: Fields */}
+        {/* right panel: Fields */}
+        <aside style={{ flex: `0 0 ${dockW}px`, width: dockW, minWidth: 340 }}
+          className="relative hidden flex-col border-l border-[#234b63] bg-[#081f35] lg:flex">
+          <div
+            title="Drag to resize"
+            className="absolute inset-y-0 -left-1 z-20 w-2 cursor-col-resize touch-none hover:bg-[#f84f63]/40"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              const startX = e.clientX, startW = dockW;
+              const mv = (ev) => setDockW(clamp(startW + (startX - ev.clientX), 340, 1000));
+              const upH = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", upH); };
+              window.addEventListener("pointermove", mv);
+              window.addEventListener("pointerup", upH);
+            }} />
+          <div className="flex shrink-0 items-center justify-between border-b border-[#234b63] px-4 py-2.5">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-white">Fields</span>
+            {log.length ? <span className="rounded-full bg-[#f84f63]/15 px-2 py-0.5 text-[10px] font-bold text-[#ff9da9]">{log.length} linked edit{log.length > 1 ? "s" : ""}</span> : null}
           </div>
-          <div className="studio-scroll min-h-0 flex-1 overflow-y-auto p-3">
-            {panel === "tools" && info ? <ToolsPanel s={s} /> : null}
-            {panel === "ask" && info ? <AskPanel s={s} /> : null}
-            {panel === "images" ? imagesPanel : null}
-            {panel === "fields" ? (
-              log.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-[#2d5871] p-4 text-center text-xs leading-5 text-[#8faebb]">
+          <div className="studio-scroll min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-3">
+            {fieldsPanel}
+            <div>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[#8faebb]">Linked edits from the PDF</p>
+              {log.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-[#2d5871] p-3 text-center text-xs leading-5 text-[#8faebb]">
                   Click a grey [ placeholder ] directly in the PDF, enter its value, then press Enter. It is saved to the linked variable and reused everywhere.
                 </p>
               ) : (
@@ -1391,8 +1539,8 @@ export default function SectionPdfEditor({
                     </li>
                   ))}
                 </ul>
-              )
-            ) : null}
+              )}
+            </div>
           </div>
         </aside>
       </div>
