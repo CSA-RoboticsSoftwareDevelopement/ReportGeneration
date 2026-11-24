@@ -8,6 +8,8 @@ import ImageEditor from "./ImageEditor";
 import PdfEditor from "./PdfEditor";
 import TourGuide from "./TourGuide";
 import SectionPdfEditor from "./SectionPdfEditor";
+import {   useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens (from the dark-technical login design)               */
@@ -703,89 +705,188 @@ function MaterialEditor({ catalog, mode, setMode, selectedId, setSelectedId, dat
 function ClausePicker({ clauses, selectedIds, disabled, onChange }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
-    window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => { window.removeEventListener("mousedown", onDown); window.removeEventListener("keydown", onKey); };
-  }, [open]);
+  const [pos, setPos] = useState(null);
+  const triggerRef = useRef(null);
+  const panelRef = useRef(null);
+  const searchRef = useRef(null);
 
   const ids = new Set(selectedIds.map(String));
   const term = q.trim().toLowerCase();
-  const shown = term ? clauses.filter((c) => `${c.clause_no || ""} ${c.title || ""}`.toLowerCase().includes(term)) : clauses;
-  const allOn = clauses.length > 0 && clauses.every((c) => ids.has(String(c.id)));
-  const someOn = ids.size > 0 && !allOn;
+  const shown = term
+    ? clauses.filter((c) => `${c.clause_no || ""} ${c.title || ""}`.toLowerCase().includes(term))
+    : clauses;
+  const shownOn = shown.filter((c) => ids.has(String(c.id))).length;
+  const allState = shownOn === 0 ? false : shownOn === shown.length ? "all" : "some";
 
+  /* position the panel against the trigger; wider than the trigger, never off-screen, flips up if needed */
+  const place = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const width = Math.min(Math.max(r.width, 380), vw - 24);
+    const left = Math.max(12, Math.min(r.left, vw - width - 12));
+    const below = vh - r.bottom - 12, above = r.top - 12;
+    const up = below < 360 && above > below;
+    const maxH = Math.max(240, Math.min(up ? above : below, 460));
+    setPos({ left, width, maxH, ...(up ? { bottom: vh - r.top + 6 } : { top: r.bottom + 6 }) });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); };
+  }, [open, place]);
+
+  useEffect(() => {
+    if (!open) { setQ(""); return undefined; }
+    const t = setTimeout(() => searchRef.current?.focus(), 0);
+    const onDown = (e) => {
+      if (triggerRef.current?.contains(e.target) || panelRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { clearTimeout(t); document.removeEventListener("pointerdown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+
+  const emit = (set) => onChange(clauses.filter((c) => set.has(String(c.id))).map((c) => c.id));
   const toggle = (id) => {
     const next = new Set(ids);
     next.has(String(id)) ? next.delete(String(id)) : next.add(String(id));
-    onChange(clauses.filter((c) => next.has(String(c.id))).map((c) => c.id));
+    emit(next);
   };
-  const toggleAll = () => onChange(allOn ? [] : clauses.map((c) => c.id));
+  /* works on the filtered list, so "Select all" while searching only selects the matches */
   const toggleShown = () => {
-    const allShown = shown.every((c) => ids.has(String(c.id)));
     const next = new Set(ids);
-    shown.forEach((c) => (allShown ? next.delete(String(c.id)) : next.add(String(c.id))));
-    onChange(clauses.filter((c) => next.has(String(c.id))).map((c) => c.id));
+    if (allState === "all") shown.forEach((c) => next.delete(String(c.id)));
+    else shown.forEach((c) => next.add(String(c.id)));
+    emit(next);
   };
 
+  const allOn = clauses.length > 0 && clauses.every((c) => ids.has(String(c.id)));
+  const summary = ids.size === 0
+    ? "Select clauses"
+    : allOn ? `All ${clauses.length} clauses selected`
+    : `${ids.size} of ${clauses.length} clauses selected`;
+
+  const Box = ({ state }) => (
+    <span
+      aria-hidden="true"
+      className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-[5px] border transition ${
+        state ? "border-[#f84f63] bg-[#f84f63] text-[#0a1f36]" : "border-[#4d7690] bg-[#16415f] text-transparent"
+      }`}
+    >
+      <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+        {state === "some" ? <path d="M6 12h12" /> : <path d="M5 12.5l4.5 4.5L19 7.5" />}
+      </svg>
+    </span>
+  );
+
+  const panel = open && pos && typeof document !== "undefined" ? createPortal(
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-label="Select clauses"
+      className="fixed z-[130] flex flex-col overflow-hidden rounded-2xl border border-[#2f5b75] bg-[#0e3250] text-white shadow-[0_18px_50px_rgba(0,0,0,.5)]"
+      style={{ left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom, maxHeight: pos.maxH, fontFamily: "'Poppins', ui-sans-serif, system-ui, sans-serif" }}
+    >
+      {/* search */}
+      <div className="shrink-0 border-b border-[#2a5068]/60 p-2.5">
+        <div className="flex h-10 items-center gap-2 rounded-lg border border-[#2f5b75] bg-[#0a2744] px-3 text-[#8fa9b5] focus-within:border-[#f84f63]">
+          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="6" /><path d="M20 20l-4-4" />
+          </svg>
+          <input
+            ref={searchRef}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search clauses"
+            className="h-full min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-[#8fa9b5]"
+          />
+          {q ? <button type="button" onClick={() => setQ("")} aria-label="Clear search" className="text-lg leading-none hover:text-white">×</button> : null}
+        </div>
+      </div>
+
+      {/* select all + counter */}
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#2a5068]/60 px-3.5 py-2.5">
+        <button type="button" onClick={toggleShown} disabled={!shown.length} className="flex items-center gap-2.5 text-sm font-semibold text-white disabled:opacity-40">
+          <Box state={allState} />
+          {term ? `Select ${shown.length} match${shown.length === 1 ? "" : "es"}` : "Select all clauses"}
+        </button>
+        <div className="flex items-center gap-2.5 text-xs text-[#9bbcc0]">
+          <span>{ids.size} / {clauses.length}</span>
+          {ids.size > 0 ? (
+            <button type="button" onClick={() => onChange([])} className="font-bold uppercase text-[#f84f63] hover:underline">Clear</button>
+          ) : null}
+        </div>
+      </div>
+
+      {/* list */}
+      <ul
+        role="listbox"
+        aria-multiselectable="true"
+        className="min-h-0 flex-1 overflow-y-auto p-1.5 [scrollbar-color:#3a6a86_transparent] [scrollbar-gutter:stable] [scrollbar-width:thin]"
+      >
+        {shown.length === 0 && <li className="px-3 py-8 text-center text-xs text-[#9bbcc0]">No clauses match “{q}”.</li>}
+        {shown.map((c) => {
+          const on = ids.has(String(c.id));
+          return (
+            <li key={c.id} role="option" aria-selected={on}>
+              <button
+                type="button"
+                onClick={() => toggle(c.id)}
+                title={`${c.clause_no ? `${c.clause_no} — ` : ""}${c.title || ""}`}
+                className={`flex w-full items-start gap-3 rounded-lg px-2.5 py-2 text-left transition ${on ? "bg-[#f84f63]/10" : "hover:bg-white/5"}`}
+              >
+                <span className="mt-0.5"><Box state={on ? "all" : false} /></span>
+                {c.clause_no ? (
+                  <span className="mt-0.5 shrink-0 rounded-md bg-[#16415f] px-1.5 py-0.5 font-mono text-[11px] font-semibold text-[#8ed0c9]">{c.clause_no}</span>
+                ) : null}
+                <span
+                  className="min-w-0 flex-1 text-[13px] leading-5 text-[#d7e9ec]"
+                  style={{ display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 2, overflow: "hidden" }}
+                >
+                  {c.title}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* footer */}
+      <div className="flex shrink-0 items-center justify-between border-t border-[#2a5068]/60 p-2.5">
+        <span className="pl-1 text-[11px] text-[#9bbcc0]">{ids.size === 0 ? "Nothing selected" : `${ids.size} selected`}</span>
+        <button type="button" onClick={() => setOpen(false)} className="rounded-md bg-[#f84f63] px-4 py-1.5 text-xs font-bold text-[#0a1f36] hover:bg-[#ff667a]">Done</button>
+      </div>
+    </div>,
+    document.body
+  ) : null;
+
   return (
-    <div ref={ref} className="relative">
+    <div className="relative">
       <button
+        ref={triggerRef}
         type="button"
         disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className={`${INPUT} flex items-center justify-between text-left`}
+        className={`${INPUT} flex items-center justify-between gap-2 text-left ${open ? "!border-[#f84f63] ring-2 ring-[#f84f63]/25" : ""} ${ids.size ? "" : "!text-[#8fa9b5]"}`}
       >
-        <span className="truncate">
-          {ids.size === 0 ? "Select clauses" : allOn ? `All ${clauses.length} clauses selected` : `${ids.size} of ${clauses.length} clauses selected`}
-        </span>
-        <span className="ml-2 text-xs text-[#9bbcc0]">{open ? "▲" : "▼"}</span>
+        <span className="truncate">{summary}</span>
+        <svg viewBox="0 0 24 24" className={`h-4 w-4 shrink-0 text-[#9bbcc0] transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
       </button>
-      {open && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-[#2f5b75] bg-[#0e3250] shadow-2xl">
-          <div className="space-y-2 border-b border-[#2a5068]/60 p-2.5">
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search clauses…"
-              className="w-full rounded-md border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-xs text-white outline-none focus:border-[#f84f63]"
-            />
-            <label className="flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-white">
-              <input
-                type="checkbox"
-                checked={term ? shown.length > 0 && shown.every((c) => ids.has(String(c.id))) : allOn}
-                ref={(el) => { if (el) el.indeterminate = !term && someOn; }}
-                onChange={term ? toggleShown : toggleAll}
-                className="h-4 w-4 accent-[#f84f63]"
-              />
-              {term ? `Select all ${shown.length} matching` : "Select all clauses"}
-            </label>
-          </div>
-          <ul className="max-h-72 overflow-y-auto p-1.5">
-            {shown.length === 0 && <li className="px-3 py-3 text-xs text-[#9bbcc0]">No clauses match.</li>}
-            {shown.map((c) => (
-              <li key={c.id}>
-                <label className="flex cursor-pointer items-start gap-2.5 rounded-md px-2.5 py-2 text-sm text-[#c8dfe1] hover:bg-white/5">
-                  <input type="checkbox" checked={ids.has(String(c.id))} onChange={() => toggle(c.id)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#f84f63]" />
-                  <span>{c.clause_no ? `${c.clause_no} — ` : ""}{c.title}</span>
-                </label>
-              </li>
-            ))}
-          </ul>
-          <div className="flex justify-end border-t border-[#2a5068]/60 p-2">
-            <button type="button" onClick={() => setOpen(false)} className="rounded-md bg-[#f84f63] px-4 py-1.5 text-xs font-semibold text-[#0a1f36] hover:bg-[#ff667a]">Done</button>
-          </div>
-        </div>
-      )}
+      {panel}
     </div>
   );
 }
-
 /* ------------------------------------------------------------------ */
 /*  Summary of compliance                                              */
 /* ------------------------------------------------------------------ */
@@ -2253,6 +2354,7 @@ export default function ReportGenix() {
     const key = `reportgenix-landed:${user.id ?? user.email}`;
     if (window.sessionStorage.getItem(key)) return;
     window.sessionStorage.setItem(key, "1");
+    if (window.location.pathname === "/section/cert") router.replace("/");
     if (window.location.pathname === "/") router.replace("/dashboard");
   }, [ready, user, router]);
 
@@ -3484,51 +3586,7 @@ export default function ReportGenix() {
               />
             </div>
           )}
-          {route === "home" && (
-            <section className={CARD}>
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {raeField && (
-                  <div className="xl:col-span-3">
-                    <Labeled label={raeField.label + (raeField.unit ? " (" + raeField.unit + ")" : "") + " Lookup"}>
-                      <div className="flex gap-2">
-                        <input
-                          className={INPUT}
-                          type="text"
-                          value={data.rae_no ?? ""}
-                          onChange={(e) => setData((current) => ({ ...current, rae_no: e.target.value }))}
-                        />
-                        {raeLookup.status === "loading" && (
-                          <span className="text-xs text-[#b9d2d3]">searching…</span>
-                        )}
-                        {raeLookup.status === "ok" && (
-                          <span className="text-xs text-[#6fd08a]">{raeLookup.message}</span>
-                        )}
-                        {raeLookup.status === "error" && (
-                          <span className="text-xs text-[#ff8e9c]">{raeLookup.message}</span>
-                        )}
-                      </div>
-                    </Labeled>
-                  </div>
-                )}
-                {preparedByField && (
-                  <div className="xl:col-span-3">
-                    <Labeled label={preparedByField.label + (preparedByField.unit ? " (" + preparedByField.unit + ")" : "")}>
-                      <input
-                        className="w-full rounded border border-[#2f5b75] bg-[#0a2744]/50 px-3 py-2 text-sm text-[#8fbcc0] focus:outline-none cursor-not-allowed"
-                        type="text"
-                        value={data.prepared_by ?? user.initials ?? ""}
-                        readOnly
-                      />
-                      <span className="text-xs text-[#6b7c86]">Auto-filled from your profile initials</span>
-                    </Labeled>
-                  </div>
-                )}
-                {generalFields.map((field) => (
-                  <Field key={field.id} field={field} value={data[field.id]} onChange={(value) => setData((current) => ({ ...current, [field.id]: value }))} />
-                ))}
-              </div>
-            </section>
-          )}
+          {route === "home" && null}
 
           {route === "projects" && <div className="space-y-6"><MaterialEditor catalog={materialsCatalog} mode={materialMode} setMode={setMaterialMode} selectedId={selectedMaterialId} setSelectedId={setSelectedMaterialId} data={data} setData={setData} materialMeta={materialMeta} setMaterialMeta={setMaterialMeta} status={materialStatus} /><ComplianceEditor rows={standards} setRows={setStandards} catalog={standardsCatalog} request={request} /></div>}
 
