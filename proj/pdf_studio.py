@@ -22,6 +22,7 @@ import os
 import re
 import secrets
 import shutil
+import statistics
 import subprocess
 import tempfile
 import threading
@@ -493,6 +494,7 @@ def _text_span_hit(page: pymupdf.Page, x: float, y: float) -> dict | None:
             # made every click resolve to the first placeholder.
             span_text = ""
             span_distance = 1e9
+            span_style = spans[0]
             for span in spans:
                 candidate = str(span.get("text", "")).strip()
                 if not candidate:
@@ -505,6 +507,7 @@ def _text_span_hit(page: pymupdf.Page, x: float, y: float) -> dict | None:
                 if distance_to_span < span_distance:
                     span_distance = distance_to_span
                     span_text = candidate
+                    span_style = span
             contains = rect.contains(point)
             distance = 0.0 if contains else min(
                 abs(point.x - rect.x0),
@@ -513,23 +516,63 @@ def _text_span_hit(page: pymupdf.Page, x: float, y: float) -> dict | None:
                 abs(point.y - rect.y1),
             )
             if distance < best_distance:
-                first = spans[0]
                 best_distance = distance
+                block_lines = [pymupdf.Rect(item.get("bbox")) for item in block.get("lines", []) if item.get("bbox")]
+                align = _infer_text_alignment(block_lines, pw)
+                line_gaps = [b.y0 - a.y0 for a, b in zip(block_lines, block_lines[1:]) if 3 <= b.y0 - a.y0 <= 40]
                 best = {
                     "text": text,
                     "placeholder_text": span_text,
                     "rect": _display_rect(page, display),
-                    "font": first.get("font", "Helvetica"),
-                    "size": round(float(first.get("size", 11)), 2),
-                    "color": _hex_color(first.get("color")),
-                    "flags": int(first.get("flags", 0) or 0),
-                    "bold": bool(int(first.get("flags", 0) or 0) & 16),
-                    "italic": bool(int(first.get("flags", 0) or 0) & 2),
+                    "font": span_style.get("font", "Helvetica"),
+                    "family": _text_font_family(span_style.get("font", "Helvetica"), int(span_style.get("flags", 0) or 0)),
+                    "size": round(float(span_style.get("size", 11)), 2),
+                    "color": _hex_color(span_style.get("color")),
+                    "flags": int(span_style.get("flags", 0) or 0),
+                    "bold": bool(int(span_style.get("flags", 0) or 0) & 16),
+                    "italic": bool(int(span_style.get("flags", 0) or 0) & 2),
+                    "align": align,
+                    "lead": round(statistics.median(line_gaps), 2) if line_gaps else None,
                     "page": page.number + 1,
                 }
     if best and best_distance <= (18 if best_distance else 0):
         return best
     return None
+
+
+def _text_font_family(font: str, flags: int) -> str:
+    name = str(font or "").lower()
+    if "courier" in name or "mono" in name or flags & 8:
+        return "co"
+    if "times" in name or ("serif" in name and "sans" not in name):
+        return "ti"
+    return "he"
+
+
+def _infer_text_alignment(lines: list[pymupdf.Rect], page_width: float) -> str:
+    """Infer paragraph alignment from the rendered line edges in a PDF block."""
+    if not lines:
+        return "justify"
+    lefts = [rect.x0 for rect in lines]
+    rights = [rect.x1 for rect in lines]
+    centers = [(rect.x0 + rect.x1) / 2 for rect in lines]
+    if len(lines) == 1:
+        if abs(centers[0] - page_width / 2) <= 3:
+            return "center"
+        if abs(rights[0] - (page_width - 42)) <= 3 and lefts[0] > page_width * 0.1:
+            return "right"
+        return "justify"
+    if max(centers) - min(centers) <= 2 and max(rights) - min(rights) > 3:
+        return "center"
+    if max(rights) - min(rights) <= 2 and max(lefts) - min(lefts) > 2:
+        return "right"
+    if max(lefts) - min(lefts) <= 2:
+        if len(rights) >= 2 and abs(rights[0] - (page_width - 42)) <= 4 and rights[-1] < rights[0] - 3:
+            return "justify"
+        if len(rights) >= 3 and max(rights[:-1]) - min(rights[:-1]) <= 2 and rights[-1] < statistics.median(rights[:-1]) - 3:
+            return "justify"
+        return "left"
+    return "justify"
 
 
 def _insert_editable_text(
