@@ -20,6 +20,7 @@ const PencilIcon = (p) => <Glyph {...p}><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.
 const SwapIcon = (p) => <Glyph {...p}><path d="M4 8h13l-3-3M20 16H7l3 3" /></Glyph>;
 const TrashIcon = (p) => <Glyph {...p}><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></Glyph>;
 const TableIcon = (p) => <Glyph {...p}><path d="M3 3h18v18H3zM3 7h18M3 11h18M3 15h18M7 3v18M11 3v18M15 3v18" /></Glyph>;
+const MoveIcon = (p) => <Glyph {...p}><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3" /></Glyph>;
 const SparkleIcon = (p) => <Glyph {...p}><path d="M10 4l1.8 4.9L16.7 10.7l-4.9 1.8L10 17.4l-1.8-4.9L3.3 10.7l4.9-1.8zM18 14l.9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9z" /></Glyph>;
 
 /* Placeholder suggestions until a model is connected: replace this array with the response of your AI endpoint. */
@@ -128,15 +129,86 @@ const readSubsections = (v) => { try { const o = JSON.parse(String(v || "[]")); 
 const r1 = (v) => Math.round(v * 10) / 10;
 
 const TOOLS = [
-  { id: "select", label: "Select (V)", icon: "cursor", hint: "Click a grey [ placeholder ] to enter its value. Click an image or added text to select it; drag to move and use arrow keys to nudge." },
+  { id: "select", label: "Select (V)", icon: "cursor", hint: "Click a grey [ placeholder ] to enter its value. Click an image, text or table to select it; drag to move and use arrow keys to nudge." },
   { id: "edit-text", label: "Edit text (T)", icon: "textCursor", hint: "Click a line of text to rewrite it. Values update their linked field." },
   { id: "textbox", label: "Add text (A)", icon: "text", hint: "Click where the text should go, then type. It uses the report's own font, size and margins." },
-  { id: "table", label: "Add table", icon: "table", hint: "Drag on the page to size a table, then set rows and columns." },
+  { id: "table", label: "Add table", icon: "table", hint: "Drag on the page to size a table. Click any cell to type; Tab moves to the next cell and adds a row at the end." },
 ];
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const PH = /\[ ([^\]]+?) \]/g;
+
+/* ---- tables ----
+   Stored in the report data as JSON under `tbl__<id>`:
+   { sec, rel, page, top, x, w, h, rows, cols, headerRow, cellText[][], title, style }
+   `style` is saved with the table so the report engine can draw it the same way the editor shows it:
+   a light-blue bold header row, thin dark-blue borders and white body cells. */
+const TABLE_STYLE = {
+  headerFill: "#c5d5ea",
+  bodyFill: "#ffffff",
+  border: "#1f3a5f",
+  borderW: 0.75, /* points */
+  text: "#000000",
+  fontSize: 9, /* points */
+};
+const normTbl = (t) => {
+  const rows = Math.max(1, Math.round(Number(t?.rows)) || 1);
+  const cols = Math.max(1, Math.round(Number(t?.cols)) || 1);
+  const cellText = Array.from({ length: rows }, (_, r) =>
+    Array.from({ length: cols }, (_, c) => String(t?.cellText?.[r]?.[c] ?? "")));
+  return { ...t, rows, cols, cellText };
+};
+
+/* The table as it appears in the PDF, drawn live on top of the page so it can be edited like a Word table. */
+function TableOverlay({ t, pxPerPt, rowPx, active, onDraft, onBlurCell, onKeyCell }) {
+  const st = { ...TABLE_STYLE, ...(t.style || {}) };
+  const fs = Math.max(6, st.fontSize * pxPerPt);
+  const lh = fs * 1.25;
+  const bw = Math.max(1, st.borderW * pxPerPt);
+  const padTop = Math.max(1, (rowPx - lh) / 2);
+  const line = `${bw}px solid ${st.border}`;
+  const cells = [];
+  for (let r = 0; r < t.rows; r++) {
+    for (let c = 0; c < t.cols; c++) {
+      const head = !!t.headerRow && r === 0;
+      const isActive = !!active && active.r === r && active.c === c;
+      const val = t.cellText[r][c];
+      cells.push(
+        <div key={`${r}-${c}`} className="relative min-h-0 min-w-0 overflow-hidden"
+          style={{
+            background: head ? st.headerFill : st.bodyFill,
+            borderRight: c < t.cols - 1 ? line : "none",
+            borderBottom: r < t.rows - 1 ? line : "none",
+            fontWeight: head ? 700 : 400,
+          }}>
+          {isActive ? (
+            <textarea autoFocus defaultValue={val}
+              className="pointer-events-auto absolute inset-0 h-full w-full resize-none overflow-hidden bg-transparent px-1 outline-none"
+              style={{ paddingTop: padTop, lineHeight: `${lh}px`, fontFamily: "inherit", fontSize: "inherit", fontWeight: "inherit", color: "inherit", boxShadow: "inset 0 0 0 2px #2f80ff" }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onFocus={(e) => { const n = e.target.value.length; e.target.setSelectionRange(n, n); }}
+              onChange={(e) => onDraft(r, c, e.target.value)}
+              onBlur={() => onBlurCell()}
+              onKeyDown={(e) => onKeyCell(e, r, c)} />
+          ) : (
+            <div className="flex h-full items-center overflow-hidden whitespace-pre-wrap break-words px-1" style={{ lineHeight: `${lh}px` }}>{val}</div>
+          )}
+        </div>
+      );
+    }
+  }
+  return (
+    <div className="pointer-events-none absolute inset-0 grid bg-white"
+      style={{
+        gridTemplateColumns: `repeat(${t.cols}, minmax(0, 1fr))`,
+        gridTemplateRows: `repeat(${t.rows}, minmax(0, 1fr))`,
+        border: line, color: st.text, fontFamily: "Helvetica, Arial, sans-serif", fontSize: fs,
+      }}>
+      {cells}
+    </div>
+  );
+}
 
 const normaliseFieldName = (value) => String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -268,7 +340,7 @@ export default function SectionPdfEditor({
   const replaceRef = useRef(null);
   const pickTarget = useRef(null);
   const focusImage = useRef(null);
-  const [sel, setSel] = useState(null); /* { kind: "img" | "txt", id } */
+  const [sel, setSel] = useState(null); /* { kind: "img" | "txt" | "tbl", id } */
   const [live, setLive] = useState(null); /* { key, x, top, w, h } while dragging / resizing (PDF points, top-left origin) */
   const [pending, setPending] = useState({}); /* key -> rect already saved but not yet in the rebuilt PDF */
   const layerRef = useRef(null);
@@ -277,6 +349,10 @@ export default function SectionPdfEditor({
   const gesture = useRef(null);
   const commitSeq = useRef(0); /* numbers every saved move so a finished rebuild only clears what it already contains */
   const [ghosts, setGhosts] = useState({}); /* `${version}:${imageId}` -> snapshot of the image, shown instantly while the PDF rebuilds */
+  const [cell, setCell] = useState(null); /* { id, r, c } - the table cell being typed in */
+  const cellDraft = useRef(null); /* { id, r, c, value } - text typed in the active cell, saved on blur / Tab / Enter */
+  const [removed, setRemoved] = useState({}); /* deleted tables: white cover over the old PDF until the rebuild finishes */
+  const [rebuildTick, setRebuildTick] = useState(0);
 
   const notify = useCallback((text, kind = "info") => setToast({ text, kind }), []);
   useEffect(() => {
@@ -381,6 +457,17 @@ export default function SectionPdfEditor({
     return () => clearTimeout(t);
   }, [reportSig]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /* Table edits ask for a rebuild directly, so the PDF is refreshed even when `reportSig` does not track `tbl__` keys. */
+  const rebuildRef = useRef(rebuild);
+  rebuildRef.current = rebuild;
+  const requestRebuild = () => setRebuildTick((n) => n + 1);
+  useEffect(() => {
+    if (!rebuildTick) return undefined;
+    const t = setTimeout(() => rebuildRef.current(), 400);
+    return () => clearTimeout(t);
+  }, [rebuildTick]);
+  useEffect(() => { setRemoved({}); }, [version]);
+
   useEffect(() => {
     disposedRef.current = false;
     const removePreview = () => {
@@ -456,6 +543,10 @@ export default function SectionPdfEditor({
   }, [pdf, sel, version, sectionPages]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (tool !== "select") setSel(null); }, [tool]);
   useEffect(() => { if (aiFor && !(sel?.kind === "img" && sel.id === aiFor)) setAiFor(null); }, [sel, aiFor]);
+  /* leaving a table (clicking elsewhere) saves the cell being typed in and closes the editor */
+  useEffect(() => {
+    if (cell && !(sel?.kind === "tbl" && sel.id === cell.id)) { flushCell(); setCell(null); }
+  }, [sel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sectionOfPage = (p) => {
     const entries = Object.entries(sectionPages).filter(([, v]) => typeof v === "number" && v <= p).sort((a, b) => b[1] - a[1]);
@@ -504,6 +595,7 @@ export default function SectionPdfEditor({
           return;
         }
         if (sel.kind === "txt" && (k === "delete" || k === "backspace")) { e.preventDefault(); removeText(sel.id); return; }
+        if (sel.kind === "tbl" && (k === "delete" || k === "backspace")) { e.preventDefault(); removeTable(sel.id); return; }
       }
       if ((e.ctrlKey || e.metaKey) && k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -566,7 +658,7 @@ export default function SectionPdfEditor({
     const hh = info?.pages?.[page - 1]?.height || PAGE_H;
     if (tool === "table") {
       if (rect.w * pw < 40 || rect.h * ph < 40) { setDrag(null); notify("Draw a larger rectangle for the table.", "error"); return; }
-      setDlg({ mode: "tbl", id: null, page, top: rect.y * hh, x: rect.x * pw, w: rect.w * pw, h: rect.h * ph, rows: 4, cols: 4, headerRow: true });
+      setDlg({ mode: "tbl", id: null, page, top: rect.y * hh, x: rect.x * pw, w: rect.w * pw, h: rect.h * ph, rows: 3, cols: 4, headerRow: true, title: "" });
       setDrag(null);
       return;
     }
@@ -609,40 +701,40 @@ export default function SectionPdfEditor({
       return;
     }
     if (dlg.mode === "tbl") {
-      const rows = Math.max(1, Math.min(50, Number(dlg.rows) || 4));
-      const cols = Math.max(1, Math.min(20, Number(dlg.cols) || 4));
-      const headerRow = !!dlg.headerRow;
-      const id = dlg.id || `tbl${Date.now().toString(36)}`;
-      const cellText = [];
-      for (let r = 0; r < rows; r++) {
-        cellText.push(new Array(cols).fill(""));
-      }
+      const rows = clamp(Math.round(Number(dlg.rows)) || 3, 1, 50);
+      const cols = clamp(Math.round(Number(dlg.cols)) || 4, 1, 20);
+      const id = `tbl${Date.now().toString(36)}`;
       const startPage = sectionPages[sectionOfPage(dlg.page)];
       const box = {
         sec: sectionOfPage(dlg.page), rel: typeof startPage === "number" ? dlg.page - startPage : null, page: dlg.page,
         top: r1(dlg.top), x: r1(dlg.x), w: r1(dlg.w), h: r1(dlg.h),
-        rows, cols, headerRow, cellText,
+        rows, cols, headerRow: !!dlg.headerRow,
+        cellText: Array.from({ length: rows }, () => new Array(cols).fill("")),
+        title: String(dlg.title || "").trim(),
+        style: { ...TABLE_STYLE },
       };
       setData((c) => ({ ...c, [`tbl__${id}`]: JSON.stringify(box) }));
       setSel({ kind: "tbl", id });
+      setCell({ id, r: 0, c: 0 });
       setTool("select");
       setDlg(null);
-      notify(`Table added: ${rows} rows × ${cols} columns. Click a cell to edit its text.`, "info");
+      requestRebuild();
+      notify("Table added. Type in any cell; Tab moves to the next cell and adds a row after the last one.", "info");
       return;
     }
-    if (dlg.mode === "tcedit") {
-      const t = readTb(data[`tbl__${dlg.id}`]);
-      if (!t) { setDlg(null); return; }
-      const cellText = dlg.cellText || [];
-      const rows = t.rows, cols = t.cols;
-      const fixed = [];
-      for (let r = 0; r < rows; r++) {
-        fixed.push(cellText[r] ? cellText[r].slice(0, cols) : new Array(cols).fill(""));
-        while (fixed[r].length < cols) fixed[r].push("");
-      }
-      setData((c) => ({ ...c, [`tbl__${dlg.id}`]: JSON.stringify({ ...t, cellText: fixed, headerRow: !!dlg.headerRow }) }));
+    if (dlg.mode === "tbset") {
+      const cur = readTb(data[`tbl__${dlg.id}`]);
+      if (!cur) { setDlg(null); notify("Table not found.", "error"); return; }
+      const rows = clamp(Math.round(Number(dlg.rows)) || 1, 1, 50);
+      const cols = clamp(Math.round(Number(dlg.cols)) || 1, 1, 20);
+      updateTable(dlg.id, (t) => ({
+        ...t, rows, cols, headerRow: !!dlg.headerRow, title: String(dlg.title || "").trim(),
+        cellText: Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => t.cellText[r]?.[c] ?? "")),
+        h: clamp((t.h * rows) / t.rows, 20, Math.max(20, ph - t.top)),
+      }));
+      touchTable(dlg.id);
       setDlg(null);
-      notify("Table cells updated.", "success");
+      notify("Table updated.", "success");
       return;
     }
     const changes = mapEdit(dlg.original, dlg.text, sectionOfPage(dlg.page), schema, data);
@@ -705,8 +797,13 @@ export default function SectionPdfEditor({
   const pageImages = Object.entries(imageBoxes).filter(([, b]) => b && b.page === page);
   const textRects = sectionPages.__texts || {}; /* { [id]: { page, x, top, w, h, align } } in PDF points, top-left origin */
   const pageTexts = Object.entries(textRects).filter(([, t]) => t && t.page === page);
-  const tableRects = sectionPages.__tables || {}; /* { [id]: { page, x, top, w, h, rows, cols, headerRow, cellText } } in PDF points, top-left origin */
-  const pageTables = Object.entries(tableRects).filter(([, t]) => t && t.page === page);
+  const tableRects = sectionPages.__tables || {}; /* { [id]: { page, x, top, w, h, rows, cols, headerRow, cellText } } as drawn in the PDF, top-left origin */
+  /* A table exists while its `tbl__<id>` data exists, so deleting the data removes it straight away. */
+  const storedTables = Object.keys(data || {})
+    .filter((k) => k.startsWith("tbl__"))
+    .map((k) => [k.slice(5), readTb(data[k])])
+    .filter(([, t]) => t);
+  const pageTables = storedTables.filter(([id, t]) => (tableRects[id]?.page ?? t.page) === page);
   const pw = info?.pages?.[page - 1]?.width || PAGE_W;
   const ph = info?.pages?.[page - 1]?.height || PAGE_H;
 
@@ -717,11 +814,21 @@ export default function SectionPdfEditor({
       return b ? { page: b.page, x: b.x, top: ph - (b.y + b.h), w: b.w, h: b.h, filled: !!b.filled } : null;
     }
     if (kind === "tbl") {
-      const t = tableRects[id];
-      return t ? { page: t.page, x: t.x, top: t.top, w: t.w, h: t.h, filled: true } : null;
+      const stored = readTb(data[`tbl__${id}`]);
+      const drawn = tableRects[id];
+      const g = stored && Number.isFinite(Number(stored.x)) && Number.isFinite(Number(stored.top)) ? stored : drawn;
+      return g ? { page: drawn?.page ?? stored?.page, x: Number(g.x), top: Number(g.top), w: Number(g.w), h: Number(g.h), filled: true } : null;
     }
     const t = textRects[id];
     return t ? { page: t.page, x: t.x, top: t.top, w: t.w, h: t.h, filled: true } : null;
+  };
+  /* where the item currently sits in the PDF image itself (used to white-out the old position while a rebuild runs) */
+  const drawnRect = (kind, id) => {
+    if (kind === "tbl") {
+      const t = tableRects[id];
+      return t ? { x: t.x, top: t.top, w: t.w, h: t.h } : null;
+    }
+    return baseRect(kind, id);
   };
   const rectOf = (kind, id) => {
     const key = `${kind}:${id}`;
@@ -736,7 +843,7 @@ export default function SectionPdfEditor({
   /* save a move / resize. Images: offsets + scale from the flowed position. Text: absolute position. The PDF is then rebuilt. */
   function commitRect(kind, id, from, to) {
     const dx = to.x - from.x, dy = to.top - from.top;
-    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(to.w - from.w) < 0.5) return;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(to.w - from.w) < 0.5 && Math.abs(to.h - from.h) < 0.5) return;
     if (kind === "img") {
       const f = from.w > 0 ? to.w / from.w : 1;
       setData((c) => ({
@@ -751,6 +858,7 @@ export default function SectionPdfEditor({
         if (!t) return c;
         return { ...c, [`tbl__${id}`]: JSON.stringify({ ...t, x: r1(to.x), top: r1(to.top), w: r1(to.w), h: r1(to.h) }) };
       });
+      requestRebuild();
     } else {
       setData((c) => {
         const t = readTb(c[`txt__${id}`]);
@@ -763,10 +871,114 @@ export default function SectionPdfEditor({
     setData((c) => { const n = { ...c }; delete n[`txt__${id}`]; return n; });
     setSel(null);
   }
+
+  /* ---- tables: Word-style editing ---- */
   function removeTable(id) {
+    const t = tableRects[id];
+    if (t) setRemoved((m) => ({ ...m, [id]: { page: t.page, x: t.x, top: t.top, w: t.w, h: t.h } }));
+    cellDraft.current = null;
     setData((c) => { const n = { ...c }; delete n[`tbl__${id}`]; return n; });
+    setPending((p) => { const n = { ...p }; delete n[`tbl:${id}`]; return n; });
+    setCell(null);
     setSel(null);
+    requestRebuild();
   }
+  /* change a table's stored data (fn gets the normalised table and returns the new one, or null for no change) */
+  const updateTable = (id, fn) => {
+    setData((c) => {
+      const raw = readTb(c[`tbl__${id}`]);
+      if (!raw) return c;
+      const next = fn(normTbl(raw));
+      if (!next) return c;
+      return { ...c, [`tbl__${id}`]: JSON.stringify(next) };
+    });
+    requestRebuild();
+  };
+  /* mark a table as changed so its old PDF position is covered until the rebuilt PDF arrives */
+  const touchTable = (id) => {
+    const n = ++commitSeq.current;
+    setPending((p) => ({ ...p, [`tbl:${id}`]: { ...(p[`tbl:${id}`] || {}), n } }));
+  };
+  /* save the text typed in the active cell */
+  const flushCell = () => {
+    const d = cellDraft.current;
+    cellDraft.current = null;
+    if (!d) return;
+    const cur = readTb(data[`tbl__${d.id}`]);
+    if (!cur) return;
+    if (String(normTbl(cur).cellText[d.r]?.[d.c] ?? "") === d.value) return;
+    updateTable(d.id, (t) => {
+      const ct = t.cellText.map((row) => [...row]);
+      if (ct[d.r] && d.c < t.cols) ct[d.r][d.c] = d.value;
+      return { ...t, cellText: ct };
+    });
+    touchTable(d.id);
+  };
+  const activateCell = (id, r, c) => {
+    if (cell && cell.id === id && cell.r === r && cell.c === c) return;
+    flushCell();
+    setCell({ id, r, c });
+  };
+  /* Tab / Shift+Tab: next / previous cell; Tab in the last cell adds a row, like Word */
+  const navCell = (id, r, c, dir) => {
+    flushCell();
+    const cur = readTb(data[`tbl__${id}`]);
+    if (!cur) return;
+    const t = normTbl(cur);
+    let i = r * t.cols + c + dir;
+    if (i < 0) i = 0;
+    if (i >= t.rows * t.cols) {
+      updateTable(id, (tt) => {
+        const ct = tt.cellText.map((row) => [...row]);
+        ct.push(new Array(tt.cols).fill(""));
+        return { ...tt, rows: tt.rows + 1, cellText: ct, h: Math.min(tt.h + tt.h / tt.rows, Math.max(20, ph - tt.top)) };
+      });
+      touchTable(id);
+    }
+    setCell({ id, r: Math.floor(i / t.cols), c: i % t.cols });
+  };
+  const onTblKey = (e, id, r, c) => {
+    if (e.key === "Tab") { e.preventDefault(); navCell(id, r, c, e.shiftKey ? -1 : 1); }
+    else if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); flushCell(); setCell(null); }
+    else if (e.key === "Escape") { e.preventDefault(); cellDraft.current = null; setCell(null); }
+  };
+  /* click on a table: select it and put the cursor in the clicked cell */
+  const tblPointerDown = (e, id) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    setSel({ kind: "tbl", id });
+    const t = normTbl(readTb(data[`tbl__${id}`]) || {});
+    const bb = e.currentTarget.getBoundingClientRect();
+    const c = clamp(Math.floor(((e.clientX - bb.left) / bb.width) * t.cols), 0, t.cols - 1);
+    const r = clamp(Math.floor(((e.clientY - bb.top) / bb.height) * t.rows), 0, t.rows - 1);
+    activateCell(id, r, c);
+  };
+  /* row / column commands from the table toolbar, applied at the active cell (or the last row / column) */
+  const tblOp = (id, op) => {
+    const cur = readTb(data[`tbl__${id}`]);
+    if (!cur) return;
+    const n = normTbl(cur);
+    const a = cell && cell.id === id ? cell : null;
+    const r = a ? a.r : n.rows - 1, c = a ? a.c : n.cols - 1;
+    if (op === "delRow" && n.rows <= 1) { notify("A table needs at least one row. Use the bin to delete the whole table.", "error"); return; }
+    if (op === "delCol" && n.cols <= 1) { notify("A table needs at least one column. Use the bin to delete the whole table.", "error"); return; }
+    updateTable(id, (t) => {
+      const rowH = t.h / t.rows, colW = t.w / t.cols;
+      const ct = t.cellText.map((row) => [...row]);
+      if (op === "addRow") { ct.splice(r + 1, 0, new Array(t.cols).fill("")); return { ...t, rows: t.rows + 1, cellText: ct, h: Math.min(t.h + rowH, Math.max(20, ph - t.top)) }; }
+      if (op === "addCol") { ct.forEach((row) => row.splice(c + 1, 0, "")); return { ...t, cols: t.cols + 1, cellText: ct, w: Math.min(t.w + colW, Math.max(40, pw - t.x)) }; }
+      if (op === "delRow") { ct.splice(r, 1); return { ...t, rows: t.rows - 1, cellText: ct, h: Math.max(20, t.h - rowH) }; }
+      if (op === "delCol") { ct.forEach((row) => row.splice(c, 1)); return { ...t, cols: t.cols - 1, cellText: ct, w: Math.max(40, t.w - colW) }; }
+      return null;
+    });
+    touchTable(id);
+    if (a) {
+      if (op === "addRow") setCell({ id, r: r + 1, c });
+      else if (op === "addCol") setCell({ id, r, c: c + 1 });
+      else if (op === "delRow") setCell({ id, r: Math.min(r, n.rows - 2), c });
+      else setCell({ id, r, c: Math.min(c, n.cols - 2) });
+    }
+  };
   const setTextAlign = (id, align) => {
     setData((c) => {
       const t = readTb(c[`txt__${id}`]);
@@ -779,9 +991,12 @@ export default function SectionPdfEditor({
     const t = readTb(data[`txt__${id}`]);
     if (t) setDlg({ mode: "tb", id, page: textRects[id]?.page || t.page, text: t.text || "", size: t.size || "", bold: !!t.bold, italic: !!t.italic });
   };
+  /* table settings: heading, rows, columns, header row (existing cell text is kept) */
   const editTable = (id) => {
-    const t = readTb(data[`tbl__${id}`]);
-    if (t) setDlg({ mode: "tcedit", id, page: t.page, top: t.top, x: t.x, w: t.w, h: t.h, rows: t.rows, cols: t.cols, headerRow: !!t.headerRow, cellText: t.cellText || [] });
+    const stored = readTb(data[`tbl__${id}`]);
+    if (!stored) { notify("Could not find this table's data.", "error"); return; }
+    const t = normTbl(stored);
+    setDlg({ mode: "tbset", id, page: t.page, title: t.title || "", rows: t.rows, cols: t.cols, headerRow: !!t.headerRow });
   };
   /* A suggestion becomes the image's description, placed above the image (same keys as Caption / Caption placement). */
   const applySuggestion = (id, text) => {
@@ -805,6 +1020,15 @@ export default function SectionPdfEditor({
     const h = w * ratio;
     return { ...f, w, h, x: sx > 0 ? f.x : f.x + f.w - w, top: sy > 0 ? f.top : f.top + f.h - h };
   };
+  /* tables resize freely (width and height separately) */
+  const resizeFree = (f, corner, rx, ry) => {
+    const sx = corner.includes("e") ? 1 : -1, sy = corner.includes("s") ? 1 : -1;
+    const availW = sx > 0 ? pw - f.x : f.x + f.w;
+    const availH = sy > 0 ? ph - f.top : f.top + f.h;
+    const w = clamp(f.w + sx * rx, 40, Math.max(40, availW));
+    const h = clamp(f.h + sy * ry, 20, Math.max(20, availH));
+    return { ...f, w, h, x: sx > 0 ? f.x : f.x + f.w - w, top: sy > 0 ? f.top : f.top + f.h - h };
+  };
 
   const startGesture = (e, mode, kind, id, corner) => {
     if (e.button !== 0) return;
@@ -822,7 +1046,9 @@ export default function SectionPdfEditor({
     const rx = (e.clientX - g.x0) * g.k, ry = (e.clientY - g.y0) * g.k;
     if (!g.moved && Math.hypot(rx, ry) / g.k < 4) return; /* a plain click only selects */
     g.moved = true;
-    g.last = g.mode === "move" ? clampRect({ ...g.from, x: g.from.x + rx, top: g.from.top + ry }) : resizeRect(g.from, g.corner, rx, ry);
+    g.last = g.mode === "move"
+      ? clampRect({ ...g.from, x: g.from.x + rx, top: g.from.top + ry })
+      : (g.kind === "tbl" ? resizeFree : resizeRect)(g.from, g.corner, rx, ry);
     setLive({ key: `${g.kind}:${g.id}`, x: g.last.x, top: g.last.top, w: g.last.w, h: g.last.h });
   };
   const endGesture = () => {
@@ -835,6 +1061,7 @@ export default function SectionPdfEditor({
   const pxPerPt = (layerRef.current?.clientWidth || pw * zoom) / pw;
   const FONT_CSS = { he: "Helvetica, Arial, sans-serif", ti: "'Times New Roman', Times, serif", co: "'Courier New', monospace" };
   const fb = "grid h-8 w-8 place-items-center rounded-full border shadow-lg transition";
+  const tbBtn = "h-7 whitespace-nowrap rounded-full px-2 text-[11px] font-semibold text-[#d7e9ec] hover:bg-white/10";
 
   const s = {
     info, docId, version, get, post, mutate, run, notify,
@@ -901,6 +1128,7 @@ export default function SectionPdfEditor({
   const fit = () => setAutoFit(true);
   const tabs = [["tools", "Tools"], ["ask", "Ask"], ["fields", `Fields${log.length ? ` (${log.length})` : ""}`], ...(imagesPanel ? [["images", "Images"]] : [])];
   const ob = "grid h-8 w-8 place-items-center rounded-md text-[#c9dfe3] hover:bg-white/10 disabled:opacity-30";
+  const isTableDlg = !!dlg && (dlg.mode === "tbl" || dlg.mode === "tbset");
 
   return (
     <div className="studio-root flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-[#234b63] bg-[#071f35]">
@@ -978,9 +1206,14 @@ export default function SectionPdfEditor({
                 {/* selection, move / resize handles and the controls that float next to the selected item */}
                 {imageApi ? (
                   <div ref={layerRef} className="pointer-events-none absolute inset-0 z-[50]">
+                    {/* deleted tables: hide the old PDF drawing until the rebuilt PDF arrives */}
+                    {Object.entries(removed).filter(([, b]) => b.page === page).map(([id, b]) => (
+                      <div key={`removed-${id}`} className="absolute bg-white"
+                        style={{ left: `${((b.x - 1) / pw) * 100}%`, top: `${((b.top - 1) / ph) * 100}%`, width: `${((b.w + 2) / pw) * 100}%`, height: `${((b.h + 2) / ph) * 100}%` }} />
+                    ))}
                     {layerItems.map(([kind, id]) => {
                       const key = `${kind}:${id}`;
-                      const b = live?.key === key || pending[key] ? baseRect(kind, id) : null;
+                      const b = live?.key === key || pending[key] ? drawnRect(kind, id) : null;
                       return b ? (
                         <div key={`cover-${key}`} className="absolute bg-white"
                           style={{ left: `${((b.x - 1) / pw) * 100}%`, top: `${((b.top - 1) / ph) * 100}%`, width: `${((b.w + 2) / pw) * 100}%`, height: `${((b.h + 2) / ph) * 100}%` }} />
@@ -995,7 +1228,7 @@ export default function SectionPdfEditor({
                       const left = (r.x / pw) * 100, top = (r.top / ph) * 100, wPct = (r.w / pw) * 100, hPct = (r.h / ph) * 100;
                       const isImg = kind === "img";
                       const isTbl = kind === "tbl";
-                      const tr = isTbl ? tableRects[id] : null;
+                      const td = isTbl ? normTbl(readTb(data[`tbl__${id}`]) || {}) : null;
                       let tbPos;
                       if (isImg) {
                         const roomRight = r.x + r.w <= pw - 44, roomLeft = r.x >= 44;
@@ -1003,23 +1236,24 @@ export default function SectionPdfEditor({
                           : roomLeft ? { right: `calc(${100 - left}% + 8px)`, top: `${top}%` }
                           : { left: `calc(${left + wPct}% - 40px)`, top: `calc(${top}% + 8px)` };
                       } else {
-                        tbPos = r.top >= 44 ? { left: `${left}%`, top: `calc(${top}% - 44px)` } : { left: `${left}%`, top: `calc(${top + hPct}% + 8px)` };
+                        tbPos = r.top >= 76 ? { left: `${left}%`, top: `calc(${top}% - 68px)` } : { left: `${left}%`, top: `calc(${top + hPct}% + 8px)` };
                       }
-                      const tx = !isImg ? textRects[id] : null;
+                      const tx = !isImg && !isTbl ? textRects[id] : null;
+                      const cursor = isTbl ? "cursor-text" : r.filled ? (isLive ? "cursor-grabbing" : "cursor-move") : "cursor-pointer";
                       return (
                         <div key={key}>
                           <div data-img-ui
-                            onPointerDown={(e) => startGesture(e, "move", kind, id)} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={endGesture}
-                            title={r.filled ? "Click to select, drag to move" : "Click to select"}
-                            className={`absolute touch-none ${tool === "select" ? "pointer-events-auto" : "pointer-events-none"} ${r.filled ? (isLive ? "cursor-grabbing" : "cursor-move") : "cursor-pointer"} ${selected ? "" : "hover:outline hover:outline-1 hover:outline-[#2f80ff]/70"}`}
+                            onPointerDown={(e) => (isTbl ? tblPointerDown(e, id) : startGesture(e, "move", kind, id))} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={endGesture}
+                            title={isTbl ? "Click a cell to type. Drag the square at the top-left to move the table." : r.filled ? "Click to select, drag to move" : "Click to select"}
+                            className={`absolute ${isTbl ? "" : "touch-none"} ${tool === "select" ? "pointer-events-auto" : "pointer-events-none"} ${cursor} ${selected ? "" : "hover:outline hover:outline-1 hover:outline-[#2f80ff]/70"}`}
                             style={{
                               left: `${left}%`, top: `${top}%`, width: `${wPct}%`, height: `${hPct}%`,
-                              ...(selected ? { outline: "2px solid #2f80ff", outlineOffset: 0, background: "rgba(47,128,255,0.08)" } : null),
+                              ...(selected ? { outline: "2px solid #2f80ff", outlineOffset: 0, background: isTbl ? undefined : "rgba(47,128,255,0.08)" } : null),
                             }}>
                             {isImg && (isLive || pending[key]) && ghosts[`${version}:${id}`] ? (
                               <img src={ghosts[`${version}:${id}`]} alt="" draggable={false} className="pointer-events-none absolute inset-0 h-full w-full select-none" />
                             ) : null}
-                            {!isImg && tx && (isLive || pending[key]) ? (
+                            {tx && (isLive || pending[key]) ? (
                               <div className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap bg-white"
                                 style={{
                                   fontFamily: FONT_CSS[tx.family] || FONT_CSS.he, fontSize: `${tx.size * pxPerPt}px`, lineHeight: `${tx.lead * pxPerPt}px`,
@@ -1029,14 +1263,20 @@ export default function SectionPdfEditor({
                                 {readTb(data[`txt__${id}`])?.text}
                               </div>
                             ) : null}
-                            {isTbl && tr ? (
-                              <div className="pointer-events-none absolute inset-0 overflow-hidden bg-white/30 border border-white/10 rounded-sm">
-                                <div className="absolute inset-0 grid overflow-hidden" style={{ gridTemplateColumns: `repeat(${tr.cols}, 1fr)`, gridTemplateRows: `repeat(${tr.rows}, 1fr)` }}>
-                                  {tr.cellText ? tr.cellText.map((row, ri) => row.map((cell, ci) => (
-                                    <div key={`${ri}-${ci}`} className={`border-t border-l border-white/10 ${ri === 0 && tr.headerRow ? "bg-[#1a2e46]" : ""} px-1 py-[1px] text-[7px] leading-[9px] text-[#c9dfe3] truncate overflow-hidden ${ri === 0 ? "font-bold" : ""}`}>{cell || "&nbsp;"}</div>
-                                  ))) : null}
-                                </div>
-                              </div>
+                            {isTbl && td && (selected || isLive || pending[key]) ? (
+                              <TableOverlay t={td} pxPerPt={pxPerPt} rowPx={(r.h / td.rows) * pxPerPt}
+                                active={cell && cell.id === id ? cell : null}
+                                onDraft={(rr, cc, v) => { cellDraft.current = { id, r: rr, c: cc, value: v }; }}
+                                onBlurCell={flushCell}
+                                onKeyCell={(e, rr, cc) => onTblKey(e, id, rr, cc)} />
+                            ) : null}
+                            {selected && isTbl && r.filled ? (
+                              <span data-img-ui title="Drag to move the table" aria-label="Move table"
+                                onPointerDown={(e) => startGesture(e, "move", kind, id)} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={endGesture}
+                                className="absolute grid h-5 w-5 cursor-move touch-none place-items-center rounded-[3px] border border-[#2f80ff] bg-white text-[#2f80ff] shadow"
+                                style={r.x >= 30 ? { left: -26, top: 0 } : { left: 0, top: -24 }}>
+                                <MoveIcon className="h-3.5 w-3.5" />
+                              </span>
                             ) : null}
                             {selected && (isImg || isTbl) && r.filled ? ["nw", "ne", "sw", "se"].map((c) => (
                               <span key={c} data-img-ui
@@ -1074,9 +1314,21 @@ export default function SectionPdfEditor({
                                 </>
                               ) : isTbl ? (
                                 <>
-                                  <button type="button" title="Edit table cells" aria-label="Edit table cells" onClick={() => editTable(id)}
+                                  {[["addRow", "+ Row", "Insert a row below the current cell"], ["addCol", "+ Col", "Insert a column to the right of the current cell"],
+                                    ["delRow", "− Row", "Delete the current row"], ["delCol", "− Col", "Delete the current column"]].map(([op, label, tip]) => (
+                                    <button key={op} type="button" title={tip} aria-label={tip}
+                                      onPointerDown={(e) => e.stopPropagation()}
+                                      onClick={(e) => { e.stopPropagation(); tblOp(id, op); }}
+                                      className={tbBtn}>{label}</button>
+                                  ))}
+                                  <span className="mx-0.5 h-4 w-px bg-[#2d5871]" />
+                                  <button type="button" title="Table settings (heading, rows, columns)" aria-label="Table settings"
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => { e.stopPropagation(); editTable(id); }}
                                     className="grid h-7 w-7 place-items-center rounded-full text-[#d7e9ec] hover:bg-white/10"><PencilIcon className="h-4 w-4" /></button>
-                                  <button type="button" title="Delete table" aria-label="Delete table" onClick={() => removeTable(id)}
+                                  <button type="button" title="Delete table" aria-label="Delete table"
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => { e.stopPropagation(); removeTable(id); }}
                                     className="grid h-7 w-7 place-items-center rounded-full text-[#ff9da9] hover:bg-[#ff8e9c]/20"><TrashIcon className="h-4 w-4" /></button>
                                 </>
                               ) : (
@@ -1181,15 +1433,34 @@ export default function SectionPdfEditor({
         </div>
       ) : null}
 
-      {/* text dialog */}
-      {dlg && dlg.mode !== "tcedit" ? (
+      {/* text / field / table dialog */}
+      {dlg ? (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#03121f]/80 p-4">
           <div className="w-full max-w-lg rounded-2xl border border-[#2d5871] bg-[#0c2b44] p-5 shadow-2xl">
-            <h3 className="text-base font-semibold text-white">{dlg.mode === "field" ? `Enter ${dlg.field.label}` : dlg.mode === "tb" ? (dlg.id ? "Edit text" : "Add text") : `Edit line on page ${dlg.page}`}</h3>
+            <h3 className="text-base font-semibold text-white">
+              {dlg.mode === "field" ? `Enter ${dlg.field.label}` : dlg.mode === "tb" ? (dlg.id ? "Edit text" : "Add text") : dlg.mode === "tbl" ? "Add table" : dlg.mode === "tbset" ? "Table settings" : `Edit line on page ${dlg.page}`}
+            </h3>
             <p className="mt-1 text-[11px] leading-4 text-[#8faebb]">
-              {dlg.mode === "field" ? (dlg.field.type === "textarea" ? `Variable: ${dlg.field.id}. Enter project-specific text, then press Ctrl+Enter or Save to update the preview.` : `Variable: ${dlg.field.id}. Press Enter to save and update the preview.`) : dlg.mode === "tb" ? "Uses the same font, size, colour and margins as the report text. Leave size empty to match." : "Type a value in place of a [ placeholder ] or change a value. It is saved to its field."}
+              {dlg.mode === "field" ? (dlg.field.type === "textarea" ? `Variable: ${dlg.field.id}. Enter project-specific text, then press Ctrl+Enter or Save to update the preview.` : `Variable: ${dlg.field.id}. Press Enter to save and update the preview.`)
+                : dlg.mode === "tb" ? "Uses the same font, size, colour and margins as the report text. Leave size empty to match."
+                : isTableDlg ? "Give the table a heading and choose its size. Afterwards click any cell to type in it; Tab moves to the next cell and adds a row after the last one."
+                : "Type a value in place of a [ placeholder ] or change a value. It is saved to its field."}
             </p>
-            {dlg.mode === "field" ? (
+            {isTableDlg ? (
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <label className="col-span-2 block"><span className={LABEL}>Table heading</span>
+                  <input autoFocus className={`${INPUT} mt-1`} value={dlg.title || ""} placeholder="e.g. Table 1 - Revision history"
+                    onChange={(e) => setDlg({ ...dlg, title: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyDialog(); } }} /></label>
+                <label className="block"><span className={LABEL}>Rows</span>
+                  <input type="number" min={1} max={50} className={INPUT} value={dlg.rows} onChange={(e) => setDlg({ ...dlg, rows: e.target.value })} /></label>
+                <label className="block"><span className={LABEL}>Columns</span>
+                  <input type="number" min={1} max={20} className={INPUT} value={dlg.cols} onChange={(e) => setDlg({ ...dlg, cols: e.target.value })} /></label>
+                <label className="col-span-2 flex items-center gap-2 text-[11px] text-[#c9dfe3]">
+                  <input type="checkbox" className="accent-[#f84f63]" checked={!!dlg.headerRow} onChange={(e) => setDlg({ ...dlg, headerRow: e.target.checked })} />Header row (bold, shaded)
+                </label>
+              </div>
+            ) : dlg.mode === "field" ? (
               dlg.field.type === "select" ? (
                 <select autoFocus className={`${INPUT} mt-3`} value={dlg.value} onChange={(e) => setDlg({ ...dlg, value: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyDialog(); } }}>
                   {dlg.field.opts.map((option) => <option key={option} value={option}>{option}</option>)}
@@ -1201,7 +1472,7 @@ export default function SectionPdfEditor({
                   value={dlg.value} onChange={(e) => setDlg({ ...dlg, value: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyDialog(); } }} />
               )
             ) : <textarea autoFocus className={`${INPUT} mt-3 h-28 resize-none`} value={dlg.text} onChange={(e) => setDlg({ ...dlg, text: e.target.value })} />}
-            {dlg.mode !== "field" ? <div className="mt-2 grid grid-cols-3 gap-2">
+            {dlg.mode !== "field" && !isTableDlg ? <div className="mt-2 grid grid-cols-3 gap-2">
               <label className="block"><span className={LABEL}>Size</span>
                 <input type="number" className={INPUT} placeholder={dlg.mode === "tb" ? "Auto" : undefined} value={dlg.size} onChange={(e) => setDlg({ ...dlg, size: e.target.value })} /></label>
               {dlg.mode === "tb" ? <span /> : (
@@ -1215,57 +1486,7 @@ export default function SectionPdfEditor({
             </div> : null}
             <div className="mt-4 flex justify-end gap-2">
               <Btn variant="ghost" onClick={() => setDlg(null)}>Cancel</Btn>
-              <Btn variant="primary" icon="check" onClick={applyDialog}>{dlg.mode === "field" ? "Save value" : "Apply"}</Btn>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {dlg && dlg.mode === "tcedit" ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#03121f]/80 p-4">
-          <div className="w-full max-w-[600px] rounded-2xl border border-[#2d5871] bg-[#0c2b44] p-5 shadow-2xl">
-            <h3 className="text-base font-semibold text-white mb-3">Edit table cells</h3>
-            <div className="overflow-x-auto max-h-[60vh] overflow-y-auto border border-[#234b63] rounded-lg bg-[#081f35] p-2 mb-3">
-              <table className="w-full text-left text-[11px] border-collapse">
-                <thead>
-                  <tr>
-                    <th className="pb-1 pr-2 text-[#8faebb]">Row / Col</th>
-                    {[...Array(dlg.cols || 0)].map((_, c) => (
-                      <th key={c} className="pb-1 pr-2 w-[80px] text-[#8faebb] border-r border-[#234b63]">{c + 1}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...Array(dlg.rows || 0)].map((_, r) => (
-                    <tr key={r} className="border-t border-[#234b63]">
-                      <td className="pb-1 pr-2 text-[#8faebb] border-r border-[#234b63]">{r + 1}</td>
-                      {[...Array(dlg.cols || 0)].map((_, c) => (
-                        <td key={c} className="pr-2">
-                          <input className="w-full h-6 rounded border border-[#2d5871] bg-[#103a55] px-1 text-xs text-white focus:border-[#f84f63] outline-none"
-                            value={dlg.cellText?.[r]?.[c] || ""}
-                            onChange={(e) => {
-                              const ct = dlg.cellText ? dlg.cellText.map(row => [...row]) : [];
-                              if (!ct[r]) ct[r] = [];
-                              ct[r][c] = e.target.value;
-                              setDlg({ ...dlg, cellText: ct });
-                            }} />
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="flex items-center justify-between gap-3 text-xs text-[#8faebb]">
-              <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1">
-                  <input type="checkbox" checked={!!dlg.headerRow} onChange={(e) => setDlg({ ...dlg, headerRow: e.target.checked })} className="accent-[#f84f63]" /> Header row
-                </label>
-              </div>
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <Btn variant="ghost" onClick={() => setDlg(null)}>Cancel</Btn>
-              <Btn variant="primary" icon="check" onClick={applyDialog}>Apply</Btn>
+              <Btn variant="primary" icon="check" onClick={applyDialog}>{dlg.mode === "field" ? "Save value" : dlg.mode === "tbl" ? "Create table" : "Apply"}</Btn>
             </div>
           </div>
         </div>
