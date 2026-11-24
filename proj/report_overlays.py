@@ -12,9 +12,13 @@ This module does that with PyMuPDF, driven only by keys in the report `data`:
 Added text copies the report's own body text: font family, size, colour, line
 spacing and the left/right margins are measured from the generated PDF itself.
 
+Added tables are stored as ``tbl__<id>`` JSON strings:
+    {sec, rel, page, top, x, w, h, rows, cols, headerRow, cellText: [[...]]}
+They are drawn as bordered grids with a navy header row and body text cells.
+
 apply_editor_overlays() returns (pdf_bytes, section_pages). section_pages gets
 the real image boxes in "__images" (bottom-origin points, same format the engine
-uses) and a new "__texts" map so the editor can draw outlines in the right place.
+uses), "__texts" for added text boxes and "__tables" for added tables.
 
 Safety rule: if anything goes wrong, or a moved image cannot be verified in the
 output, the untouched engine PDF is returned, so an image can never vanish.
@@ -198,6 +202,67 @@ def _find_image(page, b):
     return tuple(best["bbox"]), best["xref"]
 
 
+def _apply_tables(fitz, doc, sp, data):
+    items = []
+    for k, v in data.items():
+        if not k.startswith("tbl__"):
+            continue
+        try:
+            t = json.loads(v) if isinstance(v, str) else v
+        except ValueError:
+            continue
+        if isinstance(t, dict) and int(_f(t.get("rows"), 0)) > 0 and int(_f(t.get("cols"), 0)) > 0:
+            items.append((k[4:], t))
+    if not items:
+        return {}
+    style = body_style(doc)
+    fontname = _BASE14[(style["family"], style["bold"], style["italic"])]
+    fsize = style["size"]
+    out = {}
+    for tid, t in items:
+        pno = int(_clamp(int(_f(t.get("page", 1))) - 1, 0, len(doc) - 1))
+        page = doc[pno]
+        pw, ph = page.rect.width, page.rect.height
+        x = _clamp(_f(t.get("x"), 0), 0, pw)
+        top = _clamp(_f(t.get("top", 0)), 0, ph)
+        w = _clamp(_f(t.get("w", 100)), 10, pw - x)
+        h = _clamp(_f(t.get("h", 100)), 10, ph - top)
+        rows = int(_clamp(_f(t.get("rows", 1)), 1, 50))
+        cols = int(_clamp(_f(t.get("cols", 1)), 1, 20))
+        headerRow = bool(t.get("headerRow"))
+        cellText = t.get("cellText", [])
+        if not isinstance(cellText, list) or len(cellText) == 0:
+            cellText = [["" for _ in range(cols)] for _ in range(rows)]
+        row_h = h / rows
+        col_w = w / cols
+        font = fitz.Font(fontname)
+        for r in range(rows):
+            for c in range(cols):
+                cx = x + c * col_w
+                ct = top + r * row_h
+                val = ""
+                if r < len(cellText) and isinstance(cellText[r], list) and c < len(cellText[r]):
+                    val = str(cellText[r][c])
+                is_header = headerRow and r == 0
+                page.draw_rect(fitz.Rect(cx, ct, cx + col_w, ct + row_h),
+                              color=(0.4, 0.4, 0.4), width=0.5, overlay=True)
+                if is_header:
+                    page.draw_rect(fitz.Rect(cx, ct, cx + col_w, ct + row_h),
+                                  color=None, fill=(0.18, 0.25, 0.45), overlay=True)
+                if val.strip():
+                    cell_val = val.translate(_TYPO)
+                    color = (1, 1, 1) if is_header else (0, 0, 0)
+                    rect = fitz.Rect(cx + 3, ct + 2, cx + col_w - 3, ct + row_h - 2)
+                    page.insert_textbox(rect, cell_val, fontname=fontname, fontsize=fsize,
+                                       color=color, align=fitz.TEXT_ALIGN_LEFT, overlay=True)
+        out[tid] = {
+            "page": pno + 1, "x": x, "top": top, "w": w, "h": h,
+            "rows": rows, "cols": cols, "headerRow": headerRow,
+            "cellText": cellText,
+        }
+    return out
+
+
 def _apply_images(fitz, doc, sp, data):
     """Snap every image box to its real PDF position (bottom-origin) and apply moves / resizes.
 
@@ -369,8 +434,9 @@ def apply_editor_overlays(content, section_pages, data, images=None, layout=None
     keys = list(data.keys()) if isinstance(data, dict) else []
     has_img = any(k.startswith(("img_dx__", "img_dy__", "img_scale__")) for k in keys)
     has_txt = any(k.startswith("txt__") for k in keys)
+    has_tbl = any(k.startswith("tbl__") for k in keys)
     has_boxes = isinstance(sp_in.get("__images"), dict) and bool(sp_in.get("__images"))
-    if not (has_img or has_txt or has_boxes):
+    if not (has_img or has_txt or has_tbl or has_boxes):
         return content, sp_in
     try:
         import fitz  # PyMuPDF
@@ -381,8 +447,10 @@ def apply_editor_overlays(content, section_pages, data, images=None, layout=None
         doc = fitz.open(stream=content, filetype="pdf")
         changed = _apply_images(fitz, doc, sp, data)
         texts = _apply_texts(fitz, doc, sp, data, layout)
+        tables = _apply_tables(fitz, doc, sp, data)
         sp["__texts"] = texts
-        out = doc.tobytes(garbage=3, deflate=True) if (changed or texts) else content
+        sp["__tables"] = tables
+        out = doc.tobytes(garbage=3, deflate=True) if (changed or texts or tables) else content
         doc.close()
         return out, sp
     except Exception:
