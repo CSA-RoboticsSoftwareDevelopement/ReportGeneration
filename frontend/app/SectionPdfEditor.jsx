@@ -211,6 +211,8 @@ export default function SectionPdfEditor({
   const docRef = useRef("");
   const taskRef = useRef(null);
   const seqRef = useRef(0);
+  const buildAbortRef = useRef(null);
+  const disposedRef = useRef(false);
   const overlayRef = useRef(null);
   const pageBoxRef = useRef(null);
   const scrollRef = useRef(null);
@@ -268,16 +270,44 @@ export default function SectionPdfEditor({
   const rebuild = useCallback(async () => {
     const seq = ++seqRef.current;
     const upto = commitSeq.current;
+    buildAbortRef.current?.abort();
+    const controller = new AbortController();
+    buildAbortRef.current = controller;
     setBusy("Applying changes…");
     try {
-      const res = await fetch("/api/generate", { method: "POST", headers: { "X-CSRF-Token": csrfRef.current }, body: buildForm(), credentials: "include", cache: "no-store" });
+      const res = await fetch("/api/generate", { method: "POST", headers: { "X-CSRF-Token": csrfRef.current }, body: buildForm(), credentials: "include", cache: "no-store", signal: controller.signal });
       if (!res.ok) throw new Error("The report could not be built.");
       let sp = {};
       try { sp = JSON.parse(decodeURIComponent(res.headers.get("X-Section-Pages") || "{}")); } catch { /* none */ }
       const blob = await res.blob();
-      const f = new FormData();
-      f.append("file", new File([blob], "Report.pdf", { type: "application/pdf" }));
-      const d = await api("/api/pdf/open", { csrf: csrfRef.current, method: "POST", form: f });
+      if (seq !== seqRef.current) return;
+      const previewForm = (id = "") => {
+        const form = new FormData();
+        form.append("file", new File([blob], "Report.pdf", { type: "application/pdf" }));
+        form.append("revision", String(seq));
+        if (id) form.append("doc_id", id);
+        return form;
+      };
+      let d;
+      try {
+        d = await api("/api/pdf/preview", { csrf: csrfRef.current, method: "POST", form: previewForm(docRef.current) });
+      } catch (error) {
+        if (!docRef.current || error?.status !== 404) throw error;
+        docRef.current = "";
+        d = await api("/api/pdf/preview", { csrf: csrfRef.current, method: "POST", form: previewForm() });
+      }
+      docRef.current = d.info.doc_id;
+      if (disposedRef.current) {
+        fetch(`/api/pdf/preview/${d.info.doc_id}`, {
+          method: "DELETE",
+          headers: { "X-CSRF-Token": csrfRef.current },
+          credentials: "include",
+          keepalive: true,
+        }).catch(() => { /* server expiry is the fallback */ });
+        return;
+      }
+      setDocId(d.info.doc_id);
+      setInfo(d.info);
       if (seq !== seqRef.current) return;
       const loaded = await openPdf(d.info.doc_id);
       if (seq !== seqRef.current) { /* a newer rebuild started while this PDF was loading: drop this one */
@@ -285,16 +315,15 @@ export default function SectionPdfEditor({
         return;
       }
       showPdf(loaded);
-      docRef.current = d.info.doc_id;
-      setDocId(d.info.doc_id);
-      setInfo(d.info);
       setSectionPages(sp);
       setVersion((v) => v + 1);
       setTimeout(() => setPending((p) => Object.fromEntries(Object.entries(p).filter(([, v]) => v.n > upto))), 350);
     } catch (e) {
+      if (e?.name === "AbortError") return;
       setPending({});
       notify(e.message || "Something went wrong.", "error");
     } finally {
+      if (buildAbortRef.current === controller) buildAbortRef.current = null;
       if (seq === seqRef.current) setBusy("");
     }
   }, [buildForm, openPdf, showPdf, notify]);
@@ -305,6 +334,28 @@ export default function SectionPdfEditor({
     first.current = false;
     return () => clearTimeout(t);
   }, [reportSig]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    disposedRef.current = false;
+    const removePreview = () => {
+      const id = docRef.current;
+      if (!id) return;
+      fetch(`/api/pdf/preview/${id}`, {
+        method: "DELETE",
+        headers: { "X-CSRF-Token": csrfRef.current },
+        credentials: "include",
+        keepalive: true,
+      }).catch(() => { /* the one-hour server expiry is the fallback */ });
+    };
+    window.addEventListener("beforeunload", removePreview);
+    return () => {
+      disposedRef.current = true;
+      buildAbortRef.current?.abort();
+      Promise.resolve(taskRef.current?.destroy?.()).catch(() => { /* already gone */ });
+      window.removeEventListener("beforeunload", removePreview);
+      removePreview();
+    };
+  }, []);
 
   /* section page range */
   const startOf = sectionPages[section?.id];

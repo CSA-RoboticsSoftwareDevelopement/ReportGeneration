@@ -504,9 +504,3 @@ async def preview_pages(request: Request, png: int = 1):
             pages.append({"page": i + 1, "dataUrl": "data:image/png;base64," + b64})
     doc.close()
     return JSONResponse({"pages": pages, "section_pages": section_pages})
-
-
-# PDF Studio: a local PDF workspace for editing, organising, converting and
-# protecting generated reports and arbitrary uploaded PDFs.  Sessions are
-# stored below proj/uploads/pdf-studio and scoped to the signed-in account.
-app.include_router(pdf_studio.create_router(require_user, require_csrf))
