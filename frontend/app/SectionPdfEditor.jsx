@@ -163,25 +163,30 @@ const PH = /\[ ([^\]]+?) \]/g;
    { sec, rel, page, top, x, w, h, rows, cols, headerRow, cellText[][], title, style }
    `style` is saved with the table so the report engine can draw it the same way the editor shows it:
    a light-blue bold header row, thin dark-blue borders and white body cells. */
-const TABLE_STYLE = {
-  headerFill: "#c5d5ea",
+
+  const TABLE_STYLE = {
+  headerFill: "#ffffff",
   bodyFill: "#ffffff",
-  border: "#1f3a5f",
-  borderW: 0.75, /* points */
+  border: "#000000",
+  borderW: 0.5, /* points */
   text: "#000000",
-  fontSize: 9, /* points */
+  fontSize: 10, /* points */
+  fontFamily: "Calibri, Carlito, Arial, sans-serif",
+  align: "center",
+  headerBold: false,
 };
+const TABLE_ROW_PT = 16; /* height of one row (points): a single line of text plus a little padding */
 const normTbl = (t) => {
   const rows = Math.max(1, Math.round(Number(t?.rows)) || 1);
   const cols = Math.max(1, Math.round(Number(t?.cols)) || 1);
   const cellText = Array.from({ length: rows }, (_, r) =>
     Array.from({ length: cols }, (_, c) => String(t?.cellText?.[r]?.[c] ?? "")));
-  return { ...t, rows, cols, cellText };
+  return { ...t, rows, cols, cellText, style: { ...TABLE_STYLE } };
 };
 
 /* The table as it appears in the PDF, drawn live on top of the page so it can be edited like a Word table. */
 function TableOverlay({ t, pxPerPt, rowPx, active, onDraft, onBlurCell, onKeyCell }) {
-  const st = { ...TABLE_STYLE, ...(t.style || {}) };
+  const st = { ...(t.style || {}), ...TABLE_STYLE }; /* the current look always wins, so older tables follow it too */
   const fs = Math.max(6, st.fontSize * pxPerPt);
   const lh = fs * 1.25;
   const bw = Math.max(1, st.borderW * pxPerPt);
@@ -199,11 +204,11 @@ function TableOverlay({ t, pxPerPt, rowPx, active, onDraft, onBlurCell, onKeyCel
             background: head ? st.headerFill : st.bodyFill,
             borderRight: c < t.cols - 1 ? line : "none",
             borderBottom: r < t.rows - 1 ? line : "none",
-            fontWeight: head ? 700 : 400,
+            fontWeight: head && st.headerBold ? 700 : 400,
           }}>
           {isActive ? (
             <textarea autoFocus defaultValue={val}
-              className="pointer-events-auto absolute inset-0 h-full w-full resize-none overflow-hidden bg-transparent px-1 outline-none"
+              className={`pointer-events-auto absolute inset-0 h-full w-full resize-none overflow-hidden bg-transparent px-1 outline-none ${st.align === "left" ? "text-left" : st.align === "right" ? "text-right" : "text-center"}`}
               style={{ paddingTop: padTop, lineHeight: `${lh}px`, fontFamily: "inherit", fontSize: "inherit", fontWeight: "inherit", color: "inherit", boxShadow: "inset 0 0 0 2px #2f80ff" }}
               onPointerDown={(e) => e.stopPropagation()}
               onFocus={(e) => { const n = e.target.value.length; e.target.setSelectionRange(n, n); }}
@@ -211,7 +216,7 @@ function TableOverlay({ t, pxPerPt, rowPx, active, onDraft, onBlurCell, onKeyCel
               onBlur={() => onBlurCell()}
               onKeyDown={(e) => onKeyCell(e, r, c)} />
           ) : (
-            <div className="flex h-full items-center overflow-hidden whitespace-pre-wrap break-words px-1" style={{ lineHeight: `${lh}px` }}>{val}</div>
+            <div className="flex h-full items-center justify-center overflow-hidden whitespace-pre-wrap break-words px-1 text-center" style={{ lineHeight: `${lh}px` }}>{val}</div>
           )}
         </div>
       );
@@ -222,7 +227,7 @@ function TableOverlay({ t, pxPerPt, rowPx, active, onDraft, onBlurCell, onKeyCel
       style={{
         gridTemplateColumns: `repeat(${t.cols}, minmax(0, 1fr))`,
         gridTemplateRows: `repeat(${t.rows}, minmax(0, 1fr))`,
-        border: line, color: st.text, fontFamily: "Helvetica, Arial, sans-serif", fontSize: fs,
+        border: line, color: st.text, fontFamily: st.fontFamily, fontSize: fs,
       }}>
       {cells}
     </div>
@@ -753,7 +758,7 @@ export default function SectionPdfEditor({
       const startPage = sectionPages[sectionOfPage(dlg.page)];
       const box = {
         sec: sectionOfPage(dlg.page), rel: typeof startPage === "number" ? dlg.page - startPage : null, page: dlg.page,
-        top: r1(dlg.top), x: r1(dlg.x), w: r1(dlg.w), h: r1(dlg.h),
+        top: r1(dlg.top), x: r1(dlg.x), w: r1(dlg.w), h: r1(rows * TABLE_ROW_PT),
         rows, cols, headerRow: !!dlg.headerRow,
         cellText: Array.from({ length: rows }, () => new Array(cols).fill("")),
         title: String(dlg.title || "").trim(),
