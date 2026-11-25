@@ -1,4 +1,5 @@
 {
+<<<<<<<< HEAD:proj/uploads/pdf-studio/1d9dec4490b34cbfa4aead7679740ff2/meta.json
   "id": "1d9dec4490b34cbfa4aead7679740ff2",
   "owner_id": "5",
   "name": "Report.pdf",
@@ -8,6 +9,17 @@
   "protected": false,
   "kind": "section-preview",
   "revision": 2,
+========
+  "id": "3f88876acf5f4caf8af459c329eef805",
+  "owner_id": "3",
+  "name": "Report.pdf",
+  "created": 1795581824.405953,
+  "updated": 1795581824.405953,
+  "was_protected": false,
+  "protected": false,
+  "kind": "section-preview",
+  "revision": 1,
+>>>>>>>> 5bc02ea80c6afb1a80c99a476a04bf682ee36a2a:proj/uploads/pdf-studio/3f88876acf5f4caf8af459c329eef805/meta.json
   "undo": [],
   "redo": [],
   "shares": []

@@ -1240,7 +1240,7 @@ function SectionEditor({ section, sections, narrativeCtx, data, setData, files, 
   const currentIndex = sectionIds.indexOf(section.id);
   const prevSection = currentIndex > 0 ? sections[currentIndex - 1] : null;
   const nextSection = currentIndex < sectionIds.length - 1 ? sections[currentIndex + 1] : null;
-  const goTo = (id) => router.push(`/section/${id}`);
+  const goTo = (id) => router.push(`/${id}`);
   // Certificate/title/summary-style sections have no designed figure slots
   // and therefore intentionally have no Evidence Images UI.
   const sectionImages = Array.isArray(section.images) ? section.images : [];
@@ -2352,10 +2352,13 @@ export default function ReportGenix() {
   useEffect(() => {
     if (!ready || !user) return;
     const key = `reportgenix-landed:${user.id ?? user.email}`;
-    if (window.sessionStorage.getItem(key)) return;
+    const firstRun = !window.sessionStorage.getItem(key);
     window.sessionStorage.setItem(key, "1");
-    if (window.location.pathname === "/") router.replace("/dashboard");
-  }, [ready, user, router]);
+    /* retired pages: always go to the dashboard */
+    if (pathname === "/" || pathname === "/projects") { router.replace("/dashboard"); return; }
+    /* a report URL opened straight after signing in starts at the dashboard */
+    if (firstRun && pathname === "/cert") router.replace("/dashboard");
+  }, [ready, user, router, pathname]);
 
   useEffect(() => { window.scrollTo({ top: 0 }); }, [pathname]);
 
@@ -2787,7 +2790,7 @@ export default function ReportGenix() {
       [data, reportRows, selected, layout, extraImages, removedSchemaImages, files]
   );
 
-  const currentSectionId = pathname.startsWith("/section/") ? decodeURIComponent(pathname.slice("/section/".length)) : "";
+  const currentSectionId = pathname.split("/").length === 2 ? decodeURIComponent(pathname.slice(1)) : "";
   const currentActiveSection = reportSections.find((section) => section.id === currentSectionId);
 
   /*
@@ -3223,7 +3226,7 @@ export default function ReportGenix() {
       materialMode: "library", selectedMaterialId: "", materialMeta: { material_type: "", category: "steel", source_standard_id: "", notes: "" },
       activeReportId: "", extraImages: {}, removedSchemaImages: {},
     });
-    router.push("/");
+    router.push(`/${encodeURIComponent(reportSections[0]?.id || "cert")}`);
   };
 
   const openReport = async (id) => {
@@ -3258,7 +3261,7 @@ export default function ReportGenix() {
           activeReportId: id, extraImages: s.extraImages || {}, removedSchemaImages: s.removedSchemaImages || {},
         });
       }
-      router.push("/");
+      router.push(`/${encodeURIComponent(reportSections[0]?.id || "cert")}`);
     } catch (e) {
       window.alert(e.message || "Could not open this report.");
     }
@@ -3351,7 +3354,7 @@ export default function ReportGenix() {
   const generalFields = schema.general.filter((field) => !MATERIAL_IDS.has(field.id) && field.id !== "rae_no" && field.id !== "prepared_by");
   const raeField = schema.general.find((field) => field.id === "rae_no");
   const preparedByField = schema.general.find((field) => field.id === "prepared_by");
-  const sectionId = pathname.startsWith("/section/") ? decodeURIComponent(pathname.slice("/section/".length)) : "";
+    const sectionId = pathname.split("/").length === 2 ? decodeURIComponent(pathname.slice(1)) : "";
   const activeSection = reportSections.find((section) => section.id === sectionId);
   const activeSectionIndex = reportSections.findIndex((section) => section.id === sectionId);
   const previousSection = activeSectionIndex > 0 ? reportSections[activeSectionIndex - 1] : null;
@@ -3359,16 +3362,17 @@ export default function ReportGenix() {
     ? reportSections[activeSectionIndex + 1]
     : null;
   const navigateToSection = (section) => {
-    if (section) router.push(`/section/${encodeURIComponent(section.id)}`);
+    if (section) router.push(`/${encodeURIComponent(section.id)}`);
   };
+
+
+
   /* /faq and /raq are the same page (Raised and Answered Questions) */
   const route =
     pathname === "/dashboard"
       ? "dashboard"
       : pathname === "/"
         ? "home"
-        : pathname === "/projects"
-          ? "projects"
           : pathname === "/layout"
             ? "layout"
             : pathname === "/issue"
@@ -3393,7 +3397,7 @@ export default function ReportGenix() {
     "not-found": { label: "Page not found", href: null },
   };
   const crumbs = route === "section"
-    ? [{ label: "Sections", href: "/projects" }, { label: data[`heading__${activeSection.id}`] || activeSection.title, href: null }]
+    ? [{ label: "Sections", href: "/dashboard" }, { label: data[`heading__${activeSection.id}`] || activeSection.title, href: null }]
     : [routeCrumb[route] || routeCrumb["not-found"]];
 
   const navClass = (active) => `rounded-md px-3 py-2 text-sm font-medium transition ${active ? "bg-[#f84f63] text-[#0a1f36]" : "text-[#c6dce2] hover:bg-white/5 hover:text-white"}`;
@@ -3419,10 +3423,9 @@ export default function ReportGenix() {
 
   const sidebarSteps = [
   { key: "home", href: "/", label: "Project", sub: "Report details", active: route === "home", done: filled(data.rae_no) && filled(data.project_name) },
-  { key: "projects", href: "/projects", label: "Libraries", sub: "Materials & compliance", active: route === "projects", done: standards.length > 0 && filled(data.material) },
   {
     key: "sections",
-    href: firstReportSection ? `/section/${encodeURIComponent(firstReportSection.id)}` : "/projects",
+        href: firstReportSection ? `/${encodeURIComponent(firstReportSection.id)}` : "/dashboard",
     label: "Section",
     sub: "Report sections",
     active: route === "section",
@@ -3555,7 +3558,7 @@ export default function ReportGenix() {
         </header>
 
         <div className={workspaceClass}>
-          <div data-tour="page-header" className={`${route === "dashboard" || route === "section" ? "hidden " : ""}${pageHeaderClass}`}><div>{route !== "section" && <p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p>}<h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/projects" className={navClass(route === "projects")}>Libraries</Link><Link href="/studio" className={navClass(false)}>Studio</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Preview and Download</Link></div></div>
+          <div data-tour="page-header" className={`${route === "dashboard" || route === "section" ? "hidden " : ""}${pageHeaderClass}`}><div>{route !== "section" && <p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p>}<h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/studio" className={navClass(false)}>Studio</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Preview and Download</Link></div></div>
 
           <nav className={`${route === "dashboard" || route === "section" ? "hidden " : ""}flex items-center gap-1 text-xs text-[#8fbcc0] mt-4 ml-2`} aria-label="Breadcrumb">
             <Link href="/" className="hover:text-[#c8dfe1]">Home</Link>
@@ -3674,11 +3677,11 @@ export default function ReportGenix() {
                 }}
                 onBack={() => {
                   const i = reportSections.findIndex((s) => s.id === activeSection.id);
-                  router.push(i > 0 ? `/section/${encodeURIComponent(reportSections[i - 1].id)}` : "/projects");
+                  router.push(i > 0 ? `/${encodeURIComponent(reportSections[i - 1].id)}` : "/dashboard");
                 }}
                 onNext={() => {
                   const i = reportSections.findIndex((s) => s.id === activeSection.id);
-                  router.push(i >= 0 && i < reportSections.length - 1 ? `/section/${encodeURIComponent(reportSections[i + 1].id)}` : "/issue");
+                  router.push(i >= 0 && i < reportSections.length - 1 ? `/${encodeURIComponent(reportSections[i + 1].id)}` : "/issue");
                 }}
                 fieldsPanel={sectionFieldsPanel}                
               />
@@ -3866,8 +3869,8 @@ export default function ReportGenix() {
                     else if (route === "projects") router.push("/");
                     else if (route === "section") {
                       const idx = reportSections.findIndex((s) => s.id === activeSection.id);
-                      router.push(idx > 0 ? `/section/${reportSections[idx - 1].id}` : "/projects");
-                    } else if (route === "issue") router.push("/section/" + (reportSections[reportSections.length - 1]?.id || ""));
+                      router.push(idx > 0 ? `/${reportSections[idx - 1].id}` : "/dashboard");
+                    } else if (route === "issue") router.push("/" + (reportSections[reportSections.length - 1]?.id || ""));
                   }}
                   className="min-h-10 flex-1 rounded-md px-4 py-2 text-sm font-semibold border border-[#2f5b75] bg-transparent text-[#b9d2d3] hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed sm:flex-none"
                 >
@@ -3875,14 +3878,14 @@ export default function ReportGenix() {
                 </button>
                 <button
                   onClick={() => {
-                    if (route === "home") router.push("/projects");
+                    if (route === "home") router.push(`/${encodeURIComponent(reportSections[0]?.id || "cert")}`);
                     else if (route === "projects") {
                       const firstSection = reportSections[0];
-                      router.push(firstSection ? `/section/${firstSection.id}` : "/issue");
+                      router.push(firstSection ? `/${firstSection.id}` : "/issue");
                     }
                     else if (route === "section") {
                       const idx = reportSections.findIndex((s) => s.id === activeSection.id);
-                      router.push(idx < reportSections.length - 1 ? `/section/${reportSections[idx + 1].id}` : "/issue");
+                      router.push(idx < reportSections.length - 1 ? `/${reportSections[idx + 1].id}` : "/issue");
                     } else if (route === "issue") router.push("/issue");
                   }}
                   className="min-h-10 flex-1 rounded-md px-4 py-2 text-sm font-semibold border border-[#f84f63] bg-[#f84f63] text-[#0a1f36] hover:bg-[#ff667a] disabled:opacity-30 disabled:cursor-not-allowed sm:flex-none"
