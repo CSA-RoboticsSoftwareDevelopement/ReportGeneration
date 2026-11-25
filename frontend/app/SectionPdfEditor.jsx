@@ -1137,8 +1137,10 @@ export default function SectionPdfEditor({
   };
 
   const idx = sections.findIndex((x) => x.id === section?.id);
-  const analysisNumber = sections.filter((item) => item.dynamicAnalysis).findIndex((item) => item.id === section?.id) + 1;
-  const subsectionKey = `subsections__${section?.id || ""}`;
+  const pageSection = sections.find((x) => x.id === sectionOfPage(page)) || section;
+
+  const analysisNumber = sections.filter((item) => item.dynamicAnalysis).findIndex((item) => item.id === pageSection?.id) + 1;
+  const subsectionKey = `subsections__${pageSection?.id || ""}`;
   const saveSubsection = () => {
     const title = String(subDlg?.title || "").trim();
     if (!title) { notify("Enter a subsection title.", "error"); return; }
@@ -1149,6 +1151,10 @@ export default function SectionPdfEditor({
     setSubDlg(null);
     notify(`Added subsection 5.${analysisNumber}.${readSubsections(data[subsectionKey]).length + 1}.`, "success");
   };
+  const removeSubsection = (i) => setData((c) => ({
+  ...c,
+  [subsectionKey]: JSON.stringify(readSubsections(c[subsectionKey]).filter((_, k) => k !== i)),
+}));
   /* Scrolling past the top / bottom edge of a page moves to the previous / next page of this section.
      Scrolling up from a section's first page goes to the previous section.
      The NEXT section is never opened by scrolling - only by the "Next section" button. */
@@ -1231,13 +1237,13 @@ export default function SectionPdfEditor({
       {/* options bar */}
       <div className="flex flex-wrap items-center gap-2 border-b border-[#234b63] bg-[#081f35] px-3 py-2">
         <Btn size="sm" onClick={() => hasPreviousPage ? setPage((p) => p - 1) : onBack()} disabled={!hasPreviousPage && idx <= 0}>
-          {hasPreviousPage ? "← Previous page" : "← Previous section"}
+          {hasPreviousPage ? "← Previous page" : "Previous"}
         </Btn>
         <div className="min-w-0 flex-1 px-1">
           <p className="truncate text-sm font-semibold text-white">{section?.title}</p>
           <p className="text-[10px] text-[#7f9dab]">Section {idx + 1} of {sections.length} · {TOOLS.find((t) => t.id === tool)?.hint}</p>
         </div>
-        {section?.dynamicAnalysis ? <button type="button" onClick={() => setSubDlg({ title: "", body: "" })} className="rounded-md border border-[#2f5b75] px-2.5 py-1.5 text-[11px] font-semibold text-[#c9dfe3] hover:border-[#f84f63] hover:bg-white/5">+ Add subsection</button> : null}
+        {pageSection?.dynamicAnalysis ? <button type="button" onClick={() => setSubDlg({ title: "", body: "" })} className="rounded-md border border-[#2f5b75] px-2.5 py-1.5 text-[11px] font-semibold text-[#c9dfe3] hover:border-[#f84f63] hover:bg-white/5">+ Add subsection {`5.${analysisNumber}.${readSubsections(data[subsectionKey]).length + 1}`}</button> : null}
         <button type="button" className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-[#c9dfe3] hover:bg-white/10 disabled:opacity-30" onClick={() => setPage((p) => Math.max(sectionStartPage, p - 1))} disabled={page <= sectionStartPage} aria-label="Previous page in this section">
           <Icon name="chevron" className="h-4 w-4 rotate-90" /> Previous page
         </button>
@@ -1289,7 +1295,7 @@ export default function SectionPdfEditor({
           ) : null}
         </div>
         <Btn size="sm" variant="primary" onClick={() => hasNextPage ? setPage((p) => p + 1) : onNext()} disabled={!hasNextPage && idx >= sections.length - 1}>
-          {hasNextPage ? "Next page →" : "Next section →"}
+          {hasNextPage ? "Next page →" : "Next "}
         </Btn>
       </div>
 
@@ -1529,6 +1535,19 @@ export default function SectionPdfEditor({
           <div className="studio-scroll min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-3">
             {fieldsPanel}
             <div>
+              {pageSection?.dynamicAnalysis && readSubsections(data[subsectionKey]).length ? (
+                  <div>
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[#8faebb]">Subsections</p>
+                  <ul className="space-y-1.5">
+                    {readSubsections(data[subsectionKey]).map((s, i) => (
+                      <li key={i} className="flex items-center justify-between gap-2 rounded-lg border border-[#2d5871] bg-[#103a55] px-2.5 py-1.5 text-[11px] text-[#c9dfe3]">
+                        <span className="truncate">5.{analysisNumber}.{i + 1} {s.title}</span>
+                        <button type="button" onClick={() => removeSubsection(i)} aria-label="Delete subsection" className="text-[#ff9da9] hover:text-white">×</button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[#8faebb]">Linked edits from the PDF</p>
               {log.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-[#2d5871] p-3 text-center text-xs leading-5 text-[#8faebb]">
@@ -1570,7 +1589,7 @@ export default function SectionPdfEditor({
       {subDlg ? (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#03121f]/80 p-4">
           <div className="w-full max-w-lg rounded-2xl border border-[#2d5871] bg-[#0c2b44] p-5 shadow-2xl">
-            <h3 className="text-base font-semibold text-white">Add subsection 5.{analysisNumber}.{readSubsections(data[subsectionKey]).length + 1}</h3>
+            <h3 className="text-base font-semibold text-white">+ Add subsection {`5.${analysisNumber}.${readSubsections(data[subsectionKey]).length + 1}`}</h3>
             <p className="mt-1 text-[11px] leading-4 text-[#8faebb]">This subsection is added under the current Analysis and appears automatically in the Report Index.</p>
             <label className="mt-4 block"><span className={LABEL}>Subsection title</span>
               <input autoFocus className={`${INPUT} mt-1`} value={subDlg.title} onChange={(e) => setSubDlg({ ...subDlg, title: e.target.value })} placeholder="e.g. Load case assumptions" />

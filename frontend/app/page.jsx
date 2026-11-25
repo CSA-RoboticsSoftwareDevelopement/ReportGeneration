@@ -2354,7 +2354,6 @@ export default function ReportGenix() {
     const key = `reportgenix-landed:${user.id ?? user.email}`;
     if (window.sessionStorage.getItem(key)) return;
     window.sessionStorage.setItem(key, "1");
-    if (window.location.pathname === "/section/cert") router.replace("/");
     if (window.location.pathname === "/") router.replace("/dashboard");
   }, [ready, user, router]);
 
@@ -3586,7 +3585,51 @@ export default function ReportGenix() {
               />
             </div>
           )}
-          {route === "home" && null}
+          {route === "home" && (
+            <section className={CARD}>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {raeField && (
+                  <div className="xl:col-span-3">
+                    <Labeled label={raeField.label + (raeField.unit ? " (" + raeField.unit + ")" : "") + " Lookup"}>
+                      <div className="flex gap-2">
+                        <input
+                          className={INPUT}
+                          type="text"
+                          value={data.rae_no ?? ""}
+                          onChange={(e) => setData((current) => ({ ...current, rae_no: e.target.value }))}
+                        />
+                        {raeLookup.status === "loading" && (
+                          <span className="text-xs text-[#b9d2d3]">searching…</span>
+                        )}
+                        {raeLookup.status === "ok" && (
+                          <span className="text-xs text-[#6fd08a]">{raeLookup.message}</span>
+                        )}
+                        {raeLookup.status === "error" && (
+                          <span className="text-xs text-[#ff8e9c]">{raeLookup.message}</span>
+                        )}
+                      </div>
+                    </Labeled>
+                  </div>
+                )}
+                {preparedByField && (
+                  <div className="xl:col-span-3">
+                    <Labeled label={preparedByField.label + (preparedByField.unit ? " (" + preparedByField.unit + ")" : "")}>
+                      <input
+                        className="w-full rounded border border-[#2f5b75] bg-[#0a2744]/50 px-3 py-2 text-sm text-[#8fbcc0] focus:outline-none cursor-not-allowed"
+                        type="text"
+                        value={data.prepared_by ?? user.initials ?? ""}
+                        readOnly
+                      />
+                      <span className="text-xs text-[#6b7c86]">Auto-filled from your profile initials</span>
+                    </Labeled>
+                  </div>
+                )}
+                {generalFields.map((field) => (
+                  <Field key={field.id} field={field} value={data[field.id]} onChange={(value) => setData((current) => ({ ...current, [field.id]: value }))} />
+                ))}
+              </div>
+            </section>
+          )}
 
           {route === "projects" && <div className="space-y-6"><MaterialEditor catalog={materialsCatalog} mode={materialMode} setMode={setMaterialMode} selectedId={selectedMaterialId} setSelectedId={setSelectedMaterialId} data={data} setData={setData} materialMeta={materialMeta} setMaterialMeta={setMaterialMeta} status={materialStatus} /><ComplianceEditor rows={standards} setRows={setStandards} catalog={standardsCatalog} request={request} /></div>}
 
