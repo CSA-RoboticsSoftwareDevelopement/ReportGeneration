@@ -84,7 +84,7 @@ function AiSuggestions({ anchor, onPick, onClose }) {
     </div>
   );
   const cards = AI_SUGGESTIONS.slice(0, 3).map((text, i) => (
-    <div key={i} className={`flex flex-col ${mobile ? "" : "min-h-0 flex-1"}`}>
+    <div key={i} style={{ animationDelay: `${150 + i * 90}ms` }} className={`rg-rise flex flex-col ${mobile ? "" : "min-h-0 flex-1"}`}>
       <p className={`mb-2 ml-1 shrink-0 font-semibold text-white/95 ${mobile ? "text-[12px]" : "text-[13px]"}`}>Suggestion {i + 1}</p>
       <button type="button" title={text} onClick={(e) => { e.stopPropagation(); onPick(text); }} style={GLASS_CARD}
         className={`flex w-full items-center justify-center text-center text-[#f3f8f7] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f84f63] ${mobile ? "min-h-[110px] rounded-[22px] px-5 py-4 text-sm leading-5" : "min-h-0 flex-1 rounded-[22px] px-6 text-[14px] leading-[1.35]"}`}>
@@ -93,26 +93,34 @@ function AiSuggestions({ anchor, onPick, onClose }) {
     </div>
   ));
 
+  /* grow from the side the sparkle button is on */
+  const originX = anchor && left < anchor.left ? "100%" : "0%";
+
   const panel = mobile ? (
     <div data-img-ui role="dialog" aria-modal="true" aria-label="AI Suggestions"
       onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
-      className="pointer-events-auto fixed inset-x-3 bottom-3 z-[130] max-h-[80dvh] overflow-y-auto rounded-[28px] px-4 pb-5 pt-4 text-white"
+      className="rg-sheet pointer-events-auto fixed inset-x-3 bottom-3 z-[130] max-h-[80dvh] overflow-y-auto rounded-[28px] px-4 pb-5 pt-4 text-white"
       style={GLASS_PANEL}>
       {header}
       <div className="flex flex-col gap-3">{cards}</div>
     </div>
   ) : (
-    <div data-img-ui role="dialog" aria-label="AI Suggestions"
-      onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
-      className="pointer-events-auto fixed z-[130] flex flex-col rounded-[30px] px-6 pb-5 pt-5 text-white"
-      style={{ ...GLASS_PANEL, left, top, width: PANEL_W, height: PANEL_H, transform: `scale(${scale})`, transformOrigin: "0 0" }}>
-      {header}
-      <div className="flex min-h-0 flex-1 flex-col gap-3">{cards}</div>
+    /* outer box: position and size only. middle box: the spring animation. inner box: your existing scaled glass panel. */
+    <div data-img-ui className="pointer-events-none fixed z-[130]" style={{ left, top, width: w, height: h }}>
+      <div className="rg-pop pointer-events-auto h-full w-full" style={{ "--rg-origin": `${originX} 100%` }}>
+        <div data-img-ui role="dialog" aria-label="AI Suggestions"
+          onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
+          className="flex flex-col rounded-[30px] px-6 pb-5 pt-5 text-white"
+          style={{ ...GLASS_PANEL, width: PANEL_W, height: PANEL_H, transform: `scale(${scale})`, transformOrigin: "0 0" }}>
+          {header}
+          <div className="flex min-h-0 flex-1 flex-col gap-3">{cards}</div>
+        </div>
+      </div>
     </div>
   );
 
   return createPortal(
-    mobile ? <div data-img-ui className="fixed inset-0 z-[125] bg-[#03121f]/60" onPointerDown={onClose}>{panel}</div> : panel,
+    mobile ? <div data-img-ui className="rg-fade fixed inset-0 z-[125] bg-[#03121f]/60" onPointerDown={onClose}>{panel}</div> : panel,
     document.body
   );
 }
