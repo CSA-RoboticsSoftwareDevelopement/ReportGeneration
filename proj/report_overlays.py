@@ -14,7 +14,7 @@ spacing and the left/right margins are measured from the generated PDF itself.
 
 Added tables are stored as ``tbl__<id>`` JSON strings:
     {sec, rel, page, top, x, w, h, rows, cols, headerRow, cellText: [[...]]}
-They are drawn as bordered grids with a navy header row and body text cells.
+They are drawn as plain white grids with thin black borders and centred text (see TABLE_LOOK).
 
 apply_editor_overlays() returns (pdf_bytes, section_pages). section_pages gets
 the real image boxes in "__images" (bottom-origin points, same format the engine
@@ -25,6 +25,7 @@ output, the untouched engine PDF is returned, so an image can never vanish.
 """
 import json
 import logging
+import os
 from collections import Counter
 
 log = logging.getLogger(__name__)
@@ -202,6 +203,27 @@ def _find_image(page, b):
     return tuple(best["bbox"]), best["xref"]
 
 
+# Look of every added table (same values as TABLE_STYLE in SectionPdfEditor.jsx): plain white cells,
+# thin black borders, centred regular-weight text, like a table pasted from Excel.
+# The editor and the PDF both use this one look, so tables created earlier follow it as well.
+TABLE_LOOK = {"fill": (1, 1, 1), "border": (0, 0, 0), "border_w": 0.5, "text": (0, 0, 0), "size": 10.0, "lead": 1.25}
+_CALIBRI_FILES = (
+    "/usr/share/fonts/truetype/crosextra/Carlito-Regular.ttf",
+    "/usr/share/fonts/truetype/carlito/Carlito-Regular.ttf",
+    "/usr/share/fonts/opentype/crosextra/Carlito-Regular.ttf",
+    "C:/Windows/Fonts/calibri.ttf",
+    "/Library/Fonts/Calibri.ttf",
+    "/System/Library/Fonts/Supplemental/Calibri.ttf",
+)
+
+
+def _table_font_file():
+    for path in _CALIBRI_FILES:
+        if os.path.exists(path):
+            return path
+    return None
+
+
 def _apply_tables(fitz, doc, sp, data):
     items = []
     for k, v in data.items():
@@ -212,12 +234,15 @@ def _apply_tables(fitz, doc, sp, data):
         except ValueError:
             continue
         if isinstance(t, dict) and int(_f(t.get("rows"), 0)) > 0 and int(_f(t.get("cols"), 0)) > 0:
-            items.append((k[4:], t))
+            items.append((k[5:], t))
     if not items:
         return {}
     style = body_style(doc)
-    fontname = _BASE14[(style["family"], style["bold"], style["italic"])]
-    fsize = style["size"]
+    base14 = _BASE14[(style["family"], 0, 0)]
+    font_file = _table_font_file()  # Calibri / Carlito when the server has it, otherwise the report's body font
+    look = TABLE_LOOK
+    size = look["size"]
+    lead = size * look["lead"]
     out = {}
     for tid, t in items:
         pno = int(_clamp(int(_f(t.get("page", 1))) - 1, 0, len(doc) - 1))
@@ -235,26 +260,50 @@ def _apply_tables(fitz, doc, sp, data):
             cellText = [["" for _ in range(cols)] for _ in range(rows)]
         row_h = h / rows
         col_w = w / cols
-        font = fitz.Font(fontname)
+
+        fontname, font, clean = base14, None, True
+        if font_file:
+            try:
+                fontname = "TblFont"
+                page.insert_font(fontname=fontname, fontfile=font_file)
+                font = fitz.Font(fontfile=font_file)
+                clean = False  # a real font file covers more characters than the base-14 set
+            except Exception:
+                log.warning("table font %s could not be loaded; using %s", font_file, base14)
+                fontname, font, clean = base14, None, True
+        if font is None:
+            font = fitz.Font(base14)
+        asc = getattr(font, "ascender", 0.9) or 0.9
+        desc = getattr(font, "descender", -0.2)
+        desc = desc if desc is not None else -0.2
+
+        # 1) cell backgrounds and borders (one rectangle per cell, so the grid lines are uniform)
         for r in range(rows):
             for c in range(cols):
-                cx = x + c * col_w
-                ct = top + r * row_h
+                page.draw_rect(fitz.Rect(x + c * col_w, top + r * row_h, x + (c + 1) * col_w, top + (r + 1) * row_h),
+                               color=look["border"], fill=look["fill"], width=look["border_w"], overlay=True)
+        # 2) centred text, vertically centred in each cell
+        for r in range(rows):
+            for c in range(cols):
                 val = ""
                 if r < len(cellText) and isinstance(cellText[r], list) and c < len(cellText[r]):
                     val = str(cellText[r][c])
-                is_header = headerRow and r == 0
-                page.draw_rect(fitz.Rect(cx, ct, cx + col_w, ct + row_h),
-                              color=(0.4, 0.4, 0.4), width=0.5, overlay=True)
-                if is_header:
-                    page.draw_rect(fitz.Rect(cx, ct, cx + col_w, ct + row_h),
-                                  color=None, fill=(0.18, 0.25, 0.45), overlay=True)
-                if val.strip():
-                    cell_val = val.translate(_TYPO)
-                    color = (1, 1, 1) if is_header else (0, 0, 0)
-                    rect = fitz.Rect(cx + 3, ct + 2, cx + col_w - 3, ct + row_h - 2)
-                    page.insert_textbox(rect, cell_val, fontname=fontname, fontsize=fsize,
-                                       color=color, align=fitz.TEXT_ALIGN_LEFT, overlay=True)
+                if not val.strip():
+                    continue
+                if clean:
+                    val = val.translate(_TYPO)
+                cx, ct = x + c * col_w, top + r * row_h
+                lines = [ln for ln, _ in wrap_text(font, val, size, max(1.0, col_w - 6))]
+                fit = max(1, int((row_h - 2) // lead))  # only draw the lines that fit inside the cell
+                lines = lines[:fit]
+                block_top = ct + (row_h - len(lines) * lead) / 2
+                pad = (lead - (asc - desc) * size) / 2
+                for i, line in enumerate(lines):
+                    if not line:
+                        continue
+                    lw = font.text_length(line, size)
+                    page.insert_text(fitz.Point(cx + (col_w - lw) / 2, block_top + i * lead + pad + asc * size), line,
+                                     fontname=fontname, fontsize=size, color=look["text"])
         out[tid] = {
             "page": pno + 1, "x": x, "top": top, "w": w, "h": h,
             "rows": rows, "cols": cols, "headerRow": headerRow,
