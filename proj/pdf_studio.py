@@ -123,6 +123,9 @@ def _clean_name(name: str, fallback: str = "document.pdf") -> str:
 
 
 def _cleanup_old_sessions() -> None:
+    # The uploads directory can be cleared while the API process is still
+    # running. Recreate the session root before scanning it for expiry.
+    ROOT.mkdir(parents=True, exist_ok=True)
     now = _now()
     for entry in ROOT.iterdir():
         try:

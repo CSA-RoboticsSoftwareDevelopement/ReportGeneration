@@ -13,3 +13,4 @@ pymupdf
 pytesseract
 openpyxl
 python-pptx
+ollama>=0.4.7

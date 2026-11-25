@@ -21,13 +21,6 @@ const TableIcon = (p) => <Glyph {...p}><path d="M3 3h18v18H3zM3 7h18M3 11h18M3 1
 const MoveIcon = (p) => <Glyph {...p}><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3" /></Glyph>;
 const SparkleIcon = (p) => <Glyph {...p}><path d="M10 4l1.8 4.9L16.7 10.7l-4.9 1.8L10 17.4l-1.8-4.9L3.3 10.7l4.9-1.8zM18 14l.9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9z" /></Glyph>;
 
-/* Placeholder suggestions until a model is connected: replace this array with the response of your AI endpoint. */
-const AI_SUGGESTIONS = [
-  "The fine mesh was created with the number of nodes as 665059 and the number of elements as 98240. Shown below are some images of the finite element model that was used for the analysis.",
-  "A refined finite element mesh was generated for the trailer structure, with local refinement at the joints and load application points to capture stress concentrations accurately.",
-  "The figure below shows the meshed finite element model of the trailer chassis, including the element sizing and boundary conditions that were applied for the analysis.",
-];
-
 const GLASS_PANEL = {
   background: "linear-gradient(90deg, rgba(160,175,188,.92) 0%, rgba(58,82,104,.82) 22%, rgba(14,34,54,.9) 52%, rgba(8,24,40,.94) 100%)",
   backdropFilter: "blur(18px) saturate(140%)",
@@ -45,11 +38,13 @@ const GLASS_CARD = {
 };
 
 const PANEL_W = 500;
-const PANEL_H = 480;
+const PANEL_H = 610;
 
-/* Glass panel: fixed 610 x 585 design size, scaled down to fit smaller screens; bottom sheet on phones. */
-function AiSuggestions({ anchor, onPick, onClose }) {
+function AiSuggestions({ anchor, result, status, error, onRegenerate, onDiscard, onApprove, onClose }) {
   const [vp, setVp] = useState(() => ({ w: typeof window === "undefined" ? 1280 : window.innerWidth, h: typeof window === "undefined" ? 800 : window.innerHeight }));
+  const [caption, setCaption] = useState("");
+  const [description, setDescription] = useState("");
+  const [observations, setObservations] = useState("");
   useEffect(() => {
     const update = () => setVp({ w: window.innerWidth, h: window.innerHeight });
     window.addEventListener("resize", update);
@@ -60,6 +55,11 @@ function AiSuggestions({ anchor, onPick, onClose }) {
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [onClose]);
+  useEffect(() => {
+    setCaption(result?.suggestions?.caption || "");
+    setDescription(result?.suggestions?.description || "");
+    setObservations((result?.suggestions?.observations || []).join("\n"));
+  }, [result]);
 
   if (typeof document === "undefined") return null;
 
@@ -90,8 +90,19 @@ function AiSuggestions({ anchor, onPick, onClose }) {
         className={`flex w-full items-center justify-center text-center text-[#f3f8f7] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f84f63] ${mobile ? "min-h-[110px] rounded-[22px] px-5 py-4 text-sm leading-5" : "min-h-0 flex-1 rounded-[22px] px-6 text-[14px] leading-[1.35]"}`}>
         <span style={{ display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: mobile ? 8 : 4, overflow: "hidden" }}>{text}</span>
       </button>
+  const extracted = Object.entries(result?.extracted_values || {});
+  const review = result ? (
+    <div className="studio-scroll min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 text-left text-xs">
+      {result.analysis_type ? <p className="rounded-xl border border-cyan-200/15 bg-cyan-200/10 px-3 py-2 text-[#d7e9ec]"><b>Detected:</b> {result.analysis_type}</p> : null}
+      <label className="block"><span className="mb-1 block font-semibold text-white/90">Suggested caption</span><input value={caption} onChange={(e) => setCaption(e.target.value)} className="w-full rounded-lg border border-white/20 bg-[#061d31]/70 px-3 py-2 text-white outline-none focus:border-[#8ec5ff]" /></label>
+      <label className="block"><span className="mb-1 block font-semibold text-white/90">Engineering description</span><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="w-full resize-y rounded-lg border border-white/20 bg-[#061d31]/70 px-3 py-2 text-white outline-none focus:border-[#8ec5ff]" /></label>
+      <label className="block"><span className="mb-1 block font-semibold text-white/90">Observations (one per line)</span><textarea value={observations} onChange={(e) => setObservations(e.target.value)} rows={3} className="w-full resize-y rounded-lg border border-white/20 bg-[#061d31]/70 px-3 py-2 text-white outline-none focus:border-[#8ec5ff]" /></label>
+      {extracted.length ? <div style={GLASS_CARD} className="rounded-xl p-3"><p className="mb-2 font-semibold text-white/90">Extracted values <span className="font-normal text-amber-200">(unverified)</span></p>{extracted.map(([name, value]) => <p key={name} className="mb-1 text-[#e5f2f3]"><b>{name}:</b> {value?.value ?? "Unreadable"}{value?.unit ? ` ${value.unit}` : ""}</p>)}</div> : null}
+      {(result.warnings || []).map((warning, i) => <p key={i} className="rounded-lg border border-amber-200/20 bg-amber-200/10 px-3 py-2 text-amber-100">{warning}</p>)}
     </div>
-  ));
+  ) : (
+    <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-[#d7e9ec]">{status === "loading" ? "Analysing the image locally with Ollama…" : error || "No suggestions are available yet."}</div>
+  );
 
   /* grow from the side the sparkle button is on */
   const originX = anchor && left < anchor.left ? "100%" : "0%";
@@ -101,8 +112,8 @@ function AiSuggestions({ anchor, onPick, onClose }) {
       onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
       className="rg-sheet pointer-events-auto fixed inset-x-3 bottom-3 z-[130] max-h-[80dvh] overflow-y-auto rounded-[28px] px-4 pb-5 pt-4 text-white"
       style={GLASS_PANEL}>
-      {header}
-      <div className="flex flex-col gap-3">{cards}</div>
+      {header}{review}
+      <div className="mt-3 flex flex-wrap justify-end gap-2"><button type="button" onClick={onDiscard} className="rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold hover:bg-white/10">Discard</button><button type="button" onClick={onRegenerate} disabled={status === "loading"} className="rounded-lg border border-[#8ec5ff]/60 px-3 py-2 text-xs font-semibold text-[#d7e9ec] disabled:opacity-50">{status === "loading" ? "Analysing…" : "Regenerate"}</button>{result ? <button type="button" onClick={() => onApprove({ caption, description, observations: observations.split("\n").map((item) => item.trim()).filter(Boolean) })} className="rounded-lg bg-[#f84f63] px-3 py-2 text-xs font-bold text-white hover:bg-[#ff6377]">Approve and insert</button> : null}</div>
     </div>
   ) : (
     /* outer box: position and size only. middle box: the spring animation. inner box: your existing scaled glass panel. */
@@ -116,6 +127,12 @@ function AiSuggestions({ anchor, onPick, onClose }) {
           <div className="flex min-h-0 flex-1 flex-col gap-3">{cards}</div>
         </div>
       </div>
+    <div data-img-ui role="dialog" aria-label="AI Suggestions"
+      onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
+      className="pointer-events-auto fixed z-[130] flex flex-col rounded-[30px] px-6 pb-5 pt-5 text-white"
+      style={{ ...GLASS_PANEL, left, top, width: PANEL_W, height: PANEL_H, transform: `scale(${scale})`, transformOrigin: "0 0" }}>
+      {header}{review}
+      <div className="mt-3 flex shrink-0 justify-end gap-2"><button type="button" onClick={onDiscard} className="rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold hover:bg-white/10">Discard</button><button type="button" onClick={onRegenerate} disabled={status === "loading"} className="rounded-lg border border-[#8ec5ff]/60 px-3 py-2 text-xs font-semibold text-[#d7e9ec] disabled:opacity-50">{status === "loading" ? "Analysing…" : "Regenerate"}</button>{result ? <button type="button" onClick={() => onApprove({ caption, description, observations: observations.split("\n").map((item) => item.trim()).filter(Boolean) })} className="rounded-lg bg-[#f84f63] px-3 py-2 text-xs font-bold text-white hover:bg-[#ff6377]">Approve and insert</button> : null}</div>
     </div>
   );
 
@@ -336,7 +353,7 @@ function mapEdit(oldT, newT, secId, schema, data) {
 
 export default function SectionPdfEditor({
   section, sections, schema, data, setData, csrf, buildForm, reportSig,
-  onBack, onNext, fieldsPanel, imageApi, onUndoChange, onRedoChange, canUndoChange, canRedoChange,
+  onBack, onNext, imagesPanel, imageApi, onUndoChange, onRedoChange, canUndoChange, canRedoChange,
 }) {
   const [docId, setDocId] = useState("");
   const [info, setInfo] = useState(null);
@@ -384,6 +401,7 @@ export default function SectionPdfEditor({
   const layerRef = useRef(null);
   const [aiFor, setAiFor] = useState(null); /* image id whose AI suggestion list is open */
   const [aiAnchor, setAiAnchor] = useState(null); /* DOMRect of the sparkle button, used to position the glass panel */
+  const [aiSuggestions, setAiSuggestions] = useState({}); /* image id -> local, unapproved AI review */
   const gesture = useRef(null);
   const commitSeq = useRef(0); /* numbers every saved move so a finished rebuild only clears what it already contains */
   const [ghosts, setGhosts] = useState({}); /* `${version}:${imageId}` -> snapshot of the image, shown instantly while the PDF rebuilds */
@@ -892,7 +910,10 @@ export default function SectionPdfEditor({
   const onReplaceFile = (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (file && pickTarget.current && imageApi) imageApi.replace(pickTarget.current, file);
+    if (file && pickTarget.current && imageApi) {
+      clearAiSuggestion(pickTarget.current);
+      imageApi.replace(pickTarget.current, file);
+    }
   };
   const saveImageTitle = () => {
     const title = imgDlg?.title.trim();
@@ -1103,14 +1124,50 @@ export default function SectionPdfEditor({
     const t = normTbl(stored);
     setDlg({ mode: "tbset", id, page: t.page, title: t.title || "", rows: t.rows, cols: t.cols, headerRow: !!t.headerRow });
   };
-  /* A suggestion becomes the image's description, placed above the image (same keys as Caption / Caption placement). */
-  const applySuggestion = (id, text) => {
-    setData((c) => ({ ...c, [`cap__${id}`]: text, [`cap_pos__${id}`]: "above", [`cap_style__${id}`]: "body" }));
+  const clearAiSuggestion = (id) => setAiSuggestions((current) => {
+    const next = { ...current };
+    delete next[id];
+    return next;
+  });
+  const requestAiSuggestion = async (id) => {
+    const image = imageApi.getFile?.(id);
+    if (!image) {
+      setAiSuggestions((current) => ({ ...current, [id]: { status: "error", error: "The original image is unavailable. Replace or upload it before requesting suggestions." } }));
+      return;
+    }
+    setAiSuggestions((current) => ({ ...current, [id]: { status: "loading", result: current[id]?.result || null, error: "" } }));
+    try {
+      const form = new FormData();
+      form.append("image", image, image.name || `${id}.png`);
+      form.append("report_id", reportId || "");
+      form.append("section_id", section?.id || "");
+      form.append("image_id", id);
+      form.append("section_context", JSON.stringify({ section_title: section?.title || "", caption: data[`cap__${id}`] || "", fields: (section?.fields || []).map((field) => field.label) }));
+      const result = await api("/api/ai/suggestions", { csrf: csrfRef.current, method: "POST", form });
+      setAiSuggestions((current) => ({ ...current, [id]: { status: "ready", result, error: "" } }));
+    } catch (error) {
+      setAiSuggestions((current) => ({ ...current, [id]: { status: "error", result: current[id]?.result || null, error: error?.message || "AI suggestions could not be generated." } }));
+    }
+  };
+  const approveAiSuggestion = (id, approved) => {
+    const caption = String(approved.caption || "").trim();
+    const narrative = [String(approved.description || "").trim(), ...(approved.observations || [])].filter(Boolean).join("\n");
+    const currentCaption = String(data[`cap__${id}`] || "").trim();
+    const bodyKey = `body__${section?.id || ""}`;
+    const currentBody = String(data[bodyKey] || "").trim();
+    if (caption && currentCaption && currentCaption !== caption && !window.confirm("Replace the current image caption with the approved AI caption?")) return;
+    if (narrative && currentBody && !currentBody.includes(narrative) && !window.confirm("Append the approved AI description to this section's existing narrative?")) return;
+    setData((current) => ({
+      ...current,
+      ...(caption ? { [`cap__${id}`]: caption, [`cap_style__${id}`]: "inherit" } : {}),
+      ...(narrative && !String(current[bodyKey] || "").includes(narrative) ? { [bodyKey]: [String(current[bodyKey] || "").trim(), narrative].filter(Boolean).join("\n\n") } : {}),
+    }));
     setAiFor(null);
-    notify("Description added above the image.", "info");
+    notify("Approved AI text was inserted. Review all extracted values before issuing the report.", "success");
   };
   const removeImage = (id) => {
     setSel(null);
+    clearAiSuggestion(id);
     setData((c) => { const n = { ...c }; delete n[`img_dx__${id}`]; delete n[`img_dy__${id}`]; delete n[`img_scale__${id}`]; return n; });
     imageApi.remove(id);
   };
@@ -1512,6 +1569,7 @@ export default function SectionPdfEditor({
                                         if (aiFor === id) { setAiFor(null); return; }
                                         setAiAnchor(e.currentTarget.getBoundingClientRect());
                                         setAiFor(id);
+                                        if (!aiSuggestions[id]?.result && aiSuggestions[id]?.status !== "loading") requestAiSuggestion(id);
                                       }}
                                       className={`${fb} ${aiFor === id ? "border-[#8ec5ff] bg-[#1d4a78] text-white" : "border-[#2d5871] bg-[#0c2b44]/95 text-[#d7e9ec] hover:border-[#8ec5ff]"}`}><SparkleIcon className="h-4 w-4" /></button>
                                   ) : null}
@@ -1550,7 +1608,16 @@ export default function SectionPdfEditor({
                               )}
                             </div>
                           ) : null}
-                          {selected && !isLive && isImg && aiFor === id ? <AiSuggestions anchor={aiAnchor} onPick={(text) => applySuggestion(id, text)} onClose={() => setAiFor(null)} /> : null}
+                          {selected && !isLive && isImg && aiFor === id ? <AiSuggestions
+                            anchor={aiAnchor}
+                            result={aiSuggestions[id]?.result}
+                            status={aiSuggestions[id]?.status}
+                            error={aiSuggestions[id]?.error}
+                            onRegenerate={() => requestAiSuggestion(id)}
+                            onDiscard={() => { clearAiSuggestion(id); setAiFor(null); }}
+                            onApprove={(approved) => approveAiSuggestion(id, approved)}
+                            onClose={() => setAiFor(null)}
+                          /> : null}
                         </div>
                       );
                     })}

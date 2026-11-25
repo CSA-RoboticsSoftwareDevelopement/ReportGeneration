@@ -14,6 +14,7 @@ import pdf_studio
 import report_overlays
 import reports_store
 import html_master_template
+from ai.routes import create_router as create_ai_router
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 AVATAR_DIR = os.path.join(HERE, "uploads", "avatars")
@@ -144,6 +145,7 @@ def require_user(request: Request):
 app.include_router(reports_store.create_router(require_user, require_csrf))
 
 app.include_router(pdf_studio.create_router(require_user, require_csrf))
+app.include_router(create_ai_router(require_user, require_csrf))
 
 @app.get("/", include_in_schema=False)
 def index():
