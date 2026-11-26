@@ -19,7 +19,6 @@ import { createPortal } from "react-dom";
 
 const MATERIAL_IDS = new Set(["material", "fu", "fy", "young", "nu", "rho"]);
 const DRAFT_KEY = "reportgenix-draft-v2";
-const SIDEBAR_KEY = "rg-sidebar-collapsed";
 const MEDIA = { files: {}, originals: {}, editorStates: {} };
 const WORK = { data: null };
 const LEGACY_MEDIA_DB_NAME = "reportgenix-media-v1";
@@ -1885,174 +1884,6 @@ function Dashboard({ reports, folders, activeId, onOpen, onCreate, onDuplicate, 
 }
 
 /* ------------------------------------------------------------------ */
-/*  Sidebar: numbered step tracker (logo · steps · completeness)       */
-/*  Everything it needs is passed in as props because it lives         */
-/*  outside the ReportGenix component.                                 */
-/*  On lg+ screens it can collapse to a 76px icon rail.                */
-/* ------------------------------------------------------------------ */
-
-const SidebarNav = ({ steps, extraLinks, completeness, sidebarOpen, setSidebarOpen, collapsed, onToggleCollapse, user, openProfile, dashboardActive }) => {
-  const close = () => setSidebarOpen(false);
-  // "collapsed" only applies on lg+ screens; the mobile drawer is always full width.
-  const hideWhenCollapsed = collapsed ? "lg:hidden" : "";
-
-  return (
-    <aside
-      className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-[#2a5068]/60 bg-[#0a2744] shadow-2xl transition-[transform,width] duration-300 lg:translate-x-0 lg:shadow-none ${collapsed ? "lg:w-[76px]" : "lg:w-72"} ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
-      aria-label="Report navigation"
-      data-collapsed={collapsed ? "true" : "false"}
-    >
-      {/* Desktop expand / collapse handle */}
-      <button
-        type="button"
-        onClick={onToggleCollapse}
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        aria-expanded={!collapsed}
-        title={collapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
-        className="absolute -right-3.5 top-7 z-[60] hidden h-7 w-7 items-center justify-center rounded-full border border-[#2f5b75] bg-[#0e3250] text-[#c8dfe1] shadow-lg hover:border-[#f84f63] hover:bg-[#16415f] hover:text-white lg:flex"
-      >
-        <Icon name="chevronLeft" className={`h-4 w-4 transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`} sw={2.4} />
-      </button>
-
-      {/* Brand */}
-      <div className={`flex items-center justify-between px-6 pb-5 pt-6 ${collapsed ? "lg:justify-center lg:px-3" : ""}`}>
-        <Link href="/" onClick={close} className="flex items-center gap-3" title="ReportGenix">
-          <img src="/csa_logo.webp" alt="CSA Engineering" className={`h-9 w-auto object-contain ${collapsed ? "lg:h-7 lg:max-w-[44px] lg:object-cover lg:object-left" : ""}`} />
-          <span className={`border-l border-[#2f5b75] pl-3 text-lg font-bold tracking-tight text-white ${hideWhenCollapsed}`}>ReportGenix</span>
-        </Link>
-        <button
-          onClick={close}
-          className="rounded border border-[#2f5b75] bg-transparent px-2 py-1 text-xs text-[#c8dfe1] hover:bg-white/5 lg:hidden"
-          aria-label="Close sidebar"
-        >
-          &times;
-        </button>
-      </div>
-
-      {/* Dashboard */}
-      <div className={`px-6 pb-2 ${collapsed ? "lg:px-3" : ""}`}>
-        <Link
-          href="/dashboard"
-          onClick={close}
-          title="Dashboard"
-          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${collapsed ? "lg:justify-center lg:px-0" : ""} ${dashboardActive ? "bg-[#f84f63] text-[#0a1f36]" : "border border-[#2f5b75] bg-[#0e3250] text-[#c8dfe1] hover:bg-white/5 hover:text-white"}`}
-        >
-          <Icon name="grid" className="h-[18px] w-[18px] shrink-0" />
-          <span className={hideWhenCollapsed}>Dashboard</span>
-        </Link>
-      </div>
-
-      {/* Steps */}
-      <nav
-        data-tour="sidebar-steps"
-        className={`flex-1 overflow-y-auto overflow-x-hidden px-6 py-4 ${collapsed ? "lg:px-3" : ""}`}
-        aria-label="Report steps"
-      >
-        <ol>
-          {steps.map((step, index) => {
-            const isLast = index === steps.length - 1;
-            const circle = step.active
-              ? "border-[#f84f63] bg-[#f84f63] text-[#0a1f36] ring-4 ring-[#f84f63]/25"
-              : step.done
-                ? "border-[#6fd08a] bg-[#6fd08a]/10 text-[#6fd08a]"
-                : "border-[#5b7f96] bg-transparent text-[#c8dfe1] group-hover:border-[#f84f63]";
-            return (
-              <li key={step.key} className={`relative ${isLast ? "" : "pb-7"}`}>
-                {!isLast && (
-                  <span
-                    aria-hidden="true"
-                    className={`absolute bottom-1 left-4 top-10 -translate-x-1/2 border-l-2 border-dashed border-[#2f5b75] ${collapsed ? "lg:left-1/2" : ""}`}
-                  />
-                )}
-                <Link
-                  href={step.href}
-                  onClick={close}
-                  title={collapsed ? `${step.label} — ${step.sub || ""}` : undefined}
-                  aria-current={step.active ? "step" : undefined}
-                  className={`group relative flex items-center gap-4 ${collapsed ? "lg:justify-center lg:gap-0" : ""}`}
-                >
-                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition ${circle}`}>
-                    {step.done && !step.active ? "✓" : index + 1}
-                  </span>
-                  <span className={`min-w-0 ${hideWhenCollapsed}`}>
-                    <span className={`block truncate text-[15px] ${step.active ? "font-semibold text-white" : "font-medium text-[#c8dfe1] group-hover:text-white"}`}>
-                      {step.label}
-                    </span>
-                    {step.sub && <span className="block truncate text-[11px] text-[#7f9fae]">{step.sub}</span>}
-                  </span>
-                </Link>
-
-                {step.children?.length > 0 && (
-                  <ul className={`relative mt-5 space-y-4 ${hideWhenCollapsed}`}>
-                    {step.children.map((child) => {
-                      const dot = child.active
-                        ? "bg-[#f84f63] ring-4 ring-[#f84f63]/25"
-                        : child.done
-                          ? "bg-[#6fd08a]"
-                          : "bg-[#5b7f96] group-hover:bg-[#f84f63]";
-                      return (
-                        <li key={child.key} className="relative">
-                          <Link href={child.href} onClick={close} aria-current={child.active ? "step" : undefined} className="group flex items-center gap-4">
-                            <span className="flex h-4 w-8 shrink-0 items-center justify-center">
-                              <span className={`h-2.5 w-2.5 rounded-full border-2 border-[#0a2744] transition ${dot}`} />
-                            </span>
-                            <span className={`block truncate text-[13px] ${child.active ? "font-semibold text-white" : "text-[#c8dfe1] group-hover:text-white"}`}>
-                              {child.label}
-                            </span>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </li>
-            );
-          })}
-        </ol>
-      </nav>
-
-      {/* Completeness */}
-      <div data-tour="progress" className={`border-t border-[#2a5068]/60 px-6 py-5 ${collapsed ? "lg:px-2" : ""}`}>
-        {/* Expanded: label + bar */}
-        <div className={hideWhenCollapsed}>
-          <p className="text-sm font-semibold text-white">Report completeness:</p>
-          <div className="mt-2 flex items-center gap-3">
-            <div
-              className="h-2 flex-1 overflow-hidden rounded-full bg-[#16405c]"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={completeness}
-              aria-label="Report completeness"
-            >
-              <div className="h-full rounded-full bg-[#f84f63] transition-all duration-500" style={{ width: `${completeness}%` }} />
-            </div>
-            <span className="w-9 text-right text-xs font-semibold text-[#c8dfe1]">{completeness}%</span>
-          </div>
-        </div>
-
-        {/* Collapsed: compact percentage ring */}
-        {collapsed && (
-          <div className="hidden justify-center lg:flex" title={`Report completeness: ${completeness}%`}>
-            <div className="relative h-10 w-10">
-              <svg viewBox="0 0 36 36" className="h-10 w-10 -rotate-90" aria-hidden="true">
-                <circle cx="18" cy="18" r="15" fill="none" stroke="#16405c" strokeWidth="3.5" />
-                <circle
-                  cx="18" cy="18" r="15" fill="none" stroke="#f84f63" strokeWidth="3.5" strokeLinecap="round"
-                  strokeDasharray={`${(completeness / 100) * 94.25} 94.25`}
-                  className="transition-all duration-500"
-                />
-              </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-[#c8dfe1]">{completeness}</span>
-            </div>
-          </div>
-        )}
-      </div>
-    </aside>
-  );
-};
-
-/* ------------------------------------------------------------------ */
 /*  App                                                                */
 /* ------------------------------------------------------------------ */
 
@@ -2094,31 +1925,6 @@ export default function ReportGenix() {
   const [resetMode, setResetMode] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
-  // Restore the saved sidebar preference after mount (avoids a hydration mismatch).
-  useEffect(() => {
-    try { setSidebarCollapsed(window.localStorage.getItem(SIDEBAR_KEY) === "1"); } catch { /* ignore */ }
-  }, []);
-
-  const toggleSidebarCollapsed = useCallback(() => {
-    setSidebarCollapsed((value) => {
-      const next = !value;
-      try { window.localStorage.setItem(SIDEBAR_KEY, next ? "1" : "0"); } catch { /* ignore */ }
-      return next;
-    });
-  }, []);
-
-  // Ctrl/Cmd + B toggles the sidebar.
-  useEffect(() => {
-    const onKey = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") { e.preventDefault(); toggleSidebarCollapsed(); }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [toggleSidebarCollapsed]);
-
   /* Dashboard */
   const [reports, setReports] = useState([]);
   const [folders, setFolders] = useState([]);
@@ -2361,9 +2167,6 @@ export default function ReportGenix() {
   }, [ready, user, router, pathname]);
 
   useEffect(() => { window.scrollTo({ top: 0 }); }, [pathname]);
-
-  /* Close the mobile sidebar whenever the route changes. */
-  useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   useEffect(() => {
     if (!schema) return;
@@ -3367,7 +3170,6 @@ export default function ReportGenix() {
 
 
 
-  /* /faq and /raq are the same page (Raised and Answered Questions) */
   const route =
     pathname === "/dashboard"
       ? "dashboard"
@@ -3379,11 +3181,9 @@ export default function ReportGenix() {
               ? "issue"
               : pathname === "/help"
                 ? "help"
-                : pathname === "/faq" || pathname === "/raq"
-                  ? "faq"
-                  : activeSection
-                    ? "section"
-                    : "not-found";
+                : activeSection
+                  ? "section"
+                  : "not-found";
 
   // Build breadcrumb items from the resolved route. Always return an array so
   // the breadcrumb renderer can safely call crumbs.map(...).
@@ -3392,7 +3192,6 @@ export default function ReportGenix() {
     projects: { label: "Libraries", href: null },
     issue: { label: "Preview and Download", href: null },
     help: { label: "Help", href: null },
-    faq: { label: "FAQ", href: null },
     dashboard: { label: "Dashboard", href: null },
     "not-found": { label: "Page not found", href: null },
   };
@@ -3409,42 +3208,6 @@ export default function ReportGenix() {
   const pageHeaderClass = route === "section"
     ? "mb-0.5 w-full max-w-[420px] rounded-lg border border-[#2a5068] bg-[#0e3250] px-3 py-1.5"
     : "mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-[#2a5068] bg-[#0e3250] px-5 py-5 sm:flex-row sm:items-center sm:px-7";
-
-  /* ---- Sidebar data: built from the app's own routes and state ---- */
-  const filled = (value) => String(value ?? "").trim() !== "";
-  const sectionDone = (section) =>
-    (section.fields || []).some((field) => filled(data[field.id])) || (section.images || []).some((image) => Boolean(files[image.id]));
-
-  // Keep the sidebar to the four main workflow stages. The Section stage opens
-  // the PDF editor directly; individual report sections are navigated inside
-  // that editor so they do not appear as a long nested sidebar list.
-  const firstReportSection = reportSections[0];
-  const sectionsComplete = reportSections.length > 0 && reportSections.every(sectionDone);
-
-  const sidebarSteps = [
-  { key: "home", href: "/", label: "Project", sub: "Report details", active: route === "home", done: filled(data.rae_no) && filled(data.project_name) },
-  {
-    key: "sections",
-        href: firstReportSection ? `/${encodeURIComponent(firstReportSection.id)}` : "/dashboard",
-    label: "Section",
-    sub: "Report sections",
-    active: route === "section",
-    done: sectionsComplete,
-  },
-  { key: "issue", href: "/issue", label: "Preview and Download", sub: "Preview & export", active: route === "issue", done: false },
-];
-
-  const sidebarExtraLinks = [
-    { href: "/studio", label: "PDF Studio", icon: "▤", active: false },
-    { href: "/help", label: "Help", icon: "❓", active: route === "help" },
-    { href: "/faq", label: "FAQ", icon: "❔", active: route === "faq" },
-  ];
-
-  /* Completeness: project fields filled, compliance rows added, evidence attached */
-  const projectRatio = schema.general.length ? schema.general.filter((field) => filled(data[field.id])).length / schema.general.length : 0;
-  const complianceRatio = reportRows.length > 0 ? 1 : 0;
-  const evidenceRatio = Object.values(files).some(Boolean) ? 1 : 0;
-  const completeness = Math.round(((projectRatio + complianceRatio + evidenceRatio) / 3) * 100);
 
   const PANEL_COMPACT =
   "[&_input]:!py-1.5 [&_input]:!text-xs [&_select]:!py-1.5 [&_select]:!text-xs [&_textarea]:!text-xs " +
@@ -3488,37 +3251,10 @@ export default function ReportGenix() {
 
   return (
     <Shell>
-      {route !== "dashboard" && route !== "section" && sidebarOpen && <div className="fixed inset-0 z-40 bg-[#0a1f36]/40 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
-      {route !== "dashboard" && route !== "section" && (
-        <SidebarNav
-          steps={sidebarSteps}
-          extraLinks={sidebarExtraLinks}
-          completeness={completeness}
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-          collapsed={sidebarCollapsed}
-          onToggleCollapse={toggleSidebarCollapsed}
-          user={user}
-          openProfile={openProfile}
-          dashboardActive={false}
-        />
-      )}
-
-      {/* Everything to the right of the fixed sidebar on large screens */}
-        <div className={`transition-[padding] duration-300 ${route === "dashboard" || route === "section" ? "" : sidebarCollapsed ? "lg:pl-[76px]" : "lg:pl-72"}`}>
+        <div>
         <header className={`sticky top-0 z-30 w-full min-w-0 border-b border-[#2a5068]/60 bg-[#0a2744]/95 backdrop-blur ${route === "section" ? "px-2 py-1 sm:px-4 lg:px-6" : "px-2 pt-3 pb-4 sm:px-4 sm:pb-6 lg:px-6"}`}>
           <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 sm:gap-3">
-            {route !== "dashboard" && route !== "section" && (
-              <button
-                onClick={() => setSidebarOpen((prev) => !prev)}
-                className="rounded-md border border-[#2f5b75] bg-[#0e3250] px-3 py-1.5 text-base font-semibold text-[#c8dfe1] hover:bg-white/10 focus:outline-none focus:border-[#f84f63] lg:hidden"
-                aria-label="Toggle sidebar"
-                aria-expanded={sidebarOpen}
-              >
-                ≡
-              </button>
-            )}
-            <Link href="/dashboard" className={`flex shrink-0 items-center gap-3 ${route === "dashboard" ? "" : "lg:hidden"}`}>
+            <Link href="/dashboard" className="flex shrink-0 items-center gap-3">
               <img src="/csa_logo.webp" alt="CSA Engineering" className="h-9 w-auto" />
               <span className="border-l border-[#2f5b75] pl-3 text-base font-semibold">ReportGenix</span>
             </Link>
@@ -3532,25 +3268,8 @@ export default function ReportGenix() {
             <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-1.5 sm:gap-2">
               <div data-tour="help-tabs" className="hidden shrink-0 items-center gap-1 md:flex">
                 <Link href="/dashboard" className={navClass(route === "dashboard")}>Dashboard</Link>
-                <Link href="/studio" className={navClass(false)}>PDF Studio</Link>
                 <button onClick={() => setTourOpen(true)} className={navClass(false)}>Help</button>
-                <Link href="/faq" className={navClass(route === "faq")}>FAQ</Link>
               </div>
-              <button
-  data-tour="profile"
-  onClick={openProfile}
-  className="group flex min-w-0 items-center gap-2 rounded-lg border border-[#2f5b75] bg-[#0e3250] px-2.5 py-2 text-xs text-[#c8dfe1] transition duration-200 hover:-translate-y-px hover:border-[#f84f63]/70 hover:bg-[#16415f] focus:outline-none focus:border-[#f84f63] sm:gap-3 sm:px-4 sm:text-sm"
-  aria-label="Profile"
->
-  {user.avatar_url ? (
-    <img src={user.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
-  ) : (
-    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f84f63] text-xs font-bold text-[#0a1f36]">
-      {user.initials || initials(user.full_name || user.email)}
-    </span>
-  )}
-  <span className="hidden max-w-[160px] truncate sm:inline">{user.full_name || user.email}</span>
-</button>
               <ActionButton variant="ghost" onClick={() => downloadTemplate("pdf")} className="hidden !px-4 !py-2 sm:inline-flex">Blank PDF</ActionButton>
               <ActionButton variant="ghost" onClick={logout} className="shrink-0 !px-3 !py-2 sm:!px-4">Sign out</ActionButton>
             </div>
@@ -3558,7 +3277,7 @@ export default function ReportGenix() {
         </header>
 
         <div className={workspaceClass}>
-          <div data-tour="page-header" className={`${route === "dashboard" || route === "section" ? "hidden " : ""}${pageHeaderClass}`}><div>{route !== "section" && <p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "help" ? "Help & documentation" : route === "faq" ? "RAQ" : "Report issue"}</p>}<h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "help" ? "Help & documentation" : route === "faq" ? "Raised and Answered Questions" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/studio" className={navClass(false)}>Studio</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/faq" className={navClass(route === "faq")}>RAQ</Link><Link href="/issue" className={navClass(route === "issue")}>Preview and Download</Link></div></div>
+          <div data-tour="page-header" className={`${route === "dashboard" || route === "section" ? "hidden " : ""}${pageHeaderClass}`}><div>{route !== "section" && <p className={EYEBROW}>{route === "home" ? "Project information" : route === "projects" ? "Project" : route === "help" ? "Help & documentation" : "Report issue"}</p>}<h1 className="mt-1 text-2xl font-semibold text-white">{route === "home" ? "Report details" : route === "projects" ? "Materials & compliance" : route === "help" ? "Help & documentation" : "Review and export"}</h1></div><div className="flex flex-wrap gap-2 lg:hidden"><Link href="/" className={navClass(route === "home")}>Project</Link><Link href="/studio" className={navClass(false)}>Studio</Link><Link href="/help" className={navClass(route === "help")}>Help</Link><Link href="/issue" className={navClass(route === "issue")}>Preview and Download</Link></div></div>
 
           <nav className={`${route === "dashboard" || route === "section" ? "hidden " : ""}flex items-center gap-1 text-xs text-[#8fbcc0] mt-4 ml-2`} aria-label="Breadcrumb">
             <Link href="/" className="hover:text-[#c8dfe1]">Home</Link>
@@ -3834,31 +3553,8 @@ export default function ReportGenix() {
             </section>
           )}
 
-          {route === "faq" && (
-            <section className={CARD}>
-              <p className={EYEBROW}>FAQ</p>
-              <h2 className="mt-1 text-2xl font-semibold text-white">Raised and Answered Questions</h2>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-[#b6d3d4]">
-                Common questions and answers about trailer certification reports.
-              </p>
-              <div className="mt-7 space-y-3">
-                <div className="rounded-xl border border-[#2f5b75] bg-[#0a2744] p-4">
-                  <h4 className="font-semibold text-white mb-2">How do I find my project by RAE ID?</h4>
-                  <p className="text-sm text-[#b6d3d4] mt-1">Enter the RAE ID in the Project information page and the project name will be filled in automatically using fuzzy matching.</p>
-                </div>
-                <div className="rounded-xl border border-[#2f5b75] bg-[#0a2744] p-4">
-                  <h4 className="font-semibold text-white mb-2">How do I set my profile initials?</h4>
-                  <p className="text-sm text-[#b6d3d4] mt-1">Open the profile menu from your avatar, enter initials (up to 5 characters), and they will appear on your Prepared By field automatically.</p>
-                </div>
-                <div className="rounded-xl border border-[#2f5b75] bg-[#0a2744] p-4">
-                  <h4 className="font-semibold text-white mb-2">Can I attach images to sections?</h4>
-                  <p className="text-sm text-[#b6d3d4] mt-1">Yes — use the + Add image button on any section card to upload evidence images. Captions and placement are configurable per image.</p>
-                </div>
-              </div>
-            </section>
-          )}
           {route === "not-found" && <section className={CARD}><p className="text-[#ff8e9c]">This report page does not exist.</p><Link href="/" className="mt-4 inline-block text-sm font-semibold text-[#8ed0c9] underline">Return to project details</Link></section>}
-          <div data-tour="stage-nav" className={`${route === "dashboard" ? "hidden " : ""}mt-12 border-t border-[#2a5068]/40 pt-8 px-6`}>
+<div data-tour="stage-nav" className={`${route === "dashboard" || route === "section" ? "hidden " : ""}mt-12 border-t border-[#2a5068]/40 pt-8 px-6`}>
             <div className="flex flex-wrap justify-between items-center gap-4">
               <div className="text-xs text-[#6b7c86] uppercase tracking-wider font-medium">Stage navigation</div>
               <div className="flex items-center gap-3 text-sm text-[#b9d2d3]">

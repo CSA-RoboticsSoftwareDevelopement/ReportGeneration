@@ -90,6 +90,8 @@ function AiSuggestions({ anchor, result, status, error, onRegenerate, onDiscard,
         className={`flex w-full items-center justify-center text-center text-[#f3f8f7] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f84f63] ${mobile ? "min-h-[110px] rounded-[22px] px-5 py-4 text-sm leading-5" : "min-h-0 flex-1 rounded-[22px] px-6 text-[14px] leading-[1.35]"}`}>
         <span style={{ display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: mobile ? 8 : 4, overflow: "hidden" }}>{text}</span>
       </button>
+    </div>
+  ));
   const extracted = Object.entries(result?.extracted_values || {});
   const review = result ? (
     <div className="studio-scroll min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 text-left text-xs">
@@ -127,12 +129,6 @@ function AiSuggestions({ anchor, result, status, error, onRegenerate, onDiscard,
           <div className="flex min-h-0 flex-1 flex-col gap-3">{cards}</div>
         </div>
       </div>
-    <div data-img-ui role="dialog" aria-label="AI Suggestions"
-      onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
-      className="pointer-events-auto fixed z-[130] flex flex-col rounded-[30px] px-6 pb-5 pt-5 text-white"
-      style={{ ...GLASS_PANEL, left, top, width: PANEL_W, height: PANEL_H, transform: `scale(${scale})`, transformOrigin: "0 0" }}>
-      {header}{review}
-      <div className="mt-3 flex shrink-0 justify-end gap-2"><button type="button" onClick={onDiscard} className="rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold hover:bg-white/10">Discard</button><button type="button" onClick={onRegenerate} disabled={status === "loading"} className="rounded-lg border border-[#8ec5ff]/60 px-3 py-2 text-xs font-semibold text-[#d7e9ec] disabled:opacity-50">{status === "loading" ? "Analysing…" : "Regenerate"}</button>{result ? <button type="button" onClick={() => onApprove({ caption, description, observations: observations.split("\n").map((item) => item.trim()).filter(Boolean) })} className="rounded-lg bg-[#f84f63] px-3 py-2 text-xs font-bold text-white hover:bg-[#ff6377]">Approve and insert</button> : null}</div>
     </div>
   );
 
@@ -353,7 +349,7 @@ function mapEdit(oldT, newT, secId, schema, data) {
 
 export default function SectionPdfEditor({
   section, sections, schema, data, setData, csrf, buildForm, reportSig,
-  onBack, onNext, imagesPanel, imageApi, onUndoChange, onRedoChange, canUndoChange, canRedoChange,
+  onBack, onNext, fieldsPanel, imageApi, onUndoChange, onRedoChange, canUndoChange, canRedoChange,
 }) {
   const [docId, setDocId] = useState("");
   const [info, setInfo] = useState(null);
@@ -361,7 +357,7 @@ export default function SectionPdfEditor({
   const [version, setVersion] = useState(0);
   const [sectionPages, setSectionPages] = useState({});
   const [page, setPage] = useState(1);
-  const [zoom, setZoom] = useState(2.1);
+  const [zoom, setZoom] = useState(1.35);
   const [autoFit, setAutoFit] = useState(true); /* page follows the available width (e.g. when the sidebar collapses) until the user zooms manually */
   const [tool, setTool] = useState("select");
   const [ocr, setOcr] = useState(null); /* null = closed, else { languages, available, lang, force, text, loading } */
@@ -1341,27 +1337,20 @@ export default function SectionPdfEditor({
     thumbsRef.current?.querySelector(`[data-thumb="${page}"]`)?.scrollIntoView({ block: "nearest" });
   }, [page, info]);
   const ob = "grid h-8 w-8 place-items-center rounded-md text-[#c9dfe3] hover:bg-white/10 disabled:opacity-30";
+  const navBtn = "pointer-events-auto grid h-14 w-14 place-items-center rounded-full border border-[#0b2a41] bg-[#16415f] text-[#bccbd9] shadow-lg shadow-black/30 transition hover:bg-[#1c4f72] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f84f63]";
   const isTableDlg = !!dlg && (dlg.mode === "tbl" || dlg.mode === "tbset");
 
   return (
     <div className="studio-root flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-[#234b63] bg-[#071f35]">
       {/* options bar */}
       <div className="flex flex-wrap items-center gap-2 border-b border-[#234b63] bg-[#081f35] px-3 py-2">
-        <Btn size="sm" onClick={() => hasPreviousPage ? setPage((p) => p - 1) : onBack()} disabled={!hasPreviousPage && idx <= 0}>
-          {hasPreviousPage ? "← Previous page" : "Previous"}
-        </Btn>
         <div className="min-w-0 flex-1 px-1">
           <p className="truncate text-sm font-semibold text-white">{section?.title}</p>
-          <p className="text-[10px] text-[#7f9dab]">Section {idx + 1} of {sections.length} · {TOOLS.find((t) => t.id === tool)?.hint}</p>
         </div>
         {pageSection?.dynamicAnalysis ? <button type="button" onClick={() => setSubDlg({ title: "", body: "" })} className="rounded-md border border-[#2f5b75] px-2.5 py-1.5 text-[11px] font-semibold text-[#c9dfe3] hover:border-[#f84f63] hover:bg-white/5">+ Add subsection {`5.${analysisNumber}.${readSubsections(data[subsectionKey]).length + 1}`}</button> : null}
-        <button type="button" className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-[#c9dfe3] hover:bg-white/10 disabled:opacity-30" onClick={() => setPage((p) => Math.max(sectionStartPage, p - 1))} disabled={page <= sectionStartPage} aria-label="Previous page in this section">
-          <Icon name="chevron" className="h-4 w-4 rotate-90" /> Previous page
-        </button>
-        <span className="min-w-[82px] text-center text-[11px] font-semibold text-[#d7e9ec]">Page {sectionPageNumber} of {sectionPageCount}</span>
-        <button type="button" className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-[#c9dfe3] hover:bg-white/10 disabled:opacity-30" onClick={() => setPage((p) => Math.min(sectionEndPage, p + 1))} disabled={page >= sectionEndPage} aria-label="Next page in this section">
-          Next page <Icon name="chevron" className="h-4 w-4 -rotate-90" />
-        </button>
+        <span className="whitespace-nowrap px-1 text-[11px] font-semibold text-[#d7e9ec] tabular-nums">
+          Page {sectionPageNumber} of {sectionPageCount}
+        </span>
         <span className="h-5 w-px bg-[#234b63]" />
         <button type="button" className={ob} onClick={() => { fitAuto.current = false; setZoom((z) => clamp(z - 0.15, 0.3, 3.5)); }} aria-label="Zoom out"><Icon name="zoomOut" /></button>
         <button type="button" className="min-w-[44px] text-[11px] font-semibold text-[#d7e9ec]" onClick={() => { fitAuto.current = false; setZoom(1); }} title="Reset to 100%">{Math.round(zoom * 100)}%</button>
@@ -1405,9 +1394,6 @@ export default function SectionPdfEditor({
             </div>
           ) : null}
         </div>
-        <Btn size="sm" variant="primary" onClick={() => hasNextPage ? setPage((p) => p + 1) : onNext()} disabled={!hasNextPage && idx >= sections.length - 1}>
-          {hasNextPage ? "Next page →" : "Next "}
-        </Btn>
       </div>
 
       <div className="flex min-h-0 flex-1">
@@ -1449,7 +1435,18 @@ export default function SectionPdfEditor({
         ) : null}       
 
         {/* canvas */}
-        <div ref={scrollRef} onWheel={onCanvasWheel} onPointerDown={(e) => { if (!e.target.closest?.("[data-img-ui]")) setSel(null); }} className="studio-scroll relative min-w-0 flex-1 overflow-auto bg-[#061a2c] p-6">
+        <div ref={scrollRef} onPointerDown={(e) => { if (!e.target.closest?.("[data-img-ui]")) setSel(null); }} className="studio-scroll relative min-w-0 flex-1 overflow-auto bg-[#061a2c] p-6">
+          {/* section navigation, floating at the top corners of the page area */}
+          <div className="sticky top-0 z-[60] h-0">
+            <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between">
+              <button type="button" onClick={onBack} className={navBtn} aria-label="Previous section" title="Previous section">
+                <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
+              </button>
+              <button type="button" onClick={onNext} className={navBtn} aria-label="Next section" title="Next section">
+                <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="M12 5l7 7-7 7" /></svg>
+              </button>
+            </div>
+          </div>          
           {!pdf ? (
             <p className="mt-24 text-center text-sm text-[#7f9dab]">{busy || "Preparing the editor…"}</p>
           ) : (
