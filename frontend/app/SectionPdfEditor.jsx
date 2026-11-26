@@ -333,6 +333,7 @@ function mapEdit(oldT, newT, secId, schema, data) {
 export default function SectionPdfEditor({
   section, sections, schema, data, setData, csrf, buildForm, reportSig,
   onBack, onNext, imagesPanel, imageApi, onUndoChange, onRedoChange, canUndoChange, canRedoChange,
+  fieldsPanel, reportId,
 }) {
   const [docId, setDocId] = useState("");
   const [info, setInfo] = useState(null);
@@ -420,7 +421,7 @@ export default function SectionPdfEditor({
   /* Opening a PDF and showing it are separate steps so a rebuild that has been superseded can be thrown away
      before it touches the screen (otherwise a slow, older build could overwrite a newer one). */
   const openPdf = useCallback(async (id) => {
-    const r = await fetch(`/api/pdf/${id}/file`, { credentials: "include", cache: "no-store" });
+    const r = await fetch(`/api/pdf/${id}/file?t=${Date.now()}`, { credentials: "include", cache: "no-store" });
     if (!r.ok) throw new Error("The PDF could not be loaded.");
     const buf = await r.arrayBuffer();
     const pdfjs = await import("pdfjs-dist");
@@ -460,15 +461,17 @@ export default function SectionPdfEditor({
         if (id) form.append("doc_id", id);
         return form;
       };
-      let d;
-      try {
-        d = await api("/api/pdf/preview", { csrf: csrfRef.current, method: "POST", form: previewForm(docRef.current) });
-      } catch (error) {
-        if (!docRef.current || error?.status !== 404) throw error;
-        docRef.current = "";
-        d = await api("/api/pdf/preview", { csrf: csrfRef.current, method: "POST", form: previewForm() });
-      }
+     const oldDocId = docRef.current;
+      const d = await api("/api/pdf/preview", { csrf: csrfRef.current, method: "POST", form: previewForm() });
       docRef.current = d.info.doc_id;
+      if (oldDocId && oldDocId !== d.info.doc_id) {
+        fetch(`/api/pdf/preview/${oldDocId}`, {
+          method: "DELETE",
+          headers: { "X-CSRF-Token": csrfRef.current },
+          credentials: "include",
+          keepalive: true,
+        }).catch(() => { /* expires on the server anyway */ });
+      }
       if (disposedRef.current) {
         fetch(`/api/pdf/preview/${d.info.doc_id}`, {
           method: "DELETE",
@@ -502,10 +505,10 @@ export default function SectionPdfEditor({
 
   const first = useRef(true);
   useEffect(() => {
-    const t = setTimeout(rebuild, first.current ? 0 : 500);
+    const t = setTimeout(() => rebuildRef.current(), first.current ? 0 : 500);
     first.current = false;
     return () => clearTimeout(t);
-  }, [reportSig]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [reportSig]); // eslint-disable-line react-hooks/exhaustive-deps // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Table edits ask for a rebuild directly, so the PDF is refreshed even when `reportSig` does not track `tbl__` keys. */
   const rebuildRef = useRef(rebuild);

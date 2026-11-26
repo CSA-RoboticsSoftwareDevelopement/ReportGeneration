@@ -15,16 +15,12 @@ import report_overlays
 import reports_store
 import html_master_template
 from ai.routes import create_router as create_ai_router
+import re, traceback
 
-try:
-    import fitz  # PyMuPDF for filling v2 template AcroForm fields
-except Exception:
-    fitz = None
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 AVATAR_DIR = os.path.join(HERE, "uploads", "avatars")
 os.makedirs(AVATAR_DIR, exist_ok=True)
-TEMPLATE_PDF = os.path.join(HERE, "assets", "Trailer_Report_TEMPLATE_v2.pdf")
 
 
 def _enabled(value):
@@ -135,303 +131,14 @@ def _normalise_report_data(payload):
     return data
 
 
-def _set_field_value(widget, value):
-    """Safely set an AcroForm widget field value."""
-    if not value:
-        return
-    try:
-        widget.field_value = value
-        widget.update()
-    except Exception:
-        pass
 
 
-def _replace_text_placeholders(doc, data):
-    """Replace bracketed placeholders like [ RAE No. ] with actual data values.
-
-    Scans every page's text spans and replaces any [ KEY ] patterns
-    with the corresponding value from the report data dictionary.
-    """
-    placeholder_map = {
-        "RAE No.": "rae_no",
-        "Project name": "project_name",
-        "Certification No.": "rae_no",
-        "Revision date": "rev_date",
-        "Revision No.": "rev",
-        "Prepared by (initials)": "prepared_by",
-        "Checked by (initials)": "prepared_by",
-        "Project scope of work": "background_scope",
-        "Analysis objectives": "background_objectives",
-        "Mesh nodes": "nodes",
-        "Mesh elements": "elements",
-        "Project-specific requirements": "requirements_note",
-        "Project conclusion": "conclusion_note",
-    }
-
-    for pno in range(len(doc)):
-        page = doc[pno]
-        text_dict = page.get_text("dict")
-        for block in text_dict.get("blocks", []):
-            if block.get("type") != 0:
-                continue
-            for line in block.get("lines", []):
-                for span in line.get("spans", []):
-                    t = span.get("text", "").strip()
-                    if t.startswith("[") and t.endswith("]"):
-                        key = t[1:-1].strip()
-                        if key in placeholder_map:
-                            data_key = placeholder_map[key]
-                            replacement = str(data.get(data_key, "") or "")
-                            if not replacement:
-                                replacement = f"[{key}]"
-                            # Replace by drawing over the old text
-                            bbox = span["bbox"]
-                            try:
-                                page.insert_textbox(
-                                    bbox,
-                                    replacement,
-                                    fontsize=span.get("size", 11),
-                                    fontname=span.get("font", "helv"),
-                                    color=(0, 0, 0),
-                                    overlay=True
-                                )
-                            except Exception:
-                                try:
-                                    page.insert_text(
-                                        (bbox[0] + 1, bbox[1] + span.get("size", 11)),
-                                        replacement,
-                                        fontsize=span.get("size", 11),
-                                        fontname=span.get("font", "helv"),
-                                        color=(0, 0, 0),
-                                    )
-                                except Exception:
-                                    pass
 
 
-def _fill_template_field(widget, name, data, standards, image_captions):
-    """Fill one v2 template AcroForm widget from report data."""
-    value = ""
-    if name.startswith("caption_"):
-        try:
-            cap_num = int(name[len("caption_"):])
-        except ValueError:
-            cap_num = None
-        if cap_num is not None:
-            value = image_captions.get(str(cap_num), "")
-            if not value:
-                value = f"Figure {cap_num}"
-    elif name.startswith("standard_"):
-        try:
-            idx = int(name[len("standard_"):]) - 1
-        except ValueError:
-            idx = -1
-        if 0 <= idx < len(standards):
-            value = standards[idx].get("standard", "")
-    elif name.startswith("requirement_"):
-        try:
-            idx = int(name[len("requirement_"):]) - 1
-        except ValueError:
-            idx = -1
-        if 0 <= idx < len(standards):
-            value = standards[idx].get("requirement", "")
-    elif name.startswith("conformity_"):
-        try:
-            idx = int(name[len("conformity_"):]) - 1
-        except ValueError:
-            idx = -1
-        if 0 <= idx < len(standards):
-            value = standards[idx].get("conformity", "Full Compliance")
-    elif name.startswith("requirement_note_"):
-        try:
-            idx = int(name[len("requirement_note_"):]) - 1
-        except ValueError:
-            idx = -1
-        if 0 <= idx < len(standards):
-            value = standards[idx].get("requirement", "")
-    elif name.startswith("mat_"):
-        key = name[len("mat_"):]
-        value = str(data.get(key, "") or "")
-    elif name == "rae_no":
-        value = str(data.get("rae_no", "") or "")
-    elif name == "applicant":
-        value = str(data.get("applicant", "") or "")
-    elif name == "client":
-        value = str(data.get("client", "") or "")
-    elif name == "project_name":
-        value = str(data.get("project_name", "") or "")
-    elif name == "report_title":
-        value = str(data.get("report_title", "") or "")
-    elif name == "date":
-        value = str(data.get("date", "") or "")
-    elif name == "atm":
-        value = str(data.get("atm", "") or "")
-    elif name == "axle_type":
-        value = str(data.get("axle_type", "") or "")
-    elif name == "trailer_type":
-        value = str(data.get("trailer_type", "") or "")
-    elif name == "rev":
-        value = str(data.get("rev", "") or "")
-    elif name == "rev_date":
-        value = str(data.get("rev_date", "") or "")
-    elif name == "rev_details":
-        value = str(data.get("rev_details", "") or "")
-    elif name == "prepared_by":
-        value = str(data.get("prepared_by", "") or "")
-    elif name == "material":
-        value = str(data.get("material", "") or "")
-    elif name == "fu":
-        value = str(data.get("fu", "") or "")
-    elif name == "fy":
-        value = str(data.get("fy", "") or "")
-    elif name == "young":
-        value = str(data.get("young", "") or "")
-    elif name == "nu":
-        value = str(data.get("nu", "") or "")
-    elif name == "rho":
-        value = str(data.get("rho", "") or "")
-    _set_field_value(widget, value)
 
 
-def fill_v2_template(data: dict, images: dict = None) -> bytes:
-    """Fill the v2 template PDF's AcroForm fields with report data.
-
-    Maps report data to the template's existing AcroForm fields:
-      - caption_*    -> image captions / labels
-      - standard_*   -> Summary of Compliance standard column
-      - requirement_* -> Summary of Compliance compliance requirement column
-      - conformity_* -> Summary of Compliance conformity column
-      - requirement_note_* -> Requirements section notes
-      - mat_*        -> Material table fields
-    Returns the filled PDF as bytes.
-    """
-    if fitz is None:
-        raise RuntimeError("PyMuPDF (fitz) is not available; cannot fill v2 template.")
-    if not os.path.isfile(TEMPLATE_PDF):
-        raise FileNotFoundError(f"v2 template not found: {TEMPLATE_PDF}")
-
-    images = images or {}
-    doc = fitz.open(TEMPLATE_PDF)
-
-    standards = data.get("standards", []) if isinstance(data.get("standards"), list) else []
-
-    # Build image caption map: caption number -> label
-    caption_order = []
-    for page in doc:
-        for widget in page.widgets() or []:
-            name = widget.field_name or ""
-            if name.startswith("caption_"):
-                try:
-                    num = int(name[len("caption_"):])
-                except ValueError:
-                    continue
-                caption_order.append((num, name))
-    caption_order.sort()
-
-    slot_labels = {}
-    for key, val in data.items():
-        if key.startswith("cap__") and isinstance(val, str) and val.strip():
-            sid = key[len("cap__"):]
-            slot_labels[sid] = val.strip()
-
-    default_labels = {
-        "bg_front": "3D Isometric Model in Autodesk Inventor - Front",
-        "bg_back": "3D Isometric Model in Autodesk Inventor - Back",
-        "geo_iso": "3D Isometric Model",
-        "geo_top": "Top View showing the length and width of the trailer",
-        "geo_side": "Side View showing the distance of suspension from coupling",
-        "mesh": "Meshed model",
-    }
-    for n in range(1, 8):
-        default_labels[f"a{n}_load"] = f"Load & constraints applied on the trailer"
-        default_labels[f"a{n}_stress_img"] = f"Stress Distribution Plot for Analysis {n}"
-        default_labels[f"a{n}_probe"] = f"Stress Distribution Plot with the probe"
-        default_labels[f"a{n}_disp"] = f"Displacement Plot for Analysis {n}"
-
-    present_slots = [sid for sid in images if images.get(sid)]
-    for key in data:
-        if key.startswith("cap__"):
-            sid = key[len("cap__"):]
-            if sid not in present_slots:
-                present_slots.append(sid)
-
-    image_captions = {}
-    caption_index = 0
-    for num, _name in caption_order:
-        if caption_index < len(present_slots):
-            sid = present_slots[caption_index]
-            image_captions[sid] = slot_labels.get(sid, default_labels.get(sid, f"Figure {num}"))
-            # Also map caption number directly for lookup by number
-            image_captions[str(num)] = image_captions[sid]
-            caption_index += 1
-
-    for page in doc:
-        for widget in page.widgets() or []:
-            name = widget.field_name or ""
-            if not name:
-                continue
-            _fill_template_field(widget, name, data, standards, image_captions)
-
-    try:
-        doc.regenerate_appearance()
-    except Exception:
-        pass
-
-    # Replace bracketed text placeholders (e.g. [ RAE No. ], [ Project name ])
-    try:
-        _replace_text_placeholders(doc, data)
-    except Exception:
-        pass
-
-    out = io.BytesIO()
-    doc.save(out, garbage=3, deflate=True)
-    doc.close()
-    return out.getvalue()
 
 
-def get_template_section_pages() -> dict:
-    """Scan the v2 template PDF and map section IDs to their starting page numbers.
-
-    Searches each page for known section titles to build the
-    section -> page mapping used by the Section Pdf Editor for navigation.
-    """
-    if fitz is None or not os.path.isfile(TEMPLATE_PDF):
-        return {}
-    section_keywords = {
-        "cert": "Certificate of Conformity",
-        "title": "Title page & Structural Certification",
-        "index": "Report Index",
-        "background": "Background & Scope of Work",
-        "summary": "Summary of Compliance",
-        "requirements": "Requirements",
-        "preproc": "Analysis - Pre-Processing",
-        "geometry": "The geometry of the Trailer",
-        "material_mesh": "Material and mesh",
-        "conclusion": "Conclusion",
-    }
-    result = {}
-    try:
-        doc = fitz.open(TEMPLATE_PDF)
-        for pno in range(len(doc)):
-            page = doc[pno]
-            text = page.get_text()
-            for sid, keyword in section_keywords.items():
-                if sid not in result and keyword in text:
-                    result[sid] = pno + 1
-        # Analysis sections a1-a7: search by their titles
-        for n in range(1, 8):
-            sid = f"a{n}"
-            if sid in result:
-                continue
-            for pno in range(len(doc)):
-                page = doc[pno]
-                text = page.get_text()
-                if f"Analysis {n}" in text or f"ANALYSIS {n}" in text:
-                    result[sid] = pno + 1
-                    break
-        doc.close()
-    except Exception:
-        pass
-    return result
 
 
 def require_user(request: Request):
@@ -733,24 +440,12 @@ def _build_pdf_cached(data, images, selected, layout, extras, removed):
         h.update(k.encode())
         h.update(hashlib.sha1(images[k]).digest())
     key = h.hexdigest()
-    # Always re-fill the v2 template to ensure dynamic values are current.
-    # The cache TTL is kept for the final (content, warns, section_pages) tuple
-    # but the template filling is forced on each call so that preview/generate
-    # always reflects the latest report data.
-    try:
-        content = fill_v2_template(data, images)
-        warns = []
-        section_pages = get_template_section_pages()
-    except Exception:
-        content, warns, section_pages = engine.build(
-            data, images, selected, layout=layout, extras=extras, removed=removed
-        )
-    result = (content, warns, section_pages)
-    # Cache the final tuple (not the intermediate filled content) so that
-    # repeated calls with the same parameters stay fast, but the template
-    # filling itself is always forced on every call.
-    if key not in _BUILD_CACHE:
-        _BUILD_CACHE[key] = (time.time(), result)
+    hit = _BUILD_CACHE.get(key)
+    if hit and time.time() - hit[0] < _BUILD_CACHE_TTL:
+        _BUILD_CACHE.move_to_end(key)
+        return hit[1]
+    result = engine.build(data, images, selected, layout=layout, extras=extras, removed=removed)
+    _BUILD_CACHE[key] = (time.time(), result)
     while len(_BUILD_CACHE) > _BUILD_CACHE_SIZE:
         _BUILD_CACHE.popitem(last=False)
     return result

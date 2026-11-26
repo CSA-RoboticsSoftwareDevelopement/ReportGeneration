@@ -321,7 +321,7 @@ function getStandardSectionNarrative(section, data = {}, ctx = {}) {
 }
 
 // Sections whose wording is sent to the PDF from this template (the backend default has no client / project / standards).
-const NARRATIVES_SENT_TO_REPORT = /background|scope|conclusion/i;
+const NARRATIVES_SENT_TO_REPORT = /^$/;
 
 function applyStandardNarratives(data, sections, ctx) {
   const next = { ...data };
@@ -3654,6 +3654,7 @@ export default function ReportGenix() {
                 canRedoChange={changeRedo.length > 0}
                 imageApi={{
                   add: (file) => {
+                    if (!currentActiveSection) return;
                     const id = `extra_${activeSection.id}_${Date.now()}`;
                     setExtraImages((current) => ({ ...current, [activeSection.id]: [...(current[activeSection.id] || []), { id, label: "", h: 60 }] }));
                     setData((current) => ({ ...current, [`cap__${id}`]: "" }));
