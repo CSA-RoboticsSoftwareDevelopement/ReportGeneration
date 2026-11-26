@@ -3645,6 +3645,7 @@ export default function ReportGenix() {
                 data={data}
                 setData={setData}
                 csrf={csrf}
+                reportId={activeReportId}
                 buildForm={() => buildReportForm("pdf")}
                 reportSig={reportSig}
                 onUndoChange={undoChange}
@@ -3674,6 +3675,7 @@ export default function ReportGenix() {
                     }
                   },
                   edit: (id) => openImageEditor({ id, label: data[`cap__${id}`] || "Image" }),
+                  getFile: (id) => files[id] || null,
                 }}
                 onBack={() => {
                   const i = reportSections.findIndex((s) => s.id === activeSection.id);
