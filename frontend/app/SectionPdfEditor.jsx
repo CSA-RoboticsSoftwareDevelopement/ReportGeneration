@@ -349,7 +349,7 @@ function mapEdit(oldT, newT, secId, schema, data) {
 
 export default function SectionPdfEditor({
   section, sections, schema, data, setData, csrf, buildForm, reportSig,
-  onBack, onNext, imagesPanel, imageApi, onUndoChange, onRedoChange, canUndoChange, canRedoChange,
+  onBack, onNext, onOpenSection, imagesPanel, imageApi, onUndoChange, onRedoChange, canUndoChange, canRedoChange,
   fieldsPanel, reportId,
 }) {
   const [docId, setDocId] = useState("");
@@ -372,7 +372,16 @@ export default function SectionPdfEditor({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchBusy, setSearchBusy] = useState(false);
-  const [dockW, setDockW] = useState(700);
+  const [dockW, setDockW] = useState(() => typeof window === "undefined" ? 420 : clamp(window.innerWidth * 0.3, 360, 700));
+
+  useEffect(() => {
+    const fitDockToViewport = () => {
+      const maxW = Math.max(360, Math.min(1000, window.innerWidth * 0.42));
+      setDockW((width) => Math.min(width, maxW));
+    };
+    window.addEventListener("resize", fitDockToViewport);
+    return () => window.removeEventListener("resize", fitDockToViewport);
+  }, []);
 
   const docRef = useRef("");
   const taskRef = useRef(null);
@@ -574,7 +583,11 @@ export default function SectionPdfEditor({
   const sectionPageNumber = Math.min(sectionPageCount, Math.max(1, page - sectionStartPage + 1));
   const hasPreviousPage = page > sectionStartPage;
   const hasNextPage = page < sectionEndPage;
-  useEffect(() => { if (startOf) setPage(startOf); }, [section?.id, startOf]);
+  const pendingPage = useRef(null); /* page to open once the section switched by a thumbnail click has loaded */
+  useEffect(() => {
+    if (pendingPage.current) { setPage(pendingPage.current); pendingPage.current = null; }
+    else if (startOf) setPage(startOf);
+  }, [section?.id, startOf]);
 
   const imageBoxes = sectionPages.__images || {}; /* { [imageId]: { page, x, y, w, h, filled } } in PDF points */
   useEffect(() => {
@@ -621,6 +634,16 @@ export default function SectionPdfEditor({
   const sectionOfPage = (p) => {
     const entries = Object.entries(sectionPages).filter(([, v]) => typeof v === "number" && v <= p).sort((a, b) => b[1] - a[1]);
     return entries[0]?.[0] || section?.id;
+  };
+
+    /* Clicking a thumbnail opens that page AND the section it belongs to, so the Fields panel, image tools and every other
+     edit apply to the page you are looking at (the same as using the Previous / Next buttons). */
+  const goToPage = (n) => {
+    const sid = sectionOfPage(n);
+    if (sid && sid !== section?.id && onOpenSection && sections.some((x) => x.id === sid)) {
+      pendingPage.current = n;
+      onOpenSection(sid);
+    } else setPage(n);
   };
 
   /* session mutate (tools / unlinked edits) */
@@ -1430,7 +1453,7 @@ export default function SectionPdfEditor({
                 const sc = 90 / Math.max(1, p.width);
                 return (
                   <LazyThumb key={p.number} pdf={pdf} number={p.number} scale={sc} height={p.height * sc} version={version}
-                    active={p.number === page} onClick={() => setPage(p.number)} />
+                    active={p.number === page} onClick={() => goToPage(p.number)} />
                 );
               })}
             </div>
@@ -1644,7 +1667,10 @@ export default function SectionPdfEditor({
             onPointerDown={(e) => {
               e.preventDefault();
               const startX = e.clientX, startW = dockW;
-              const mv = (ev) => setDockW(clamp(startW + (startX - ev.clientX), 340, 1000));
+              const mv = (ev) => {
+                const maxW = Math.max(360, Math.min(1000, window.innerWidth * 0.42));
+                setDockW(clamp(startW + (startX - ev.clientX), 340, maxW));
+              };
               const upH = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", upH); };
               window.addEventListener("pointermove", mv);
               window.addEventListener("pointerup", upH);

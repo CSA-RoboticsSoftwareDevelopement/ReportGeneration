@@ -3401,6 +3401,7 @@ export default function ReportGenix() {
                   const i = reportSections.findIndex((s) => s.id === activeSection.id);
                   router.push(i > 0 ? `/${encodeURIComponent(reportSections[i - 1].id)}` : "/dashboard");
                 }}
+                onOpenSection={(id) => router.push(`/${encodeURIComponent(id)}`)}
                 onNext={() => {
                   const i = reportSections.findIndex((s) => s.id === activeSection.id);
                   router.push(i >= 0 && i < reportSections.length - 1 ? `/${encodeURIComponent(reportSections[i + 1].id)}` : "/issue");
