@@ -1,0 +1,47 @@
+[1mdiff --git a/frontend/app/page.jsx b/frontend/app/page.jsx[m
+[1mindex 2cc78c5..f70d49d 100644[m
+[1m--- a/frontend/app/page.jsx[m
+[1m+++ b/frontend/app/page.jsx[m
+[36m@@ -3022,7 +3022,7 @@[m [mexport default function ReportGenix() {[m
+       const blob = await response.blob();[m
+       const link = document.createElement("a");[m
+       link.href = URL.createObjectURL(blob);[m
+[31m-      link.download = format === "word" ? "Trailer_Report_TEMPLATE.docx" : "Trailer_Report_TEMPLATE.pdf";[m
+[32m+[m[32m      link.download = format === "word" ? "Trailer_Report_TEMPLATE.docx" : "Trailer_Report_TEMPLATE_v2.pdf";[m
+       link.click();[m
+       window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);[m
+     } catch (error) {[m
+[36m@@ -4033,7 +4033,7 @@[m [mexport default function ReportGenix() {[m
+                     <label className="block text-xs text-[#8fbcc0] mb-1">Profile picture (upload)</label>[m
+                     <div className="relative group">[m
+                       <input[m
+[31m-                        type="file"[m
+[32m+[m[32m                       type="file"[m
+                         accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"[m
+                         className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-[#f84f63]"[m
+                         onChange={(e) => {[m
+[1mdiff --git a/proj/main.py b/proj/main.py[m
+[1mindex 2ec7640..a62e0f8 100644[m
+[1m--- a/proj/main.py[m
+[1m+++ b/proj/main.py[m
+[36m@@ -18,6 +18,7 @@[m [mimport html_master_template[m
+ HERE = os.path.dirname(os.path.abspath(__file__))[m
+ AVATAR_DIR = os.path.join(HERE, "uploads", "avatars")[m
+ os.makedirs(AVATAR_DIR, exist_ok=True)[m
+[32m+[m[32mTEMPLATE_PDF = os.path.join(HERE, "assets", "Trailer_Report_TEMPLATE_v2.pdf")[m
+ [m
+ [m
+ def _enabled(value):[m
+[36m@@ -363,8 +364,10 @@[m [masync def save_manual_material(request: Request):[m
+ @app.get("/api/template")[m
+ def template(request: Request):[m
+     require_user(request)[m
+[31m-    pdf, _, _ = engine.build(template=True)[m
+[31m-    return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="Trailer_Report_TEMPLATE.pdf"'})[m
+[32m+[m[32m    if not os.path.isfile(TEMPLATE_PDF):[m
+[32m+[m[32m        raise HTTPException(status_code=503, detail="The v2 template PDF is not available on the server.")[m
+[32m+[m[32m    data = open(TEMPLATE_PDF, "rb").read()[m
+[32m+[m[32m    return Response(data, media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="Trailer_Report_TEMPLATE_v2.pdf"'})[m
+ [m
+ @app.get("/api/template/word")[m
+ def template_word(request: Request):[m

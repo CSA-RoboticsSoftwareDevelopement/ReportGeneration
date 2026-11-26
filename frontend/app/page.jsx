@@ -2825,7 +2825,7 @@ export default function ReportGenix() {
       const blob = await response.blob();
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = format === "word" ? "Trailer_Report_TEMPLATE.docx" : "Trailer_Report_TEMPLATE.pdf";
+      link.download = format === "word" ? "Trailer_Report_TEMPLATE.docx" : "Trailer_Report_TEMPLATE_v2.pdf";
       link.click();
       window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
     } catch (error) {
@@ -3731,7 +3731,7 @@ export default function ReportGenix() {
                     <label className="block text-xs text-[#8fbcc0] mb-1">Profile picture (upload)</label>
                     <div className="relative group">
                       <input
-                        type="file"
+                       type="file"
                         accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
                         className="w-full rounded border border-[#2f5b75] bg-[#0a2744] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-[#f84f63]"
                         onChange={(e) => {
