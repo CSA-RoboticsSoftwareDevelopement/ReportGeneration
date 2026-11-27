@@ -929,7 +929,7 @@ const DEFAULT_COMPLIANCE_ROWS = [
 ];
 
 const createDefaultComplianceRows = () => DEFAULT_COMPLIANCE_ROWS.map((row) => ({
-  id: crypto.randomUUID(), source: "manual", conformity: "Full Compliant",
+  id: newId(), source: "manual", conformity: "Full Compliant",
   standard: row.standard, requirement: row.requirement, manual: { ...row.manual },
 }));
 
@@ -960,7 +960,7 @@ const hasCustomComplianceRows = (rows) => rows.length > 0 && (
 );
 
 const newComplianceRow = () => ({
-  id: crypto.randomUUID(), source: "library", conformity: "Full Compliant",
+  id: newId(), source: "library", conformity: "Full Compliant",
   standardId: "", clauseId: "", clauses: [], standard: "", requirement: "",
   manual: { code: "", edition_year: "", standard_title: "", clause_no: "", clause_title: "", requirement_text: "" },
 });
@@ -1861,7 +1861,7 @@ function Dashboard({ reports, folders, activeId, onOpen, onCreate, onDuplicate, 
             />
             <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded bg-[#16415f] px-2 py-0.5 text-[10px] text-[#9bbcc0] sm:block">Ctrl K</kbd>
           </div>
-          <button onClick={onCreate} className="inline-flex items-center gap-2 rounded-md bg-[#f84f63] px-5 py-3 text-sm font-semibold text-[#0a1f36] transition hover:bg-[#ff667a]">
+          <button type="button" onClick={onCreate} className="inline-flex items-center gap-2 rounded-md bg-[#f84f63] px-5 py-3 text-sm font-semibold text-[#0a1f36] transition hover:bg-[#ff667a]">
             <Icon name="plus" sw={2.4} /> New Report
           </button>
         </div>
