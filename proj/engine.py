@@ -391,6 +391,30 @@ class Ctx:
                 rows.append(dict(standard=standard, requirement=requirement, conformity=conformity))
         return rows
 
+    def materials(self):
+        """Return normalized material rows; retain compatibility with legacy single-material reports."""
+        items = self.d.get("materials")
+        if isinstance(items, list):
+            rows = []
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                row = {
+                    "material": str(item.get("material") or item.get("grade") or "").strip(),
+                    "fu": item.get("fu", item.get("tensile_mpa", "")),
+                    "fy": item.get("fy", item.get("yield_mpa", "")),
+                    "young": item.get("young", item.get("youngs_modulus_gpa", "")),
+                    "nu": item.get("nu", item.get("poisson_ratio", "")),
+                    "rho": item.get("rho", item.get("density_kg_m3", "")),
+                }
+                if any(str(value or "").strip() for value in row.values()):
+                    rows.append(row)
+            return rows
+
+        # Older saved reports contain one material in the root-level fields.
+        legacy = {key: self.d.get(key, "") for key in ("material", "fu", "fy", "young", "nu", "rho")}
+        return [legacy] if any(str(value or "").strip() for value in legacy.values()) else []
+
     def ph(self, label):
         return f'<font color="#9A9A9A"><i>[ {escape(label)} ]</i></font>'
     def v(self, k):
@@ -640,9 +664,12 @@ def sec_geometry(c):
 
 def sec_methodology(c):
     s = c.s
+    material_rows = c.materials()
+    material_names = [escape(row["material"]) for row in material_rows if row["material"]]
+    material_description = ", ".join(material_names) if material_names else c.v("material")
     steps = [("Model Preparation:", [f"The CAD model of the {c.v('project_name')} was imported into the FEA software.",
                                      "Geometric simplifications were applied where appropriate to improve computational efficiency without affecting the structural behaviour of the trailer."]),
-             ("Material Assignment:", [f"{c.v('material')} was assigned to all the body as material based on design requirements.",
+             ("Material Assignment:", [f"{material_description} was assigned to the relevant structural members based on design requirements.",
                                        "Mechanical properties such as yield strength, ultimate strength, Young’s modulus, and Poisson’s ratio were defined."]),
              ("Meshing Strategy:", ["A fine mesh was applied to areas with high stress concentrations to improve accuracy.", "A balance between computational efficiency and precision was maintained."]),
              ("Boundary Conditions & Load Application:", ["The models were fixed at the necessary supports to replicate real-world constraints.", "Various load cases were applied to simulate different load conditions."]),
@@ -652,8 +679,23 @@ def sec_methodology(c):
     for i, (title, items) in enumerate(steps, 1):
         out.append(Paragraph(f"{i}.&nbsp;&nbsp;&nbsp;{escape(title)}", s["num"]))
         out += [Paragraph(t, s["sub"], bulletText="o") for t in items]
-    mat = [[Paragraph(x, s["celb"]) for x in ["Material", "Tensile Strength (MPa)", "Yield Strength (MPa)", "Young’s Modulus (GPa)", "Poisson’s Ratio", "Density (kg/m^3)"]],
-           [Paragraph(c.v(k), s["cellc"]) for k in ["material", "fu", "fy", "young", "nu", "rho"]]]
+    mat = [[Paragraph(x, s["celb"]) for x in ["Material", "Tensile Strength (MPa)", "Yield Strength (MPa)", "Young’s Modulus (GPa)", "Poisson’s Ratio", "Density (kg/m^3)"]]]
+    if c.tpl:
+        # Keep the blank template's original editable single row.
+        mat.append([CellField(width - 4, f"material_{key}")
+                    for width, key in zip([84, 77, 77, 77, 77, 76], ("material", "fu", "fy", "young", "nu", "rho"))])
+    elif material_rows:
+        for row in material_rows:
+            mat.append([
+                Paragraph(escape(str(row["material"] or "—")), s["cellc"]),
+                Paragraph(escape(str(row["fu"] if row["fu"] not in (None, "") else "—")), s["cellc"]),
+                Paragraph(escape(str(row["fy"] if row["fy"] not in (None, "") else "—")), s["cellc"]),
+                Paragraph(escape(str(row["young"] if row["young"] not in (None, "") else "—")), s["cellc"]),
+                Paragraph(escape(str(row["nu"] if row["nu"] not in (None, "") else "—")), s["cellc"]),
+                Paragraph(escape(str(row["rho"] if row["rho"] not in (None, "") else "—")), s["cellc"]),
+            ])
+    else:
+        mat.append([Paragraph(c.v(k), s["cellc"]) for k in ("material", "fu", "fy", "young", "nu", "rho")])
     out += [PageMarker("mat", toc=True), Spacer(1, 10), c.P("4.3 Material", "h16"),
             c.P("The material properties used in the analysis are assumed to be linear, elastic, isotropic, and homogeneous as per the requirements of the Australian Standard AS 4100-2020 for structural steel design."),
             c.tbl(mat, [84, 77, 77, 77, 77, 76], pad=6)]
