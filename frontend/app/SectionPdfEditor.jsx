@@ -1680,6 +1680,27 @@ export default function SectionPdfEditor({
             {log.length ? <span className="rounded-full bg-[#f84f63]/15 px-2 py-0.5 text-[10px] font-bold text-[#ff9da9]">{log.length} linked edit{log.length > 1 ? "s" : ""}</span> : null}
           </div>
           <div className="studio-scroll min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-3">
+            {/* Keep this fallback field visible until the backend schema exposes trailer_name.
+                If the schema already contains it, its normal schema-driven field is used instead. */}
+            {![
+              ...(Array.isArray(schema?.general) ? schema.general : []),
+              ...(Array.isArray(schema?.sections) ? schema.sections.flatMap((item) => item?.fields || []) : []),
+            ].some((field) => field?.id === "trailer_name") ? (
+              <label className="block">
+                <span className={LABEL}>Trailer name</span>
+                <textarea
+                  className={`${INPUT} mt-1 min-h-[88px] resize-y`}
+                  rows={3}
+                  value={data?.trailer_name ?? ""}
+                  placeholder="Enter the trailer name"
+                  aria-label="Trailer name"
+                  onChange={(event) => setData((current) => ({
+                    ...current,
+                    trailer_name: event.target.value,
+                  }))}
+                />
+              </label>
+            ) : null}
             {fieldsPanel}
             <div>
               {pageSection?.dynamicAnalysis && readSubsections(data[subsectionKey]).length ? (

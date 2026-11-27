@@ -293,7 +293,9 @@ function getStandardSectionNarrative(section, data = {}, ctx = {}) {
   const dc = hasAtm && T ? (9.81 * T * C) / (T + C) : null;
   const map = {
     "ATM": data.atm,
-    "Material": data.material,
+    "Material": Array.isArray(data.materials) && data.materials.length
+      ? data.materials.map((item) => item.material).filter(Boolean).join(", ")
+      : data.material,
     "Yield strength": data.fy,
     "stress": n && data[`a${n}_stress`],
     "deformation": n && data[`a${n}_def`],
@@ -595,108 +597,334 @@ function LoginScreen({ authMode, setAuthMode, authForm, setAuthForm, submit, sta
 /*  Material library                                                   */
 /* ------------------------------------------------------------------ */
 
-function MaterialEditor({ catalog, mode, setMode, selectedId, setSelectedId, data, setData, materialMeta, setMaterialMeta, status }) {
-  const selected = catalog.find((item) => String(item.id) === String(selectedId));
-  const num = (id, label, unit) => ({ id, label, unit, type: "number" });
-  const materialFields = [
+
+function MaterialEditor({ catalog = [], data, setData, status }) {
+  const fields = [
     { id: "material", label: "Material", type: "text" },
-    num("fu", "Tensile strength", "MPa"),
-    num("fy", "Yield strength", "MPa"),
-    num("young", "Young's modulus", "GPa"),
-    num("nu", "Poisson's ratio"),
-    num("rho", "Density", "kg/m3"),
+    { id: "fu", label: "Tensile strength", unit: "MPa", type: "number" },
+    { id: "fy", label: "Yield strength", unit: "MPa", type: "number" },
+    { id: "young", label: "Young's modulus", unit: "GPa", type: "number" },
+    { id: "nu", label: "Poisson's ratio", type: "number" },
+    { id: "rho", label: "Density", unit: "kg/m3", type: "number" },
   ];
-  const apply = (material) => {
-    setSelectedId(material.id);
+
+  // Read the new multi-material structure, while migrating older reports
+  // that only stored material/fu/fy/young/nu/rho at the root of data.
+  const materials = Array.isArray(data.materials)
+    ? data.materials
+    : data.material
+      ? [{
+          id: "legacy-material",
+          mode: "library",
+          selectedId: "",
+          material: data.material,
+          fu: data.fu ?? "",
+          fy: data.fy ?? "",
+          young: data.young ?? "",
+          nu: data.nu ?? "",
+          rho: data.rho ?? "",
+          meta: {
+            material_type: "",
+            category: "steel",
+            source_standard_id: "",
+            notes: "",
+          },
+        }]
+      : [];
+
+  const syncMaterials = (next) => {
+    const first = next[0] || {};
     setData((current) => ({
       ...current,
-      material: material.grade,
+      materials: next,
+      // Keep legacy root fields populated so existing report templates,
+      // narrative placeholders and older backend code continue to work.
+      material: first.material || "",
+      fu: first.fu ?? "",
+      fy: first.fy ?? "",
+      young: first.young ?? "",
+      nu: first.nu ?? "",
+      rho: first.rho ?? "",
+    }));
+  };
+
+  const updateMaterial = (id, patch) => {
+    syncMaterials(materials.map((item) =>
+      String(item.id) === String(id) ? { ...item, ...patch } : item
+    ));
+  };
+
+  const addMaterial = () => {
+    const id = typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `material-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    syncMaterials([
+      ...materials,
+      {
+        id,
+        mode: "library",
+        selectedId: "",
+        material: "",
+        fu: "",
+        fy: "",
+        young: "",
+        nu: "",
+        rho: "",
+        meta: {
+          material_type: "",
+          category: "steel",
+          source_standard_id: "",
+          notes: "",
+        },
+      },
+    ]);
+  };
+
+  const removeMaterial = (id) => {
+    syncMaterials(materials.filter((item) => String(item.id) !== String(id)));
+  };
+
+  const applyLibraryMaterial = (id, materialId) => {
+    const material = catalog.find(
+      (entry) => String(entry.id) === String(materialId)
+    );
+    if (!material) {
+      updateMaterial(id, { selectedId: "" });
+      return;
+    }
+
+    updateMaterial(id, {
+      mode: "library",
+      selectedId: material.id,
+      material: material.grade || "",
       fu: material.tensile_mpa ?? "",
       fy: material.yield_mpa ?? "",
       young: material.youngs_modulus_gpa ?? "",
       nu: material.poisson_ratio ?? "",
       rho: material.density_kg_m3 ?? "",
-    }));
-    setMaterialMeta({
-      material_type: material.material_type || "",
-      category: material.category || "steel",
-      source_standard_id: material.source_standard_id || "",
-      notes: material.notes || "",
+      meta: {
+        material_type: material.material_type || "",
+        category: material.category || "steel",
+        source_standard_id: material.source_standard_id || "",
+        notes: material.notes || "",
+      },
     });
   };
-  const meta = (key) => (event) => setMaterialMeta((value) => ({ ...value, [key]: event.target.value }));
 
   return (
     <section className={CARD}>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className={EYEBROW}>Material library</p>
-          <h2 className="mt-1 text-xl font-semibold text-white">Mechanical properties</h2>
+          <h2 className="mt-1 text-xl font-semibold text-white">
+            Mechanical properties
+          </h2>
+          <p className="mt-1 text-xs text-[#9fb9c4]">
+            Add multiple material grades and maintain their properties separately.
+          </p>
         </div>
-        <span className="rounded-full border border-[#77c2bd]/30 bg-[#77c2bd]/10 px-3 py-1 text-xs text-[#bde1dc]">Database linked</span>
+        <span className="rounded-full border border-[#77c2bd]/30 bg-[#77c2bd]/10 px-3 py-1 text-xs text-[#bde1dc]">
+          Database linked
+        </span>
       </div>
 
-      <div className="mb-6 grid gap-4 md:grid-cols-[200px_1fr]">
-        <Labeled label="Select from Material">
-          <select className={INPUT} value={mode} onChange={(e) => setMode(e.target.value)}>
-            <option value="library">Library</option>
-            <option value="manual">Manual / edit</option>
-          </select>
-        </Labeled>
-        {mode === "library" && (
-          <Labeled label="Select material grade">
-            <select
-              className={INPUT}
-              value={selectedId}
-              onChange={(e) => {
-                const next = catalog.find((item) => String(item.id) === e.target.value);
-                if (next) apply(next);
-              }}
-            >
-              <option value="">Select a material</option>
-              {catalog.map((item) => (
-                <option key={item.id} value={item.id}>{item.grade} — {item.material_type}</option>
-              ))}
-            </select>
-          </Labeled>
-        )}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm font-medium text-[#c9dfe3]">
+          Materials ({materials.length})
+        </p>
+        <button
+          type="button"
+          onClick={addMaterial}
+          className="rounded-lg bg-[#f84f63] px-4 py-2.5 text-sm font-semibold text-[#0a1f36] hover:bg-[#ff667a]"
+        >
+          + Add Material
+        </button>
       </div>
 
-      {mode === "manual" && (
-        <div className={`${INSET} mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3`}>
-          <Labeled label="Material type *">
-            <input value={materialMeta.material_type} onChange={meta("material_type")} className={INPUT} />
-          </Labeled>
-          <Labeled label="Category">
-            <select value={materialMeta.category} onChange={meta("category")} className={INPUT}>
-              <option value="steel">Steel</option>
-              <option value="weld_metal">Weld metal</option>
-              <option value="bolt">Bolt</option>
-            </select>
-          </Labeled>
-          <Labeled label="Source standard ID">
-            <input type="number" value={materialMeta.source_standard_id} onChange={meta("source_standard_id")} className={INPUT} />
-          </Labeled>
-          <Labeled label="Notes" className="sm:col-span-2 lg:col-span-3">
-            <input value={materialMeta.notes} onChange={meta("notes")} className={INPUT} placeholder="Optional material notes" />
-          </Labeled>
+      {materials.length === 0 ? (
+        <div className={`${INSET} py-10 text-center`}>
+          <p className="text-sm text-[#b9d0d8]">No materials added yet.</p>
+          <p className="mt-1 text-xs text-[#8fa9b5]">
+            Add your first material to get started.
+          </p>
+          <button
+            type="button"
+            onClick={addMaterial}
+            className="mt-4 rounded-lg bg-[#f84f63] px-5 py-2.5 text-sm font-semibold text-[#0a1f36]"
+          >
+            Add First Material
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {materials.map((item, index) => {
+            const isManual = item.mode === "manual";
+            const selectedCatalogItem = catalog.find(
+              (entry) => String(entry.id) === String(item.selectedId)
+            );
+
+            return (
+              <div key={item.id} className={`${INSET} relative`}>
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-[#f84f63]">
+                      MATERIAL {index + 1}
+                    </p>
+                    <h3 className="mt-1 truncate text-base font-semibold text-white">
+                      {item.material || `Material ${index + 1}`}
+                    </h3>
+                    {item.meta?.material_type && (
+                      <p className="mt-1 text-xs text-[#9fb9c4]">
+                        {item.meta.material_type}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeMaterial(item.id)}
+                    className="rounded-md border border-red-400/30 px-3 py-2 text-xs font-medium text-red-300 hover:bg-red-400/10"
+                    aria-label={`Remove material ${index + 1}`}
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                <div className="mb-5 grid gap-4 sm:grid-cols-2">
+                  <Labeled label="Material source">
+                    <select
+                      className={INPUT}
+                      value={isManual ? "manual" : "library"}
+                      onChange={(event) => updateMaterial(item.id, {
+                        mode: event.target.value,
+                        ...(event.target.value === "library"
+                          ? { selectedId: "" }
+                          : {}),
+                      })}
+                    >
+                      <option value="library">Material Library</option>
+                      <option value="manual">Manual / Edit</option>
+                    </select>
+                  </Labeled>
+
+                  {!isManual && (
+                    <Labeled label="Select material grade">
+                      <select
+                        className={INPUT}
+                        value={item.selectedId ?? ""}
+                        onChange={(event) =>
+                          applyLibraryMaterial(item.id, event.target.value)
+                        }
+                      >
+                        <option value="">Select a material</option>
+                        {catalog.map((entry) => (
+                          <option key={entry.id} value={entry.id}>
+                            {entry.grade} — {entry.material_type}
+                          </option>
+                        ))}
+                      </select>
+                    </Labeled>
+                  )}
+                </div>
+
+                {isManual && (
+                  <div className={`${CARD} mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3`}>
+                    <Labeled label="Material type *">
+                      <input
+                        className={INPUT}
+                        value={item.meta?.material_type || ""}
+                        onChange={(event) => updateMaterial(item.id, {
+                          meta: {
+                            ...item.meta,
+                            material_type: event.target.value,
+                          },
+                        })}
+                        placeholder="e.g. Structural steel"
+                      />
+                    </Labeled>
+
+                    <Labeled label="Category">
+                      <select
+                        className={INPUT}
+                        value={item.meta?.category || "steel"}
+                        onChange={(event) => updateMaterial(item.id, {
+                          meta: {
+                            ...item.meta,
+                            category: event.target.value,
+                          },
+                        })}
+                      >
+                        <option value="steel">Steel</option>
+                        <option value="weld_metal">Weld metal</option>
+                        <option value="bolt">Bolt</option>
+                      </select>
+                    </Labeled>
+
+                    <Labeled label="Source standard ID">
+                      <input
+                        type="number"
+                        className={INPUT}
+                        value={item.meta?.source_standard_id ?? ""}
+                        onChange={(event) => updateMaterial(item.id, {
+                          meta: {
+                            ...item.meta,
+                            source_standard_id: event.target.value,
+                          },
+                        })}
+                        placeholder="Optional"
+                      />
+                    </Labeled>
+
+                    <Labeled label="Notes" className="sm:col-span-2 lg:col-span-3">
+                      <input
+                        className={INPUT}
+                        value={item.meta?.notes || ""}
+                        onChange={(event) => updateMaterial(item.id, {
+                          meta: {
+                            ...item.meta,
+                            notes: event.target.value,
+                          },
+                        })}
+                        placeholder="Optional material notes"
+                      />
+                    </Labeled>
+                  </div>
+                )}
+
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {fields.map((field) => (
+                    <Field
+                      key={field.id}
+                      field={field}
+                      value={item[field.id] ?? ""}
+                      readOnly={!isManual && field.id !== "material"}
+                      onChange={(value) => updateMaterial(item.id, {
+                        [field.id]: value,
+                      })}
+                    />
+                  ))}
+                </div>
+
+                <p className="mt-4 text-xs text-[#9bc8c6]">
+                  {isManual
+                    ? "Manual material properties are saved to the material library when the required fields are complete."
+                    : selectedCatalogItem
+                      ? `${selectedCatalogItem.notes || selectedCatalogItem.material_type || "Material"} loaded from the library.`
+                      : item.material
+                        ? "This material is retained from a saved report."
+                        : "Select a grade to populate its mechanical properties."}
+                </p>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {materialFields.map((item) => (
-          <Field key={item.id} field={item} value={data[item.id]} readOnly={mode === "library"} onChange={(value) => setData((current) => ({ ...current, [item.id]: value }))} />
-        ))}
-      </div>
-
-      <p className={`mt-4 text-xs ${status?.error ? "text-[#ff8e9c]" : "text-[#9bc8c6]"}`}>
-        {status?.text ||
-          (mode === "manual"
-            ? "Changes save automatically when the material grade, type, and tensile strength are complete."
-            : selected
-              ? `${selected.notes || selected.material_type} loaded from the materials library.`
-              : "Select a material to populate report values.")}
-      </p>
+      {status?.text && (
+        <p className={`mt-4 text-xs ${status.error ? "text-[#ff8e9c]" : "text-[#9bc8c6]"}`}>
+          {status.text}
+        </p>
+      )}
     </section>
   );
 }
@@ -2272,37 +2500,71 @@ export default function ReportGenix() {
   useEffect(() => { WORK.data = data; }, [data]);
 
   useEffect(() => {
-    if (materialMode !== "manual" || !data.material || !materialMeta.material_type || !data.fu || !csrf) return;
+    const manualMaterials = (Array.isArray(data.materials) ? data.materials : [])
+      .filter((item) =>
+        item?.mode === "manual" &&
+        String(item.material || "").trim() &&
+        String(item.meta?.material_type || "").trim() &&
+        String(item.fu ?? "").trim()
+      );
+
+    if (!manualMaterials.length || !csrf) return undefined;
+
+    let cancelled = false;
     const timer = window.setTimeout(async () => {
+      setMaterialStatus({ text: `Saving ${manualMaterials.length} manual material${manualMaterials.length === 1 ? "" : "s"}…` });
+
       try {
-        setMaterialStatus({ text: "Saving material changes…" });
-        const response = await request("/api/materials/manual", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            grade: data.material,
-            material_type: materialMeta.material_type,
-            tensile_mpa: data.fu,
-            yield_mpa: data.fy,
-            youngs_modulus_gpa: data.young,
-            poisson_ratio: data.nu,
-            density_kg_m3: data.rho,
-            ...materialMeta,
-          }),
-        });
-        const payload = await response.json();
-        setMaterialsCatalog((current) => {
-          const next = current.filter((item) => item.id !== payload.material.id);
-          return [...next, payload.material].sort((a, b) => a.grade.localeCompare(b.grade));
-        });
-        setSelectedMaterialId(payload.material.id);
-        setMaterialStatus({ text: "Material saved to the library." });
+        const savedMaterials = await Promise.all(
+          manualMaterials.map(async (item) => {
+            const response = await request("/api/materials/manual", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                grade: item.material,
+                material_type: item.meta.material_type,
+                tensile_mpa: item.fu,
+                yield_mpa: item.fy,
+                youngs_modulus_gpa: item.young,
+                poisson_ratio: item.nu,
+                density_kg_m3: item.rho,
+                ...item.meta,
+              }),
+            });
+            return response.json();
+          })
+        );
+
+        if (cancelled) return;
+
+        const savedRows = savedMaterials
+          .map((payload) => payload?.material)
+          .filter(Boolean);
+
+        if (savedRows.length) {
+          setMaterialsCatalog((current) => {
+            const byId = new Map(current.map((entry) => [String(entry.id), entry]));
+            savedRows.forEach((entry) => byId.set(String(entry.id), entry));
+            return [...byId.values()].sort((a, b) =>
+              String(a.grade || "").localeCompare(String(b.grade || ""))
+            );
+          });
+          setMaterialStatus({
+            text: `${savedRows.length} manual material${savedRows.length === 1 ? "" : "s"} saved to the library.`,
+          });
+        }
       } catch (error) {
-        setMaterialStatus({ text: error.message, error: true });
+        if (!cancelled) {
+          setMaterialStatus({ text: error.message, error: true });
+        }
       }
     }, 850);
-    return () => window.clearTimeout(timer);
-  }, [materialMode, data.material, data.fu, data.fy, data.young, data.nu, data.rho, materialMeta, csrf, request]);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [data.materials, csrf, request]);
 
   const submitAuth = async (event) => {
     event.preventDefault();
@@ -2784,7 +3046,21 @@ export default function ReportGenix() {
     form.append(
       "payload",
       JSON.stringify({
-        data: { ...reportData, standards: reportRows },
+        data: {
+          ...reportData,
+          materials: Array.isArray(reportData.materials)
+            ? reportData.materials
+            : (reportData.material ? [{
+                id: "legacy-material",
+                material: reportData.material,
+                fu: reportData.fu ?? "",
+                fy: reportData.fy ?? "",
+                young: reportData.young ?? "",
+                nu: reportData.nu ?? "",
+                rho: reportData.rho ?? "",
+              }] : []),
+          standards: reportRows,
+        },
         standards: reportRows,
         selected: selectedForReport,
         layout,
@@ -2819,7 +3095,21 @@ export default function ReportGenix() {
       .map((section) => section.id);
     const selectedForReport = [...new Set([...selected, ...commonSectionIds])];
     form.append("payload", JSON.stringify({
-      data: { ...reportData, standards: reportRows }, standards: reportRows, selected: selectedForReport, layout,
+      data: {
+          ...reportData,
+          materials: Array.isArray(reportData.materials)
+            ? reportData.materials
+            : (reportData.material ? [{
+                id: "legacy-material",
+                material: reportData.material,
+                fu: reportData.fu ?? "",
+                fy: reportData.fy ?? "",
+                young: reportData.young ?? "",
+                nu: reportData.nu ?? "",
+                rho: reportData.rho ?? "",
+              }] : []),
+          standards: reportRows,
+        }, standards: reportRows, selected: selectedForReport, layout,
       extra_images: extraImagesPayload, removed_images: removedImagesPayload, output,
     }));
     Object.entries(files).forEach(([key, file]) => { if (file) form.append(`img__${key}`, file); });
@@ -3093,6 +3383,7 @@ export default function ReportGenix() {
     setSelectedMaterialId("");
     setMaterialMode("library");
     setMaterialMeta({ material_type: "", category: "steel", source_standard_id: "", notes: "" });
+    setMaterialStatus(null);
   };
 
   const writeDraft = (d) => {
@@ -3327,7 +3618,7 @@ export default function ReportGenix() {
       <details className="rounded-xl border border-[#234b63] bg-[#0a2744]/60">
         <summary className="cursor-pointer select-none px-3 py-2.5 text-[11px] font-bold uppercase tracking-wide text-[#c9dfe3]">Libraries</summary>
         <div className={`space-y-4 border-t border-[#234b63] p-2 ${PANEL_COMPACT}`}>
-          <MaterialEditor catalog={materialsCatalog} mode={materialMode} setMode={setMaterialMode} selectedId={selectedMaterialId} setSelectedId={setSelectedMaterialId} data={data} setData={setData} materialMeta={materialMeta} setMaterialMeta={setMaterialMeta} status={materialStatus} />
+          <MaterialEditor catalog={materialsCatalog} data={data} setData={setData} status={materialStatus} />
           <ComplianceEditor rows={standards} setRows={setStandards} catalog={standardsCatalog} request={request} />
         </div>
       </details>
@@ -3453,7 +3744,7 @@ export default function ReportGenix() {
             </section>
           )}
 
-          {route === "projects" && <div className="space-y-6"><MaterialEditor catalog={materialsCatalog} mode={materialMode} setMode={setMaterialMode} selectedId={selectedMaterialId} setSelectedId={setSelectedMaterialId} data={data} setData={setData} materialMeta={materialMeta} setMaterialMeta={setMaterialMeta} status={materialStatus} /><ComplianceEditor rows={standards} setRows={setStandards} catalog={standardsCatalog} request={request} /></div>}
+          {route === "projects" && <div className="space-y-6"><MaterialEditor catalog={materialsCatalog} data={data} setData={setData} status={materialStatus} /><ComplianceEditor rows={standards} setRows={setStandards} catalog={standardsCatalog} request={request} /></div>}
 
           {route === "section" && (
             <div className="h-[calc(100dvh-52px)] min-h-[420px]">
