@@ -1,187 +1,187 @@
 
 ===== PAGE 1  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-16,635 | DejaVuSans 11.5 #ffffff | 1/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+16,635 | Verdana 11.5 #ffffff | 1/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (125, 206, 539, 540)
 [image] (76, 42, 182, 100)
-198,57 | DejaVuSans-Bold 36.7 #000000 | CERTIFICATE OF CONFORMITY
-227,144 | Carlito-Bold 20.0 #002060 | RAE No: [ RAE No. ]
-90,187 | Carlito-Bold 10.6 #000000 | Name and address of Applicant: All Trades Trailer
-90,214 | Carlito-Bold 10.6 #000000 | Project Name: [ Project name ]
-90,241 | Carlito-Bold 10.6 #000000 | Certification No: [ Certification No. ]
-90,267 | Carlito-Bold 10.6 #000000 | Product Classification: Trailer Certification
-90,294 | Carlito-Bold 10.6 #000000 | Certification was carried within following scope
-90,317 | Carlito-Bold 10.6 #000000 | Australian Standards:
-108,343 | Carlito-Regular 10.6 #000000 | •
-126,343 | Carlito-Italic 10.6 #9a9a9a | [ Enter standards in Summary of Compliance ]
-90,399 | Carlito-Regular 10.6 #000000 | The assessment process has been carried out in accordance with the individual rules and conditions agreed
-90,412 | Carlito-Regular 10.6 #000000 | with the applicant.
-90,447 | Carlito-Bold 10.6 #000000 | Valid till: 5 Years From issue date (Yearly Inspection required)
-96,495 | Carlito-Bold 10.6 #000000 | Revision
-109,530 | Carlito-Regular 10.6 #000000 | R0
-160,495 | Carlito-Bold 10.6 #000000 | Date
-142,524 | Carlito-Italic 10.6 #9a9a9a | [ Revision dat
-166,536 | Carlito-Italic 10.6 #9a9a9a | e ]
-268,495 | Carlito-Bold 10.6 #000000 | Revision Details
-273,530 | Carlito-Regular 10.6 #000000 | Initial Release
-418,495 | Carlito-Bold 10.6 #000000 | Prepared By
-406,524 | Carlito-Italic 10.6 #9a9a9a | [ Prepared by (init
-433,536 | Carlito-Italic 10.6 #9a9a9a | ials) ]
-501,495 | Carlito-Bold 10.6 #000000 | Checked By
-491,524 | Carlito-Italic 10.6 #9a9a9a | [ Checked by (ini
-513,536 | Carlito-Italic 10.6 #9a9a9a | tials) ]
-90,638 | Carlito-Regular 10.6 #000000 | Composite Structures Australia Pty Ltd
-90,651 | Carlito-Regular 10.6 #000000 | www.csaengineering.com.au
-90,664 | Carlito-Regular 10.6 #000000 | info@csaengineering.com.au
-90,676 | Carlito-Regular 10.6 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-90,689 | Carlito-Regular 10.6 #000000 | P: +61 452 292 355
-332,642 | Carlito-Regular 11.0 #000000 | Certifier -
-332,657 | Carlito-Regular 11.0 #000000 | Noel Singh
-332,672 | Carlito-Regular 11.0 #000000 | Fellow IEAustCPEng RPEQ 23862 NER
+198,57 | Verdana-Bold 36.7 #000000 | CERTIFICATE OF CONFORMITY
+227,144 | Calibri-Bold 20.0 #002060 | RAE No: [ RAE No. ]
+90,187 | Calibri-Bold 10.6 #000000 | Name and address of Applicant: All Trades Trailer
+90,214 | Calibri-Bold 10.6 #000000 | Project Name: [ Project name ]
+90,241 | Calibri-Bold 10.6 #000000 | Certification No: [ Certification No. ]
+90,267 | Calibri-Bold 10.6 #000000 | Product Classification: Trailer Certification
+90,294 | Calibri-Bold 10.6 #000000 | Certification was carried within following scope
+90,317 | Calibri-Bold 10.6 #000000 | Australian Standards:
+108,343 | Calibri 10.6 #000000 | •
+126,343 | Calibri-Italic 10.6 #9a9a9a | [ Enter standards in Summary of Compliance ]
+90,399 | Calibri 10.6 #000000 | The assessment process has been carried out in accordance with the individual rules and conditions agreed
+90,412 | Calibri 10.6 #000000 | with the applicant.
+90,447 | Calibri-Bold 10.6 #000000 | Valid till: 5 Years From issue date (Yearly Inspection required)
+96,495 | Calibri-Bold 10.6 #000000 | Revision
+109,530 | Calibri 10.6 #000000 | R0
+160,495 | Calibri-Bold 10.6 #000000 | Date
+142,524 | Calibri-Italic 10.6 #9a9a9a | [ Revision dat
+166,536 | Calibri-Italic 10.6 #9a9a9a | e ]
+268,495 | Calibri-Bold 10.6 #000000 | Revision Details
+273,530 | Calibri 10.6 #000000 | Initial Release
+418,495 | Calibri-Bold 10.6 #000000 | Prepared By
+406,524 | Calibri-Italic 10.6 #9a9a9a | [ Prepared by (init
+433,536 | Calibri-Italic 10.6 #9a9a9a | ials) ]
+501,495 | Calibri-Bold 10.6 #000000 | Checked By
+491,524 | Calibri-Italic 10.6 #9a9a9a | [ Checked by (ini
+513,536 | Calibri-Italic 10.6 #9a9a9a | tials) ]
+90,638 | Calibri 10.6 #000000 | Composite Structures Australia Pty Ltd
+90,651 | Calibri 10.6 #000000 | www.csaengineering.com.au
+90,664 | Calibri 10.6 #000000 | info@csaengineering.com.au
+90,676 | Calibri 10.6 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+90,689 | Calibri 10.6 #000000 | P: +61 452 292 355
+332,642 | Calibri 11.0 #000000 | Certifier -
+332,657 | Calibri 11.0 #000000 | Noel Singh
+332,672 | Calibri 11.0 #000000 | Fellow IEAustCPEng RPEQ 23862 NER
 [image] (506, 636, 569, 699)
 [drawings] 13
 
 ===== PAGE 2  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-16,648 | DejaVuSans 11.5 #ffffff | 2/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+16,648 | Verdana 11.5 #ffffff | 2/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,144 | Carlito-Bold 18.0 #4f81bd | Index:
-100,197 | Carlito-Bold 10.6 #000000 | Sr. No.
-141,197 | Carlito-Bold 10.6 #000000 | Section
-447,197 | Carlito-Bold 10.6 #000000 | Page No.
-111,233 | Carlito-Regular 10.6 #000000 | 1.
-141,233 | Carlito-Regular 10.6 #000000 | Background & Scope of Work
-464,233 | Carlito-Regular 10.6 #000000 | 3
-111,255 | Carlito-Regular 10.6 #000000 | 2.
-141,255 | Carlito-Regular 10.6 #000000 | Summary of Compliance
-464,255 | Carlito-Regular 10.6 #000000 | 5
-111,277 | Carlito-Regular 10.6 #000000 | 3.
-141,277 | Carlito-Regular 10.6 #000000 | Requirements
-464,277 | Carlito-Regular 10.6 #000000 | 6
-111,299 | Carlito-Regular 10.6 #000000 | 4.
-141,299 | Carlito-Regular 10.6 #000000 | Analysis pre-processing
-464,299 | Carlito-Regular 10.6 #000000 | 7
-108,321 | Carlito-Regular 10.6 #000000 | 4.1
-141,321 | Carlito-Regular 10.6 #000000 | Geometry
-464,321 | Carlito-Regular 10.6 #000000 | 7
-108,342 | Carlito-Regular 10.6 #000000 | 4.2
-141,342 | Carlito-Regular 10.6 #000000 | Methodology
-464,342 | Carlito-Regular 10.6 #000000 | 9
-108,364 | Carlito-Regular 10.6 #000000 | 4.3
-141,364 | Carlito-Regular 10.6 #000000 | Material
-464,364 | Carlito-Regular 10.6 #000000 | 9
-108,386 | Carlito-Regular 10.6 #000000 | 4.4
-141,386 | Carlito-Regular 10.6 #000000 | Meshing
-461,386 | Carlito-Regular 10.6 #000000 | 10
-111,408 | Carlito-Regular 10.6 #000000 | 5.
-141,408 | Carlito-Regular 10.6 #000000 | Analysis & Results
-461,408 | Carlito-Regular 10.6 #000000 | 11
-108,430 | Carlito-Regular 10.6 #000000 | 5.1
-141,430 | Carlito-Regular 10.6 #000000 | Longitudinal Tension and Compression
-461,430 | Carlito-Regular 10.6 #000000 | 11
-108,451 | Carlito-Regular 10.6 #000000 | 5.2
-141,451 | Carlito-Regular 10.6 #000000 | Transverse Thrust
-461,451 | Carlito-Regular 10.6 #000000 | 14
-108,473 | Carlito-Regular 10.6 #000000 | 5.3
-141,473 | Carlito-Regular 10.6 #000000 | Vertical Tension and Compression
-461,473 | Carlito-Regular 10.6 #000000 | 17
-108,495 | Carlito-Regular 10.6 #000000 | 5.4
-141,495 | Carlito-Regular 10.6 #000000 | Drawbar– Dynamic Test
-461,495 | Carlito-Regular 10.6 #000000 | 20
-108,517 | Carlito-Regular 10.6 #000000 | 5.5
-141,517 | Carlito-Regular 10.6 #000000 | The structural strength of the trailer
-461,517 | Carlito-Regular 10.6 #000000 | 27
-108,539 | Carlito-Regular 10.6 #000000 | 5.6
-141,539 | Carlito-Regular 10.6 #000000 | Drawbar Safety Chain Attachment
-461,539 | Carlito-Regular 10.6 #000000 | 31
-108,560 | Carlito-Regular 10.6 #000000 | 5.7
-141,560 | Carlito-Regular 10.6 #000000 | Coupling attachment points
-461,560 | Carlito-Regular 10.6 #000000 | 32
-111,582 | Carlito-Regular 10.6 #000000 | 6.
-141,582 | Carlito-Regular 10.6 #000000 | Conclusion
-461,582 | Carlito-Regular 10.6 #000000 | 34
-111,604 | Carlito-Regular 10.6 #000000 | 7.
-141,604 | Carlito-Regular 10.6 #000000 | References
-461,604 | Carlito-Regular 10.6 #000000 | 35
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,144 | Calibri-Bold 18.0 #4f81bd | Index:
+100,197 | Calibri-Bold 10.6 #000000 | Sr. No.
+141,197 | Calibri-Bold 10.6 #000000 | Section
+447,197 | Calibri-Bold 10.6 #000000 | Page No.
+111,233 | Calibri 10.6 #000000 | 1.
+141,233 | Calibri 10.6 #000000 | Background & Scope of Work
+464,233 | Calibri 10.6 #000000 | 3
+111,255 | Calibri 10.6 #000000 | 2.
+141,255 | Calibri 10.6 #000000 | Summary of Compliance
+464,255 | Calibri 10.6 #000000 | 5
+111,277 | Calibri 10.6 #000000 | 3.
+141,277 | Calibri 10.6 #000000 | Requirements
+464,277 | Calibri 10.6 #000000 | 6
+111,299 | Calibri 10.6 #000000 | 4.
+141,299 | Calibri 10.6 #000000 | Analysis pre-processing
+464,299 | Calibri 10.6 #000000 | 7
+108,321 | Calibri 10.6 #000000 | 4.1
+141,321 | Calibri 10.6 #000000 | Geometry
+464,321 | Calibri 10.6 #000000 | 7
+108,342 | Calibri 10.6 #000000 | 4.2
+141,342 | Calibri 10.6 #000000 | Methodology
+464,342 | Calibri 10.6 #000000 | 9
+108,364 | Calibri 10.6 #000000 | 4.3
+141,364 | Calibri 10.6 #000000 | Material
+464,364 | Calibri 10.6 #000000 | 9
+108,386 | Calibri 10.6 #000000 | 4.4
+141,386 | Calibri 10.6 #000000 | Meshing
+461,386 | Calibri 10.6 #000000 | 10
+111,408 | Calibri 10.6 #000000 | 5.
+141,408 | Calibri 10.6 #000000 | Analysis & Results
+461,408 | Calibri 10.6 #000000 | 11
+108,430 | Calibri 10.6 #000000 | 5.1
+141,430 | Calibri 10.6 #000000 | Longitudinal Tension and Compression
+461,430 | Calibri 10.6 #000000 | 11
+108,451 | Calibri 10.6 #000000 | 5.2
+141,451 | Calibri 10.6 #000000 | Transverse Thrust
+461,451 | Calibri 10.6 #000000 | 14
+108,473 | Calibri 10.6 #000000 | 5.3
+141,473 | Calibri 10.6 #000000 | Vertical Tension and Compression
+461,473 | Calibri 10.6 #000000 | 17
+108,495 | Calibri 10.6 #000000 | 5.4
+141,495 | Calibri 10.6 #000000 | Drawbar– Dynamic Test
+461,495 | Calibri 10.6 #000000 | 20
+108,517 | Calibri 10.6 #000000 | 5.5
+141,517 | Calibri 10.6 #000000 | The structural strength of the trailer
+461,517 | Calibri 10.6 #000000 | 27
+108,539 | Calibri 10.6 #000000 | 5.6
+141,539 | Calibri 10.6 #000000 | Drawbar Safety Chain Attachment
+461,539 | Calibri 10.6 #000000 | 31
+108,560 | Calibri 10.6 #000000 | 5.7
+141,560 | Calibri 10.6 #000000 | Coupling attachment points
+461,560 | Calibri 10.6 #000000 | 32
+111,582 | Calibri 10.6 #000000 | 6.
+141,582 | Calibri 10.6 #000000 | Conclusion
+461,582 | Calibri 10.6 #000000 | 34
+111,604 | Calibri 10.6 #000000 | 7.
+141,604 | Calibri 10.6 #000000 | References
+461,604 | Calibri 10.6 #000000 | 35
 [drawings] 27
 
 ===== PAGE 3  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-16,648 | DejaVuSans 11.5 #ffffff | 3/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+16,648 | Verdana 11.5 #ffffff | 3/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,144 | Carlito-Bold 18.0 #4f81bd | 1.
-122,144 | Carlito-Bold 18.0 #4f81bd | Background & Scope of Work
-90,178 | Carlito-Regular 10.6 #000000 | This report has been prepared for All Trades Trailer (ATT) to evaluate the structural integrity of the
-90,191 | Carlito-BoldItalic 10.6 #9a9a9a | [ Project name ]. Structural analysis has been carried out for the newly developed trailer chassis and its
-90,204 | Carlito-Regular 10.6 #000000 | internal load-carrying members. The trailer has been certified as a Dual Axle Trailer rated for [ ATM ] kg ATM.
-90,225 | Carlito-Bold 10.6 #000000 | The scope of work undertaken by CSA Engineering includes:
-90,245 | Carlito-Regular 10.6 #000000 | •   Performing Finite Element Analysis (FEA) on Dual Axle Trailer stress distribution and structural strength
-104,258 | Carlito-Regular 10.6 #000000 | analysis.
-90,271 | Carlito-Regular 10.6 #000000 | •   Verifying compliance with safety and performance criteria, ensuring durability and operational efficiency
-90,297 | Carlito-Regular 10.6 #000000 | •   Standards referred:
-104,310 | Carlito-Regular 10.6 #000000 | • ADR 62/02: Australian Design Rules 62/02 – Mechanical Connections Between Vehicles– 2007.
-104,323 | Carlito-Regular 10.6 #000000 | • AS 4100-2020: Steel Structures
-90,354 | Carlito-Bold 12.0 #4f81bd | Project scope of work
-90,373 | Carlito-Italic 10.6 #9a9a9a | [ Project scope of work ]
-90,397 | Carlito-Bold 12.0 #4f81bd | Analysis objectives
-90,416 | Carlito-Italic 10.6 #9a9a9a | [ Analysis objectives ]
-90,443 | Carlito-Regular 10.6 #000000 | 3D isometric images of an actual trailer from Autodesk Inventor software identify this product.
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,144 | Calibri-Bold 18.0 #4f81bd | 1.
+122,144 | Calibri-Bold 18.0 #4f81bd | Background & Scope of Work
+90,178 | Calibri 10.6 #000000 | This report has been prepared for All Trades Trailer (ATT) to evaluate the structural integrity of the
+90,191 | Calibri-BoldItalic 10.6 #9a9a9a | [ Project name ]. Structural analysis has been carried out for the newly developed trailer chassis and its
+90,204 | Calibri 10.6 #000000 | internal load-carrying members. The trailer has been certified as a Dual Axle Trailer rated for [ ATM ] kg ATM.
+90,225 | Calibri-Bold 10.6 #000000 | The scope of work undertaken by CSA Engineering includes:
+90,245 | Calibri 10.6 #000000 | •   Performing Finite Element Analysis (FEA) on Dual Axle Trailer stress distribution and structural strength
+104,258 | Calibri 10.6 #000000 | analysis.
+90,271 | Calibri 10.6 #000000 | •   Verifying compliance with safety and performance criteria, ensuring durability and operational efficiency
+90,297 | Calibri 10.6 #000000 | •   Standards referred:
+104,310 | Calibri 10.6 #000000 | • ADR 62/02: Australian Design Rules 62/02 – Mechanical Connections Between Vehicles– 2007.
+104,323 | Calibri 10.6 #000000 | • AS 4100-2020: Steel Structures
+90,354 | Calibri-Bold 12.0 #4f81bd | Project scope of work
+90,373 | Calibri-Italic 10.6 #9a9a9a | [ Project scope of work ]
+90,397 | Calibri-Bold 12.0 #4f81bd | Analysis objectives
+90,416 | Calibri-Italic 10.6 #9a9a9a | [ Analysis objectives ]
+90,443 | Calibri 10.6 #000000 | 3D isometric images of an actual trailer from Autodesk Inventor software identify this product.
 [drawings] 2
 
 ===== PAGE 4  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-16,648 | DejaVuSans 11.5 #ffffff | 4/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+16,648 | Verdana 11.5 #ffffff | 4/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-210,418 | Helvetica-Bold 10.0 #000000 | 3D Isometric Model in Autodesk Inventor - Front
-211,698 | Helvetica-Bold 10.0 #000000 | 3D Isometric Model in Autodesk Inventor - Back
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+210,418 | Calibri-Bold 10.0 #000000 | 3D Isometric Model in Autodesk Inventor - Front
+211,698 | Calibri-Bold 10.0 #000000 | 3D Isometric Model in Autodesk Inventor - Back
 [field] caption_1 (90, 419, 558, 435)
 [field] caption_2 (90, 699, 558, 715)
 [drawings] 4
 
 ===== PAGE 5  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-16,648 | DejaVuSans 11.5 #ffffff | 5/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+16,648 | Verdana 11.5 #ffffff | 5/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,144 | Carlito-Bold 18.0 #4f81bd | 2.
-122,144 | Carlito-Bold 18.0 #4f81bd | Summary of Compliance
-90,178 | Carlito-Regular 10.6 #000000 | The following table evaluates the trailer specifications against the governing requirements of AS 4100-2020:
-90,191 | Carlito-Regular 10.6 #000000 | Steel Structures, ADR 62/02 is categorized as follows:
-90,218 | Carlito-Regular 10.6 #000000 | Full Compliant (Green): Requirement clearly stated in document.
-90,244 | Carlito-Regular 10.6 #000000 | Partial Compliant (Yellow): Requirement not stated but likely met.
-90,269 | Carlito-Regular 10.6 #000000 | Client Scope (Blue): Outside current assessment scope.
-95,301 | Carlito-Bold 10.6 #000000 | No.
-150,301 | Carlito-Bold 10.6 #000000 | Standard
-297,301 | Carlito-Bold 10.6 #000000 | Compliance requirement
-494,301 | Carlito-Bold 10.6 #000000 | Conformity
-95,322 | Carlito-Regular 10.6 #000000 | 1
-95,368 | Carlito-Regular 10.6 #000000 | 2
-95,414 | Carlito-Regular 10.6 #000000 | 3
-95,460 | Carlito-Regular 10.6 #000000 | 4
-95,506 | Carlito-Regular 10.6 #000000 | 5
-95,552 | Carlito-Regular 10.6 #000000 | 6
-95,598 | Carlito-Regular 10.6 #000000 | 7
-95,644 | Carlito-Regular 10.6 #000000 | 8
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,144 | Calibri-Bold 18.0 #4f81bd | 2.
+122,144 | Calibri-Bold 18.0 #4f81bd | Summary of Compliance
+90,178 | Calibri 10.6 #000000 | The following table evaluates the trailer specifications against the governing requirements of AS 4100-2020:
+90,191 | Calibri 10.6 #000000 | Steel Structures, ADR 62/02 is categorized as follows:
+90,218 | Calibri 10.6 #000000 | Full Compliant (Green): Requirement clearly stated in document.
+90,244 | Calibri 10.6 #000000 | Partial Compliant (Yellow): Requirement not stated but likely met.
+90,269 | Calibri 10.6 #000000 | Client Scope (Blue): Outside current assessment scope.
+95,301 | Calibri-Bold 10.6 #000000 | No.
+150,301 | Calibri-Bold 10.6 #000000 | Standard
+297,301 | Calibri-Bold 10.6 #000000 | Compliance requirement
+494,301 | Calibri-Bold 10.6 #000000 | Conformity
+95,322 | Calibri 10.6 #000000 | 1
+95,368 | Calibri 10.6 #000000 | 2
+95,414 | Calibri 10.6 #000000 | 3
+95,460 | Calibri 10.6 #000000 | 4
+95,506 | Calibri 10.6 #000000 | 5
+95,552 | Calibri 10.6 #000000 | 6
+95,598 | Calibri 10.6 #000000 | 7
+95,644 | Calibri 10.6 #000000 | 8
 [field] standard_1 (118, 319, 223, 361)
 [field] requirement_1 (227, 319, 478, 361)
 [field] conformity_1 (482, 319, 556, 361)
@@ -209,28 +209,28 @@
 [drawings] 21
 
 ===== PAGE 6  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-16,648 | DejaVuSans 11.5 #ffffff | 6/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+16,648 | Verdana 11.5 #ffffff | 6/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,144 | Carlito-Bold 18.0 #4f81bd | 3.
-122,144 | Carlito-Bold 18.0 #4f81bd | Requirements
-90,178 | Carlito-Regular 10.6 #000000 | The following requirements apply for the trailer structural compliance as selected in the Summary of
-90,191 | Carlito-Regular 10.6 #000000 | Compliance.
-93,210 | Carlito-Regular 10.6 #000000 | •
-93,256 | Carlito-Regular 10.6 #000000 | •
-93,302 | Carlito-Regular 10.6 #000000 | •
-93,348 | Carlito-Regular 10.6 #000000 | •
-93,394 | Carlito-Regular 10.6 #000000 | •
-93,440 | Carlito-Regular 10.6 #000000 | •
-93,486 | Carlito-Regular 10.6 #000000 | •
-93,532 | Carlito-Regular 10.6 #000000 | •
-90,589 | Carlito-Bold 12.0 #4f81bd | Project-specific requirements and assumptions
-90,608 | Carlito-Italic 10.6 #9a9a9a | [ Project-specific requirements and assumptions ]
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,144 | Calibri-Bold 18.0 #4f81bd | 3.
+122,144 | Calibri-Bold 18.0 #4f81bd | Requirements
+90,178 | Calibri 10.6 #000000 | The following requirements apply for the trailer structural compliance as selected in the Summary of
+90,191 | Calibri 10.6 #000000 | Compliance.
+93,210 | Calibri 10.6 #000000 | •
+93,256 | Calibri 10.6 #000000 | •
+93,302 | Calibri 10.6 #000000 | •
+93,348 | Calibri 10.6 #000000 | •
+93,394 | Calibri 10.6 #000000 | •
+93,440 | Calibri 10.6 #000000 | •
+93,486 | Calibri 10.6 #000000 | •
+93,532 | Calibri 10.6 #000000 | •
+90,589 | Calibri-Bold 12.0 #4f81bd | Project-specific requirements and assumptions
+90,608 | Calibri-Italic 10.6 #9a9a9a | [ Project-specific requirements and assumptions ]
 [field] requirement_note_1 (109, 206, 565, 250)
 [field] requirement_note_2 (109, 252, 565, 296)
 [field] requirement_note_3 (109, 298, 565, 342)
@@ -242,105 +242,105 @@
 [drawings] 2
 
 ===== PAGE 7  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-16,648 | DejaVuSans 11.5 #ffffff | 7/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+16,648 | Verdana 11.5 #ffffff | 7/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,144 | Carlito-Bold 18.0 #4f81bd | 4.
-122,144 | Carlito-Bold 18.0 #4f81bd | Analysis Pre-processing:
-90,178 | Carlito-Regular 10.6 #000000 | The Trailer is analyzed using the finite element analysis technique. The software used for analysis is ANSYS
-90,191 | Carlito-Regular 10.6 #000000 | Workbench which is used in the automotive industry for over a decade. 3D elements have been used in
-90,204 | Carlito-Regular 10.6 #000000 | modelling as these are the most appropriate for static structural analysis.
-90,233 | Carlito-Bold 16.0 #4f81bd | 4.1 Geometry
-90,266 | Carlito-Regular 10.6 #000000 | ATT has provided the required 3D geometric data that was required for the structural analysis of the trailer.
-90,279 | Carlito-Regular 10.6 #000000 | Shown following are the dimensions of the major structural members of the trailer which was used for the
-90,291 | Carlito-Regular 10.6 #000000 | analysis.
-90,312 | Carlito-Bold 12.0 #4f81bd | Project-specific geometry note
-90,331 | Carlito-Italic 10.6 #9a9a9a | [ Geometry design note ]
-137,360 | Carlito-Bold 10.6 #000000 | Overall length
-294,360 | Carlito-Bold 10.6 #000000 | Overall width
-429,360 | Carlito-Bold 10.6 #000000 | Coupling to suspension
-122,387 | Carlito-Italic 10.6 #9a9a9a | [ Overall length ] mm
-280,387 | Carlito-Italic 10.6 #9a9a9a | [ Overall width ] mm
-406,381 | Carlito-Italic 10.6 #9a9a9a | [ Distance coupling to suspension ]
-472,394 | Carlito-Regular 10.6 #000000 | mm
-278,681 | Helvetica-Bold 10.0 #000000 | 3D Isometric Model
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,144 | Calibri-Bold 18.0 #4f81bd | 4.
+122,144 | Calibri-Bold 18.0 #4f81bd | Analysis Pre-processing:
+90,178 | Calibri 10.6 #000000 | The Trailer is analyzed using the finite element analysis technique. The software used for analysis is ANSYS
+90,191 | Calibri 10.6 #000000 | Workbench which is used in the automotive industry for over a decade. 3D elements have been used in
+90,204 | Calibri 10.6 #000000 | modelling as these are the most appropriate for static structural analysis.
+90,233 | Calibri-Bold 16.0 #4f81bd | 4.1 Geometry
+90,266 | Calibri 10.6 #000000 | ATT has provided the required 3D geometric data that was required for the structural analysis of the trailer.
+90,279 | Calibri 10.6 #000000 | Shown following are the dimensions of the major structural members of the trailer which was used for the
+90,291 | Calibri 10.6 #000000 | analysis.
+90,312 | Calibri-Bold 12.0 #4f81bd | Project-specific geometry note
+90,331 | Calibri-Italic 10.6 #9a9a9a | [ Geometry design note ]
+137,360 | Calibri-Bold 10.6 #000000 | Overall length
+294,360 | Calibri-Bold 10.6 #000000 | Overall width
+429,360 | Calibri-Bold 10.6 #000000 | Coupling to suspension
+122,387 | Calibri-Italic 10.6 #9a9a9a | [ Overall length ] mm
+280,387 | Calibri-Italic 10.6 #9a9a9a | [ Overall width ] mm
+406,381 | Calibri-Italic 10.6 #9a9a9a | [ Distance coupling to suspension ]
+472,394 | Calibri 10.6 #000000 | mm
+278,681 | Calibri-Bold 10.0 #000000 | 3D Isometric Model
 [field] caption_3 (90, 682, 558, 698)
 [drawings] 11
 
 ===== PAGE 8  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-16,648 | DejaVuSans 11.5 #ffffff | 8/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+16,648 | Verdana 11.5 #ffffff | 8/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-200,398 | Helvetica-Bold 10.0 #000000 | Top View showing the length and width of the trailer
-178,685 | Helvetica-Bold 10.0 #000000 | Side View showing the distance of suspension from coupling
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+200,398 | Calibri-Bold 10.0 #000000 | Top View showing the length and width of the trailer
+178,685 | Calibri-Bold 10.0 #000000 | Side View showing the distance of suspension from coupling
 [field] caption_4 (90, 399, 558, 415)
 [field] caption_5 (90, 686, 558, 702)
 [drawings] 4
 
 ===== PAGE 9  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-16,648 | DejaVuSans 11.5 #ffffff | 9/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+16,648 | Verdana 11.5 #ffffff | 9/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,144 | Carlito-Bold 16.0 #4f81bd | 4.2 Methodology
-90,176 | Carlito-Regular 10.6 #000000 | The trailer assembly was analyzed using the Finite Element Analysis (FEA) technique. ANSYS Workbench was
-90,189 | Carlito-Regular 10.6 #000000 | utilized to evaluate the structural response of the trailer under the loading conditions specified in ADR 62/02
-90,202 | Carlito-Regular 10.6 #000000 | Clause 14. Three-dimensional solid elements were used in the finite element model to accurately represent
-90,214 | Carlito-Regular 10.6 #000000 | the geometry and load transfer characteristics of the structure.
-97,241 | Carlito-Bold 10.6 #000000 | 1.   Model Preparation:
-118,253 | Courier 10.6 #000000 | o
-136,254 | Carlito-Regular 10.6 #000000 | The CAD model of the [ Project name ] was imported into the FEA software.
-118,265 | Courier 10.6 #000000 | o
-136,267 | Carlito-Regular 10.6 #000000 | Geometric simplifications were applied where appropriate to improve computational efficiency
-136,280 | Carlito-Regular 10.6 #000000 | without affecting the structural behaviour of the trailer.
-97,293 | Carlito-Bold 10.6 #000000 | 2.   Material Assignment:
-118,304 | Courier 10.6 #000000 | o
-136,306 | Carlito-Italic 10.6 #9a9a9a | [ Material ] was assigned to all the body as material based on design requirements.
-118,317 | Courier 10.6 #000000 | o
-136,318 | Carlito-Regular 10.6 #000000 | Mechanical properties such as yield strength, ultimate strength, Young’s modulus, and Poisson’s
-136,331 | Carlito-Regular 10.6 #000000 | ratio were defined.
-97,344 | Carlito-Bold 10.6 #000000 | 3.   Meshing Strategy:
-118,355 | Courier 10.6 #000000 | o
-136,357 | Carlito-Regular 10.6 #000000 | A fine mesh was applied to areas with high stress concentrations to improve accuracy.
-118,368 | Courier 10.6 #000000 | o
-136,370 | Carlito-Regular 10.6 #000000 | A balance between computational efficiency and precision was maintained.
-97,383 | Carlito-Bold 10.6 #000000 | 4.   Boundary Conditions & Load Application:
-118,394 | Courier 10.6 #000000 | o
-136,396 | Carlito-Regular 10.6 #000000 | The models were fixed at the necessary supports to replicate real-world constraints.
-118,407 | Courier 10.6 #000000 | o
-136,408 | Carlito-Regular 10.6 #000000 | Various load cases were applied to simulate different load conditions.
-97,421 | Carlito-Bold 10.6 #000000 | 5.   Analysis Execution & Validation:
-118,432 | Courier 10.6 #000000 | o
-136,434 | Carlito-Regular 10.6 #000000 | The simulation was run to determine stress distribution, deformations, and failure points.
-118,445 | Courier 10.6 #000000 | o
-136,447 | Carlito-Regular 10.6 #000000 | Results were validated by checking against engineering standards and previous empirical data.
-90,476 | Carlito-Bold 16.0 #4f81bd | 4.3 Material
-90,508 | Carlito-Regular 10.6 #000000 | The material properties used in the analysis are assumed to be linear, elastic, isotropic, and homogeneous as
-90,521 | Carlito-Regular 10.6 #000000 | per the requirements of the Australian Standard AS 4100-2020 for structural steel design.
-113,562 | Carlito-Bold 10.6 #000000 | Material
-197,555 | Carlito-Bold 10.6 #000000 | Tensile
-179,568 | Carlito-Bold 10.6 #000000 | Strength (MPa)
-258,555 | Carlito-Bold 10.6 #000000 | Yield Strength
-276,568 | Carlito-Bold 10.6 #000000 | (MPa)
-349,555 | Carlito-Bold 10.6 #000000 | Young’s
-333,568 | Carlito-Bold 10.6 #000000 | Modulus (GPa)
-410,562 | Carlito-Bold 10.6 #000000 | Poisson’s Ratio
-503,555 | Carlito-Bold 10.6 #000000 | Density
-499,568 | Carlito-Bold 10.6 #000000 | (kg/m^3)
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,144 | Calibri-Bold 16.0 #4f81bd | 4.2 Methodology
+90,176 | Calibri 10.6 #000000 | The trailer assembly was analyzed using the Finite Element Analysis (FEA) technique. ANSYS Workbench was
+90,189 | Calibri 10.6 #000000 | utilized to evaluate the structural response of the trailer under the loading conditions specified in ADR 62/02
+90,202 | Calibri 10.6 #000000 | Clause 14. Three-dimensional solid elements were used in the finite element model to accurately represent
+90,214 | Calibri 10.6 #000000 | the geometry and load transfer characteristics of the structure.
+97,241 | Calibri-Bold 10.6 #000000 | 1.   Model Preparation:
+118,253 | CourierNewPSMT 10.6 #000000 | o
+136,254 | Calibri 10.6 #000000 | The CAD model of the [ Project name ] was imported into the FEA software.
+118,265 | CourierNewPSMT 10.6 #000000 | o
+136,267 | Calibri 10.6 #000000 | Geometric simplifications were applied where appropriate to improve computational efficiency
+136,280 | Calibri 10.6 #000000 | without affecting the structural behaviour of the trailer.
+97,293 | Calibri-Bold 10.6 #000000 | 2.   Material Assignment:
+118,304 | CourierNewPSMT 10.6 #000000 | o
+136,306 | Calibri-Italic 10.6 #9a9a9a | [ Material ] was assigned to all the body as material based on design requirements.
+118,317 | CourierNewPSMT 10.6 #000000 | o
+136,318 | Calibri 10.6 #000000 | Mechanical properties such as yield strength, ultimate strength, Young’s modulus, and Poisson’s
+136,331 | Calibri 10.6 #000000 | ratio were defined.
+97,344 | Calibri-Bold 10.6 #000000 | 3.   Meshing Strategy:
+118,355 | CourierNewPSMT 10.6 #000000 | o
+136,357 | Calibri 10.6 #000000 | A fine mesh was applied to areas with high stress concentrations to improve accuracy.
+118,368 | CourierNewPSMT 10.6 #000000 | o
+136,370 | Calibri 10.6 #000000 | A balance between computational efficiency and precision was maintained.
+97,383 | Calibri-Bold 10.6 #000000 | 4.   Boundary Conditions & Load Application:
+118,394 | CourierNewPSMT 10.6 #000000 | o
+136,396 | Calibri 10.6 #000000 | The models were fixed at the necessary supports to replicate real-world constraints.
+118,407 | CourierNewPSMT 10.6 #000000 | o
+136,408 | Calibri 10.6 #000000 | Various load cases were applied to simulate different load conditions.
+97,421 | Calibri-Bold 10.6 #000000 | 5.   Analysis Execution & Validation:
+118,432 | CourierNewPSMT 10.6 #000000 | o
+136,434 | Calibri 10.6 #000000 | The simulation was run to determine stress distribution, deformations, and failure points.
+118,445 | CourierNewPSMT 10.6 #000000 | o
+136,447 | Calibri 10.6 #000000 | Results were validated by checking against engineering standards and previous empirical data.
+90,476 | Calibri-Bold 16.0 #4f81bd | 4.3 Material
+90,508 | Calibri 10.6 #000000 | The material properties used in the analysis are assumed to be linear, elastic, isotropic, and homogeneous as
+90,521 | Calibri 10.6 #000000 | per the requirements of the Australian Standard AS 4100-2020 for structural steel design.
+113,562 | Calibri-Bold 10.6 #000000 | Material
+197,555 | Calibri-Bold 10.6 #000000 | Tensile
+179,568 | Calibri-Bold 10.6 #000000 | Strength (MPa)
+258,555 | Calibri-Bold 10.6 #000000 | Yield Strength
+276,568 | Calibri-Bold 10.6 #000000 | (MPa)
+349,555 | Calibri-Bold 10.6 #000000 | Young’s
+333,568 | Calibri-Bold 10.6 #000000 | Modulus (GPa)
+410,562 | Calibri-Bold 10.6 #000000 | Poisson’s Ratio
+503,555 | Calibri-Bold 10.6 #000000 | Density
+499,568 | Calibri-Bold 10.6 #000000 | (kg/m^3)
 [field] mat_material (92, 591, 172, 613)
 [field] mat_fu (176, 591, 249, 613)
 [field] mat_fy (253, 591, 326, 613)
@@ -350,541 +350,541 @@
 [drawings] 13
 
 ===== PAGE 10  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 10/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 10/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,144 | Carlito-Bold 16.0 #4f81bd | 4.4 Meshing
-90,176 | Carlito-Regular 10.6 #000000 | The fine mesh was created with the number of nodes as [ Mesh nodes ] and the number of elements as
-90,189 | Carlito-Italic 10.6 #9a9a9a | [ Mesh elements ]. Shown below are some images of the finite element model that was used for the analysis.
-90,210 | Carlito-Bold 12.0 #4f81bd | Project-specific analysis pre-processing note
-90,229 | Carlito-Italic 10.6 #9a9a9a | [ Analysis pre-processing note ]
-289,681 | Helvetica-Bold 10.0 #000000 | Meshed model
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,144 | Calibri-Bold 16.0 #4f81bd | 4.4 Meshing
+90,176 | Calibri 10.6 #000000 | The fine mesh was created with the number of nodes as [ Mesh nodes ] and the number of elements as
+90,189 | Calibri-Italic 10.6 #9a9a9a | [ Mesh elements ]. Shown below are some images of the finite element model that was used for the analysis.
+90,210 | Calibri-Bold 12.0 #4f81bd | Project-specific analysis pre-processing note
+90,229 | Calibri-Italic 10.6 #9a9a9a | [ Analysis pre-processing note ]
+289,681 | Calibri-Bold 10.0 #000000 | Meshed model
 [field] caption_6 (90, 682, 558, 698)
 [drawings] 3
 
 ===== PAGE 11  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 11/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 11/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,144 | Carlito-Bold 18.0 #4f81bd | 5.
-122,144 | Carlito-Bold 18.0 #4f81bd | Analysis & Results
-90,179 | Carlito-Bold 16.0 #4f81bd | 5.1 ANALYSIS 1 (ADR 62/02- 14.2.1.1.1) - Longitudinal Tension and
-118,199 | Carlito-Bold 16.0 #4f81bd | Compression
-90,231 | Carlito-Regular 10.6 #000000 | Trailer boundary conditions and the force applied as shown in the below image. The trailer coupling was
-90,244 | Carlito-Regular 10.6 #000000 | subjected to a horizontal force of [ 1.5 x 9.81 x ATM ] N as per clause 14.2.1.1.1 of ADR 62/02 i.e., 1.5 x 9.81 x
-90,257 | Carlito-BoldItalic 10.6 #9a9a9a | [ ATM ] kg, applied on the coupling holes in the longitudinal direction. All hanger holes faces are fixed in all
-90,270 | Carlito-Regular 10.6 #000000 | DOF.
-228,596 | Helvetica-Bold 10.0 #000000 | Load & constraints applied on the trailer
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,144 | Calibri-Bold 18.0 #4f81bd | 5.
+122,144 | Calibri-Bold 18.0 #4f81bd | Analysis & Results
+90,179 | Calibri-Bold 16.0 #4f81bd | 5.1 ANALYSIS 1 (ADR 62/02- 14.2.1.1.1) - Longitudinal Tension and
+118,199 | Calibri-Bold 16.0 #4f81bd | Compression
+90,231 | Calibri 10.6 #000000 | Trailer boundary conditions and the force applied as shown in the below image. The trailer coupling was
+90,244 | Calibri 10.6 #000000 | subjected to a horizontal force of [ 1.5 x 9.81 x ATM ] N as per clause 14.2.1.1.1 of ADR 62/02 i.e., 1.5 x 9.81 x
+90,257 | Calibri-BoldItalic 10.6 #9a9a9a | [ ATM ] kg, applied on the coupling holes in the longitudinal direction. All hanger holes faces are fixed in all
+90,270 | Calibri 10.6 #000000 | DOF.
+228,596 | Calibri-Bold 10.0 #000000 | Load & constraints applied on the trailer
 [field] caption_7 (90, 597, 558, 613)
 [drawings] 3
 
 ===== PAGE 12  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 12/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 12/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,460 | Carlito-Regular 10.6 #000000 | As shown above, following is the deformation of the structure under the analysis loading condition. The
-90,473 | Carlito-Regular 10.6 #000000 | maximum deformation was observed is [ deformation ] mm.
-246,433 | Helvetica-Bold 10.0 #000000 | Displacement Plot for Analysis 1
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,460 | Calibri 10.6 #000000 | As shown above, following is the deformation of the structure under the analysis loading condition. The
+90,473 | Calibri 10.6 #000000 | maximum deformation was observed is [ deformation ] mm.
+246,433 | Calibri-Bold 10.0 #000000 | Displacement Plot for Analysis 1
 [field] caption_10 (90, 434, 558, 450)
 [drawings] 3
 
 ===== PAGE 13  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 13/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 13/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,540 | Carlito-Regular 10.6 #000000 | As per the stress distribution results obtained from the finite element analysis, the maximum Von Mises stress
-90,553 | Carlito-Regular 10.6 #000000 | of [ stress ] MPa was observed on drawbar.
-90,562 | Carlito-Regular 10.6 #000000 | This value represents the design action effect SX.
-90,579 | Carlito-Regular 10.6 #000000 | The corresponding design capacity (ϕRu), determined in accordance with AS 4100:2020, considering the yield
-90,592 | Carlito-Regular 10.6 #000000 | stress of [ Yield strength ] MPa for [ Material ] used for Structural member, with a capacity reduction factor
-90,604 | Carlito-Bold 10.6 #000000 | (ϕ) of 0.9.
-90,622 | Carlito-Regular 10.6 #000000 | SX ≤ ϕ Ru also satisfy that ∴ [ stress ] ≤ [ 0.9 x Yield strength ]
-90,646 | Carlito-Regular 10.6 #000000 | Therefore, the Trailer satisfies the design strength requirements and is considered structurally safe under the
-90,659 | Carlito-Regular 10.6 #000000 | applied loading conditions for [ Material ].
-90,678 | Carlito-Bold 10.6 #000000 | Project-specific analysis note: [ Extra note / local-stress justification (optional) ]
-234,323 | Helvetica-Bold 10.0 #000000 | Stress Distribution Plot for Analysis 1
-233,513 | Helvetica-Bold 10.0 #000000 | Stress Distribution Plot with the probe
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,540 | Calibri 10.6 #000000 | As per the stress distribution results obtained from the finite element analysis, the maximum Von Mises stress
+90,553 | Calibri 10.6 #000000 | of [ stress ] MPa was observed on drawbar.
+90,562 | Calibri 10.6 #000000 | This value represents the design action effect SX.
+90,579 | Calibri 10.6 #000000 | The corresponding design capacity (ϕRu), determined in accordance with AS 4100:2020, considering the yield
+90,592 | Calibri 10.6 #000000 | stress of [ Yield strength ] MPa for [ Material ] used for Structural member, with a capacity reduction factor
+90,604 | Calibri-Bold 10.6 #000000 | (ϕ) of 0.9.
+90,622 | Calibri 10.6 #000000 | SX ≤ ϕ Ru also satisfy that ∴ [ stress ] ≤ [ 0.9 x Yield strength ]
+90,646 | Calibri 10.6 #000000 | Therefore, the Trailer satisfies the design strength requirements and is considered structurally safe under the
+90,659 | Calibri 10.6 #000000 | applied loading conditions for [ Material ].
+90,678 | Calibri-Bold 10.6 #000000 | Project-specific analysis note: [ Extra note / local-stress justification (optional) ]
+234,323 | Calibri-Bold 10.0 #000000 | Stress Distribution Plot for Analysis 1
+233,513 | Calibri-Bold 10.0 #000000 | Stress Distribution Plot with the probe
 [field] caption_8 (90, 324, 558, 340)
 [field] caption_9 (90, 514, 558, 530)
 [drawings] 4
 
 ===== PAGE 14  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 14/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 14/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,144 | Carlito-Bold 16.0 #4f81bd | 5.2 ANALYSIS 2 (ADR 62/02- 14.2.1.2.1) - Transverse Thrust
-90,176 | Carlito-Regular 10.6 #000000 | Trailer boundary conditions and the force applied as shown in the below image. The trailer coupling was
-90,189 | Carlito-Regular 10.6 #000000 | subjected to a transverse load of [ 0.5 x 9.81 x ATM ] N as per clause 14.2.1.2.1 of ADR 62/02 i.e., 0.5 x 9.81 x
-90,202 | Carlito-BoldItalic 10.6 #9a9a9a | [ ATM ] kg, applied on the coupling holes in the transverse direction. All hanger holes faces are fixed in all DOF.
-228,528 | Helvetica-Bold 10.0 #000000 | Load & constraints applied on the trailer
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,144 | Calibri-Bold 16.0 #4f81bd | 5.2 ANALYSIS 2 (ADR 62/02- 14.2.1.2.1) - Transverse Thrust
+90,176 | Calibri 10.6 #000000 | Trailer boundary conditions and the force applied as shown in the below image. The trailer coupling was
+90,189 | Calibri 10.6 #000000 | subjected to a transverse load of [ 0.5 x 9.81 x ATM ] N as per clause 14.2.1.2.1 of ADR 62/02 i.e., 0.5 x 9.81 x
+90,202 | Calibri-BoldItalic 10.6 #9a9a9a | [ ATM ] kg, applied on the coupling holes in the transverse direction. All hanger holes faces are fixed in all DOF.
+228,528 | Calibri-Bold 10.0 #000000 | Load & constraints applied on the trailer
 [field] caption_11 (90, 529, 558, 545)
 [drawings] 3
 
 ===== PAGE 15  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 15/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 15/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,460 | Carlito-Regular 10.6 #000000 | As shown above, following is the deformation of the structure under the analysis loading condition. The
-90,473 | Carlito-Regular 10.6 #000000 | maximum deformation was observed is [ deformation ] mm.
-246,433 | Helvetica-Bold 10.0 #000000 | Displacement Plot for Analysis 2
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,460 | Calibri 10.6 #000000 | As shown above, following is the deformation of the structure under the analysis loading condition. The
+90,473 | Calibri 10.6 #000000 | maximum deformation was observed is [ deformation ] mm.
+246,433 | Calibri-Bold 10.0 #000000 | Displacement Plot for Analysis 2
 [field] caption_14 (90, 434, 558, 450)
 [drawings] 3
 
 ===== PAGE 16  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 16/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 16/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,540 | Carlito-Regular 10.6 #000000 | As per the stress distribution results obtained from the finite element analysis, the maximum Von Mises stress
-90,553 | Carlito-Regular 10.6 #000000 | of [ stress ] MPa was observed on hanger.
-90,562 | Carlito-Regular 10.6 #000000 | This value represents the design action effect SX.
-90,579 | Carlito-Regular 10.6 #000000 | The corresponding design capacity (ϕRu), determined in accordance with AS 4100:2020, considering the yield
-90,592 | Carlito-Regular 10.6 #000000 | stress of [ Yield strength ] MPa for [ Material ] used for Structural member, with a capacity reduction factor
-90,604 | Carlito-Bold 10.6 #000000 | (ϕ) of 0.9.
-90,622 | Carlito-Regular 10.6 #000000 | SX ≤ ϕ Ru also satisfy that ∴ [ stress ] ≤ [ 0.9 x Yield strength ]
-90,646 | Carlito-Regular 10.6 #000000 | Therefore, the Trailer satisfies the design strength requirements and is considered structurally safe under the
-90,659 | Carlito-Regular 10.6 #000000 | applied loading conditions for [ Material ].
-90,678 | Carlito-Bold 10.6 #000000 | Project-specific analysis note: [ Extra note / local-stress justification (optional) ]
-234,323 | Helvetica-Bold 10.0 #000000 | Stress Distribution Plot for Analysis 2
-233,513 | Helvetica-Bold 10.0 #000000 | Stress Distribution Plot with the probe
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,540 | Calibri 10.6 #000000 | As per the stress distribution results obtained from the finite element analysis, the maximum Von Mises stress
+90,553 | Calibri 10.6 #000000 | of [ stress ] MPa was observed on hanger.
+90,562 | Calibri 10.6 #000000 | This value represents the design action effect SX.
+90,579 | Calibri 10.6 #000000 | The corresponding design capacity (ϕRu), determined in accordance with AS 4100:2020, considering the yield
+90,592 | Calibri 10.6 #000000 | stress of [ Yield strength ] MPa for [ Material ] used for Structural member, with a capacity reduction factor
+90,604 | Calibri-Bold 10.6 #000000 | (ϕ) of 0.9.
+90,622 | Calibri 10.6 #000000 | SX ≤ ϕ Ru also satisfy that ∴ [ stress ] ≤ [ 0.9 x Yield strength ]
+90,646 | Calibri 10.6 #000000 | Therefore, the Trailer satisfies the design strength requirements and is considered structurally safe under the
+90,659 | Calibri 10.6 #000000 | applied loading conditions for [ Material ].
+90,678 | Calibri-Bold 10.6 #000000 | Project-specific analysis note: [ Extra note / local-stress justification (optional) ]
+234,323 | Calibri-Bold 10.0 #000000 | Stress Distribution Plot for Analysis 2
+233,513 | Calibri-Bold 10.0 #000000 | Stress Distribution Plot with the probe
 [field] caption_12 (90, 324, 558, 340)
 [field] caption_13 (90, 514, 558, 530)
 [drawings] 4
 
 ===== PAGE 17  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 17/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 17/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,144 | Carlito-Bold 16.0 #4f81bd | 5.3 ANALYSIS 3 (ADR 62/02- 14.2.1.3.1) - Vertical Tension and
-118,163 | Carlito-Bold 16.0 #4f81bd | Compression
-90,196 | Carlito-Regular 10.6 #000000 | Trailer boundary conditions and the force applied as shown in the below image. The trailer coupling was
-90,208 | Carlito-Regular 10.6 #000000 | subjected to a vertical load of [ 0.5 x 9.81 x ATM ] N in accordance with Clause 14.2.1.3.1 of ADR 62/02 i.e.,
-90,221 | Carlito-Bold 10.6 #000000 | 0.5 x 9.81 x [ ATM ] kg, applied on the coupling holes in the vertical direction (with an equal downward force
-90,234 | Carlito-Regular 10.6 #000000 | on the chassis). All hanger holes faces are fixed in all DOF.
-228,560 | Helvetica-Bold 10.0 #000000 | Load & constraints applied on the trailer
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,144 | Calibri-Bold 16.0 #4f81bd | 5.3 ANALYSIS 3 (ADR 62/02- 14.2.1.3.1) - Vertical Tension and
+118,163 | Calibri-Bold 16.0 #4f81bd | Compression
+90,196 | Calibri 10.6 #000000 | Trailer boundary conditions and the force applied as shown in the below image. The trailer coupling was
+90,208 | Calibri 10.6 #000000 | subjected to a vertical load of [ 0.5 x 9.81 x ATM ] N in accordance with Clause 14.2.1.3.1 of ADR 62/02 i.e.,
+90,221 | Calibri-Bold 10.6 #000000 | 0.5 x 9.81 x [ ATM ] kg, applied on the coupling holes in the vertical direction (with an equal downward force
+90,234 | Calibri 10.6 #000000 | on the chassis). All hanger holes faces are fixed in all DOF.
+228,560 | Calibri-Bold 10.0 #000000 | Load & constraints applied on the trailer
 [field] caption_15 (90, 561, 558, 577)
 [drawings] 3
 
 ===== PAGE 18  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 18/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 18/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,460 | Carlito-Regular 10.6 #000000 | As shown above, following is the deformation of the structure under the analysis loading condition. The
-90,473 | Carlito-Regular 10.6 #000000 | maximum deformation was observed is [ deformation ] mm.
-246,433 | Helvetica-Bold 10.0 #000000 | Displacement Plot for Analysis 3
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,460 | Calibri 10.6 #000000 | As shown above, following is the deformation of the structure under the analysis loading condition. The
+90,473 | Calibri 10.6 #000000 | maximum deformation was observed is [ deformation ] mm.
+246,433 | Calibri-Bold 10.0 #000000 | Displacement Plot for Analysis 3
 [field] caption_18 (90, 434, 558, 450)
 [drawings] 3
 
 ===== PAGE 19  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 19/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 19/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,540 | Carlito-Regular 10.6 #000000 | As per the stress distribution results obtained from the finite element analysis, the maximum Von Mises stress
-90,553 | Carlito-Regular 10.6 #000000 | of [ stress ] MPa was observed on chassis.
-90,562 | Carlito-Regular 10.6 #000000 | This value represents the design action effect SX.
-90,579 | Carlito-Regular 10.6 #000000 | The corresponding design capacity (ϕRu), determined in accordance with AS 4100:2020, considering the yield
-90,592 | Carlito-Regular 10.6 #000000 | stress of [ Yield strength ] MPa for [ Material ] used for Structural member, with a capacity reduction factor
-90,604 | Carlito-Bold 10.6 #000000 | (ϕ) of 0.9.
-90,622 | Carlito-Regular 10.6 #000000 | SX ≤ ϕ Ru also satisfy that ∴ [ stress ] ≤ [ 0.9 x Yield strength ]
-90,646 | Carlito-Regular 10.6 #000000 | Therefore, the Trailer satisfies the design strength requirements and is considered structurally safe under the
-90,659 | Carlito-Regular 10.6 #000000 | applied loading conditions for [ Material ].
-90,678 | Carlito-Bold 10.6 #000000 | Project-specific analysis note: [ Extra note / local-stress justification (optional) ]
-234,323 | Helvetica-Bold 10.0 #000000 | Stress Distribution Plot for Analysis 3
-233,513 | Helvetica-Bold 10.0 #000000 | Stress Distribution Plot with the probe
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,540 | Calibri 10.6 #000000 | As per the stress distribution results obtained from the finite element analysis, the maximum Von Mises stress
+90,553 | Calibri 10.6 #000000 | of [ stress ] MPa was observed on chassis.
+90,562 | Calibri 10.6 #000000 | This value represents the design action effect SX.
+90,579 | Calibri 10.6 #000000 | The corresponding design capacity (ϕRu), determined in accordance with AS 4100:2020, considering the yield
+90,592 | Calibri 10.6 #000000 | stress of [ Yield strength ] MPa for [ Material ] used for Structural member, with a capacity reduction factor
+90,604 | Calibri-Bold 10.6 #000000 | (ϕ) of 0.9.
+90,622 | Calibri 10.6 #000000 | SX ≤ ϕ Ru also satisfy that ∴ [ stress ] ≤ [ 0.9 x Yield strength ]
+90,646 | Calibri 10.6 #000000 | Therefore, the Trailer satisfies the design strength requirements and is considered structurally safe under the
+90,659 | Calibri 10.6 #000000 | applied loading conditions for [ Material ].
+90,678 | Calibri-Bold 10.6 #000000 | Project-specific analysis note: [ Extra note / local-stress justification (optional) ]
+234,323 | Calibri-Bold 10.0 #000000 | Stress Distribution Plot for Analysis 3
+233,513 | Calibri-Bold 10.0 #000000 | Stress Distribution Plot with the probe
 [field] caption_16 (90, 324, 558, 340)
 [field] caption_17 (90, 514, 558, 530)
 [drawings] 4
 
 ===== PAGE 20  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 20/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 20/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,144 | Carlito-Bold 16.0 #4f81bd | 5.4 ANALYSIS 4 (ADR 62/02- 14.2.2.1)- Drawbar Dynamic Test
-90,176 | Carlito-Regular 10.6 #000000 | Trailer boundary conditions and applied force are illustrated in the images below. The D-value for the trailer is
-90,185 | Carlito-Italic 10.6 #9a9a9a | [ D-value ] kN. The horizontal force applied is 0.6 x Coupling D-value = 0.6 x [ D-value ] x 103 = [ force ] N, in
-90,202 | Carlito-Regular 10.6 #000000 | accordance with clause 14.2.2.1 of ADR 62/02.
-90,223 | Carlito-Regular 10.6 #000000 | D-value for this trailer is calculated as shown:
-224,242 | Carlito-Regular 10.6 #000000 | DC = g . (T x C)/(T + C) (from AS2213.4:2008- 5.1)
-90,262 | Carlito-Regular 10.6 #000000 | Here, T = maximum design total mass in tonnes of the towing vehicle = [ Towing vehicle mass T ] t
-90,275 | Carlito-Regular 10.6 #000000 | C = mass in tonnes transmitted to the ground by the axle of the centre-axle trailer loaded to its maximum
-90,288 | Carlito-Regular 10.6 #000000 | design total mass = [ ATM/1000 ] t
-90,301 | Carlito-Regular 10.6 #000000 | Therefore, DC = 9.81 x ([ Towing vehicle mass T ] x [ C ])/([ Towing vehicle mass T ] + [ C ]) = [ D-value ] kN
-90,318 | Carlito-Regular 10.6 #000000 | Force applied on the coupling holes in the -X direction = -0.6 x [ D-value ] x 103 = [ force ] N.
-90,349 | Carlito-Regular 10.6 #000000 | The modal analysis was performed by applying fixed support at the hanger holes to extract the natural
-90,361 | Carlito-Regular 10.6 #000000 | frequencies of the structure, with a total of [ Number of modes ] modes with effective-to-total mass
-90,374 | Carlito-Regular 10.6 #000000 | participation reaching [ mass participation ]% being extracted as shown below. This allowed us to identify the
-90,387 | Carlito-Regular 10.6 #000000 | critical frequencies and ensure they are sufficiently separated from the operating frequencies and to attain
-90,400 | Carlito-Regular 10.6 #000000 | accuracy in the Harmonic Response Analysis.
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,144 | Calibri-Bold 16.0 #4f81bd | 5.4 ANALYSIS 4 (ADR 62/02- 14.2.2.1)- Drawbar Dynamic Test
+90,176 | Calibri 10.6 #000000 | Trailer boundary conditions and applied force are illustrated in the images below. The D-value for the trailer is
+90,185 | Calibri-Italic 10.6 #9a9a9a | [ D-value ] kN. The horizontal force applied is 0.6 x Coupling D-value = 0.6 x [ D-value ] x 103 = [ force ] N, in
+90,202 | Calibri 10.6 #000000 | accordance with clause 14.2.2.1 of ADR 62/02.
+90,223 | Calibri 10.6 #000000 | D-value for this trailer is calculated as shown:
+224,242 | Calibri 10.6 #000000 | DC = g . (T x C)/(T + C) (from AS2213.4:2008- 5.1)
+90,262 | Calibri 10.6 #000000 | Here, T = maximum design total mass in tonnes of the towing vehicle = [ Towing vehicle mass T ] t
+90,275 | Calibri 10.6 #000000 | C = mass in tonnes transmitted to the ground by the axle of the centre-axle trailer loaded to its maximum
+90,288 | Calibri 10.6 #000000 | design total mass = [ ATM/1000 ] t
+90,301 | Calibri 10.6 #000000 | Therefore, DC = 9.81 x ([ Towing vehicle mass T ] x [ C ])/([ Towing vehicle mass T ] + [ C ]) = [ D-value ] kN
+90,318 | Calibri 10.6 #000000 | Force applied on the coupling holes in the -X direction = -0.6 x [ D-value ] x 103 = [ force ] N.
+90,349 | Calibri 10.6 #000000 | The modal analysis was performed by applying fixed support at the hanger holes to extract the natural
+90,361 | Calibri 10.6 #000000 | frequencies of the structure, with a total of [ Number of modes ] modes with effective-to-total mass
+90,374 | Calibri 10.6 #000000 | participation reaching [ mass participation ]% being extracted as shown below. This allowed us to identify the
+90,387 | Calibri 10.6 #000000 | critical frequencies and ensure they are sufficiently separated from the operating frequencies and to attain
+90,400 | Calibri 10.6 #000000 | accuracy in the Harmonic Response Analysis.
 [drawings] 2
 
 ===== PAGE 21  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 21/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 21/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,630 | Carlito-Regular 10.6 #000000 | The modal analysis was performed by applying fixed support at the hanger holes to extract the natural
-90,643 | Carlito-Regular 10.6 #000000 | frequencies of the structure. Total [ Number of modes ] modes are extracted thus from the table of ratio of
-90,656 | Carlito-Regular 10.6 #000000 | effective mass to the total mass. It is observed that the most critical frequencies are [ f1 ] Hz and [ f2 ] Hz, with
-90,669 | Carlito-Regular 10.6 #000000 | corresponding effective mass participation of [ X participation ]% in the X-direction and [ Y participation ]% in
-90,682 | Carlito-Regular 10.6 #000000 | the Y-direction respectively.
-234,383 | Helvetica-Bold 10.0 #000000 | Modes extracted from Modal Analysis
-163,603 | Helvetica-Bold 10.0 #000000 | Ratio of effective mass to total mass extracted from Modal Analysis
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,630 | Calibri 10.6 #000000 | The modal analysis was performed by applying fixed support at the hanger holes to extract the natural
+90,643 | Calibri 10.6 #000000 | frequencies of the structure. Total [ Number of modes ] modes are extracted thus from the table of ratio of
+90,656 | Calibri 10.6 #000000 | effective mass to the total mass. It is observed that the most critical frequencies are [ f1 ] Hz and [ f2 ] Hz, with
+90,669 | Calibri 10.6 #000000 | corresponding effective mass participation of [ X participation ]% in the X-direction and [ Y participation ]% in
+90,682 | Calibri 10.6 #000000 | the Y-direction respectively.
+234,383 | Calibri-Bold 10.0 #000000 | Modes extracted from Modal Analysis
+163,603 | Calibri-Bold 10.0 #000000 | Ratio of effective mass to total mass extracted from Modal Analysis
 [field] caption_30 (90, 384, 558, 400)
 [field] caption_31 (90, 604, 558, 620)
 [drawings] 4
 
 ===== PAGE 22  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 22/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 22/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,140 | Carlito-Regular 10.6 #000000 | Thus [ f1 ] Hz and [ f2 ] Hz are critical frequencies.
-90,161 | Carlito-Regular 10.6 #000000 | The harmonic response analysis was performed to evaluate the structural response to an oscillating force of
-90,174 | Carlito-BoldItalic 10.6 #9a9a9a | [ force ] N applied horizontally.
-228,504 | Helvetica-Bold 10.0 #000000 | Load & constraints applied on the trailer
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,140 | Calibri 10.6 #000000 | Thus [ f1 ] Hz and [ f2 ] Hz are critical frequencies.
+90,161 | Calibri 10.6 #000000 | The harmonic response analysis was performed to evaluate the structural response to an oscillating force of
+90,174 | Calibri-BoldItalic 10.6 #9a9a9a | [ force ] N applied horizontally.
+228,504 | Calibri-Bold 10.0 #000000 | Load & constraints applied on the trailer
 [field] caption_19 (90, 505, 558, 521)
 [drawings] 3
 
 ===== PAGE 23  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 23/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 23/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-209,293 | Helvetica-Bold 10.0 #000000 | Frequency Response at coupling holes in X-axis
-209,475 | Helvetica-Bold 10.0 #000000 | Frequency Response at coupling holes in Y-axis
-209,657 | Helvetica-Bold 10.0 #000000 | Frequency Response at coupling holes in Z-axis
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+209,293 | Calibri-Bold 10.0 #000000 | Frequency Response at coupling holes in X-axis
+209,475 | Calibri-Bold 10.0 #000000 | Frequency Response at coupling holes in Y-axis
+209,657 | Calibri-Bold 10.0 #000000 | Frequency Response at coupling holes in Z-axis
 [field] caption_32 (90, 294, 558, 310)
 [field] caption_33 (90, 476, 558, 492)
 [field] caption_34 (90, 658, 558, 674)
 [drawings] 5
 
 ===== PAGE 24  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 24/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 24/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,140 | Carlito-Regular 10.6 #000000 | ADR 62/02 stipulates that the trailer must have sufficient stiffness to withstand stresses and deformation
-90,153 | Carlito-Regular 10.6 #000000 | caused due to resonance up to a frequency of 35Hz. In the harmonic response analysis, it was found that even
-90,166 | Carlito-Regular 10.6 #000000 | if the trailer experiences the critical frequency of [ f2 ] Hz, the stress and deformation experienced due to
-90,179 | Carlito-Regular 10.6 #000000 | resonance is well within the acceptable values.
-90,522 | Carlito-Regular 10.6 #000000 | As shown above, following is the deformation of the structure under the analysis loading condition. The
-90,535 | Carlito-Regular 10.6 #000000 | maximum deformation was observed is [ deformation ] mm.
-246,495 | Helvetica-Bold 10.0 #000000 | Displacement Plot for Analysis 4
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,140 | Calibri 10.6 #000000 | ADR 62/02 stipulates that the trailer must have sufficient stiffness to withstand stresses and deformation
+90,153 | Calibri 10.6 #000000 | caused due to resonance up to a frequency of 35Hz. In the harmonic response analysis, it was found that even
+90,166 | Calibri 10.6 #000000 | if the trailer experiences the critical frequency of [ f2 ] Hz, the stress and deformation experienced due to
+90,179 | Calibri 10.6 #000000 | resonance is well within the acceptable values.
+90,522 | Calibri 10.6 #000000 | As shown above, following is the deformation of the structure under the analysis loading condition. The
+90,535 | Calibri 10.6 #000000 | maximum deformation was observed is [ deformation ] mm.
+246,495 | Calibri-Bold 10.0 #000000 | Displacement Plot for Analysis 4
 [field] caption_22 (90, 496, 558, 512)
 [drawings] 3
 
 ===== PAGE 25  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 25/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 25/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,540 | Carlito-Regular 10.6 #000000 | As per the stress distribution results obtained from the finite element analysis, the maximum Von Mises stress
-90,553 | Carlito-Regular 10.6 #000000 | of [ stress ] MPa was observed on drawbar.
-90,562 | Carlito-Regular 10.6 #000000 | This value represents the design action effect SX.
-90,579 | Carlito-Regular 10.6 #000000 | The corresponding design capacity (ϕRu), determined in accordance with AS 4100:2020, considering the yield
-90,592 | Carlito-Regular 10.6 #000000 | stress of [ Yield strength ] MPa for [ Material ] used for Structural member, with a capacity reduction factor
-90,604 | Carlito-Bold 10.6 #000000 | (ϕ) of 0.9.
-90,622 | Carlito-Regular 10.6 #000000 | SX ≤ ϕ Ru also satisfy that ∴ [ stress ] ≤ [ 0.9 x Yield strength ]
-90,646 | Carlito-Regular 10.6 #000000 | Therefore, the Trailer satisfies the design strength requirements and is considered structurally safe under the
-90,659 | Carlito-Regular 10.6 #000000 | applied loading conditions for [ Material ].
-90,678 | Carlito-Bold 10.6 #000000 | Project-specific analysis note: [ Extra note / local-stress justification (optional) ]
-234,323 | Helvetica-Bold 10.0 #000000 | Stress Distribution Plot for Analysis 4
-233,513 | Helvetica-Bold 10.0 #000000 | Stress Distribution Plot with the probe
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,540 | Calibri 10.6 #000000 | As per the stress distribution results obtained from the finite element analysis, the maximum Von Mises stress
+90,553 | Calibri 10.6 #000000 | of [ stress ] MPa was observed on drawbar.
+90,562 | Calibri 10.6 #000000 | This value represents the design action effect SX.
+90,579 | Calibri 10.6 #000000 | The corresponding design capacity (ϕRu), determined in accordance with AS 4100:2020, considering the yield
+90,592 | Calibri 10.6 #000000 | stress of [ Yield strength ] MPa for [ Material ] used for Structural member, with a capacity reduction factor
+90,604 | Calibri-Bold 10.6 #000000 | (ϕ) of 0.9.
+90,622 | Calibri 10.6 #000000 | SX ≤ ϕ Ru also satisfy that ∴ [ stress ] ≤ [ 0.9 x Yield strength ]
+90,646 | Calibri 10.6 #000000 | Therefore, the Trailer satisfies the design strength requirements and is considered structurally safe under the
+90,659 | Calibri 10.6 #000000 | applied loading conditions for [ Material ].
+90,678 | Calibri-Bold 10.6 #000000 | Project-specific analysis note: [ Extra note / local-stress justification (optional) ]
+234,323 | Calibri-Bold 10.0 #000000 | Stress Distribution Plot for Analysis 4
+233,513 | Calibri-Bold 10.0 #000000 | Stress Distribution Plot with the probe
 [field] caption_20 (90, 324, 558, 340)
 [field] caption_21 (90, 514, 558, 530)
 [drawings] 4
 
 ===== PAGE 26  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 26/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 26/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,385 | Carlito-Regular 10.6 #000000 | As per the analysis, the maximum normal stress observed on the [ location ] is [ normal stress ] MPa, which is
-90,398 | Carlito-Regular 10.6 #000000 | significantly lower than the allowable yield strength of [ Yield strength ] MPa for [ Material ]. The fatigue limit
-90,411 | Carlito-Regular 10.6 #000000 | for the material, as specified in AS 4100-2020, Clause 11.6, is 82 MPa for 2 million cycles. This indicates that
-90,424 | Carlito-Regular 10.6 #000000 | the trailer is capable of withstanding at least 2 million cycles as required in clause 14.2.2.1. of ADR 62/02 under
-90,437 | Carlito-Regular 10.6 #000000 | the specified oscillating force. [ verdict ]
-90,458 | Carlito-Bold 10.6 #000000 | Project-specific analysis note: [ Extra note / local-stress justification (optional) ]
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,385 | Calibri 10.6 #000000 | As per the analysis, the maximum normal stress observed on the [ location ] is [ normal stress ] MPa, which is
+90,398 | Calibri 10.6 #000000 | significantly lower than the allowable yield strength of [ Yield strength ] MPa for [ Material ]. The fatigue limit
+90,411 | Calibri 10.6 #000000 | for the material, as specified in AS 4100-2020, Clause 11.6, is 82 MPa for 2 million cycles. This indicates that
+90,424 | Calibri 10.6 #000000 | the trailer is capable of withstanding at least 2 million cycles as required in clause 14.2.2.1. of ADR 62/02 under
+90,437 | Calibri 10.6 #000000 | the specified oscillating force. [ verdict ]
+90,458 | Calibri-Bold 10.6 #000000 | Project-specific analysis note: [ Extra note / local-stress justification (optional) ]
 [image] (189, 480, 459, 688)
-242,694 | Carlito-Bold 10.0 #000000 | Fatigue Criteria as stated in AS 4100-2020
-144,358 | Helvetica-Bold 10.0 #000000 | Normal Stress Distribution Plot at Y-axis from Harmonic Response Analysis
+242,694 | Calibri-Bold 10.0 #000000 | Fatigue Criteria as stated in AS 4100-2020
+144,358 | Calibri-Bold 10.0 #000000 | Normal Stress Distribution Plot at Y-axis from Harmonic Response Analysis
 [field] caption_35 (90, 359, 558, 375)
 [drawings] 3
 
 ===== PAGE 27  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 27/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 27/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,144 | Carlito-Bold 16.0 #4f81bd | 5.5 ANALYSIS 5 (AS 4100-2020) - Structural strength of the trailer
-90,176 | Carlito-Regular 10.6 #000000 | For [ ATM ] kg ATM was used for this load case in the chassis. The structural members of the trailer are
-90,189 | Carlito-Regular 10.6 #000000 | analyzed with 1G vertical load & 1G Horizontal load applied simultaneously to check the structural integrity of
-90,202 | Carlito-Regular 10.6 #000000 | the trailer as per AS 4100-2020.
-90,223 | Carlito-Regular 10.6 #000000 | As shown below following is the distributed loading applied to the trailer and the restraints. This loading is the
-90,236 | Carlito-Regular 10.6 #000000 | worst-case scenario in practical application. 1G vertical load = [ load ] N; total forward & downward force
-90,248 | Carlito-Regular 10.6 #000000 | (resultant of 1G vertical and 1G horizontal) = [ load ] N; braking force (0.8 x 9.81 x ATM) = [ load ] N.
-194,560 | Helvetica-Bold 10.0 #000000 | Force acting on Chassis top surface & Spring Hangers
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,144 | Calibri-Bold 16.0 #4f81bd | 5.5 ANALYSIS 5 (AS 4100-2020) - Structural strength of the trailer
+90,176 | Calibri 10.6 #000000 | For [ ATM ] kg ATM was used for this load case in the chassis. The structural members of the trailer are
+90,189 | Calibri 10.6 #000000 | analyzed with 1G vertical load & 1G Horizontal load applied simultaneously to check the structural integrity of
+90,202 | Calibri 10.6 #000000 | the trailer as per AS 4100-2020.
+90,223 | Calibri 10.6 #000000 | As shown below following is the distributed loading applied to the trailer and the restraints. This loading is the
+90,236 | Calibri 10.6 #000000 | worst-case scenario in practical application. 1G vertical load = [ load ] N; total forward & downward force
+90,248 | Calibri 10.6 #000000 | (resultant of 1G vertical and 1G horizontal) = [ load ] N; braking force (0.8 x 9.81 x ATM) = [ load ] N.
+194,560 | Calibri-Bold 10.0 #000000 | Force acting on Chassis top surface & Spring Hangers
 [field] caption_23 (90, 560, 558, 576)
 [drawings] 3
 
 ===== PAGE 28  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 28/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 28/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-146,403 | Helvetica-Bold 10.0 #000000 | Remote Displacement at Coupling Mount holes and Spring Hanger Bracket
-180,663 | Helvetica-Bold 10.0 #000000 | Reaction forces at Coupling and Spring Bracket respectively
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+146,403 | Calibri-Bold 10.0 #000000 | Remote Displacement at Coupling Mount holes and Spring Hanger Bracket
+180,663 | Calibri-Bold 10.0 #000000 | Reaction forces at Coupling and Spring Bracket respectively
 [field] caption_24 (90, 404, 558, 420)
 [field] caption_25 (90, 664, 558, 680)
 [drawings] 4
 
 ===== PAGE 29  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 29/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 29/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,640 | Carlito-Regular 10.6 #000000 | As shown above, following is the deformation of the structure under the analysis loading condition. The
-90,653 | Carlito-Regular 10.6 #000000 | maximum deformation was observed is [ deformation ] mm.
-252,333 | Helvetica-Bold 10.0 #000000 | Reaction forces at all Hangers
-246,613 | Helvetica-Bold 10.0 #000000 | Displacement Plot for Analysis 5
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,640 | Calibri 10.6 #000000 | As shown above, following is the deformation of the structure under the analysis loading condition. The
+90,653 | Calibri 10.6 #000000 | maximum deformation was observed is [ deformation ] mm.
+252,333 | Calibri-Bold 10.0 #000000 | Reaction forces at all Hangers
+246,613 | Calibri-Bold 10.0 #000000 | Displacement Plot for Analysis 5
 [field] caption_36 (90, 334, 558, 350)
 [field] caption_28 (90, 614, 558, 630)
 [drawings] 4
 
 ===== PAGE 30  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 30/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 30/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,540 | Carlito-Regular 10.6 #000000 | As per the stress distribution results obtained from the finite element analysis, the maximum Von Mises stress
-90,553 | Carlito-Regular 10.6 #000000 | of [ stress ] MPa was observed on Chassis.
-90,562 | Carlito-Regular 10.6 #000000 | This value represents the design action effect SX.
-90,579 | Carlito-Regular 10.6 #000000 | The corresponding design capacity (ϕRu), determined in accordance with AS 4100:2020, considering the yield
-90,592 | Carlito-Regular 10.6 #000000 | stress of [ Yield strength ] MPa for [ Material ] used for Structural member, with a capacity reduction factor
-90,604 | Carlito-Bold 10.6 #000000 | (ϕ) of 0.9.
-90,622 | Carlito-Regular 10.6 #000000 | SX ≤ ϕ Ru also satisfy that ∴ [ stress ] ≤ [ 0.9 x Yield strength ]
-90,646 | Carlito-Regular 10.6 #000000 | Therefore, the Trailer satisfies the design strength requirements and is considered structurally safe under the
-90,659 | Carlito-Regular 10.6 #000000 | applied loading conditions for [ Material ].
-90,678 | Carlito-Bold 10.6 #000000 | Project-specific analysis note: [ Extra note / local-stress justification (optional) ]
-234,323 | Helvetica-Bold 10.0 #000000 | Stress Distribution Plot for Analysis 5
-233,513 | Helvetica-Bold 10.0 #000000 | Stress Distribution Plot with the probe
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,540 | Calibri 10.6 #000000 | As per the stress distribution results obtained from the finite element analysis, the maximum Von Mises stress
+90,553 | Calibri 10.6 #000000 | of [ stress ] MPa was observed on Chassis.
+90,562 | Calibri 10.6 #000000 | This value represents the design action effect SX.
+90,579 | Calibri 10.6 #000000 | The corresponding design capacity (ϕRu), determined in accordance with AS 4100:2020, considering the yield
+90,592 | Calibri 10.6 #000000 | stress of [ Yield strength ] MPa for [ Material ] used for Structural member, with a capacity reduction factor
+90,604 | Calibri-Bold 10.6 #000000 | (ϕ) of 0.9.
+90,622 | Calibri 10.6 #000000 | SX ≤ ϕ Ru also satisfy that ∴ [ stress ] ≤ [ 0.9 x Yield strength ]
+90,646 | Calibri 10.6 #000000 | Therefore, the Trailer satisfies the design strength requirements and is considered structurally safe under the
+90,659 | Calibri 10.6 #000000 | applied loading conditions for [ Material ].
+90,678 | Calibri-Bold 10.6 #000000 | Project-specific analysis note: [ Extra note / local-stress justification (optional) ]
+234,323 | Calibri-Bold 10.0 #000000 | Stress Distribution Plot for Analysis 5
+233,513 | Calibri-Bold 10.0 #000000 | Stress Distribution Plot with the probe
 [field] caption_26 (90, 324, 558, 340)
 [field] caption_27 (90, 514, 558, 530)
 [drawings] 4
 
 ===== PAGE 31  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 31/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 31/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,144 | Carlito-Bold 16.0 #4f81bd | 5.6 ANALYSIS 6 (ADR 62/02- 14.4) – ‘Drawbar’ Safety Chain Attachment
-118,163 | Carlito-Bold 16.0 #4f81bd | Points
-90,196 | Carlito-Regular 10.6 #000000 | The chain will be fitted on either side of the center line of the drawbar, which satisfies ADR62/02 - 14.4.1.
-90,217 | Carlito-Regular 10.6 #000000 | The longitudinal tension of 9.81 x ‘ATM’ kg is [ force ] N (vertical tension 0.5 x 9.81 x ‘ATM’ = [ force ] N). As
-90,229 | Carlito-Italic 10.6 #9a9a9a | [ Number of bolts carrying chain ] bolt(s) will be supporting the safety chain, the force per bolt is [ force ] N.
-90,242 | Carlito-Regular 10.6 #000000 | The plate thickness is [ Plate / RHS thickness ] mm.
-90,263 | Carlito-Regular 10.6 #000000 | The compressive (bearing) stress induced per bolt = longitudinal force per bolt / (thickness x hole clearance) =
-90,276 | Carlito-Italic 10.6 #9a9a9a | [ force ] / ([ Plate / RHS thickness ] x [ Hole clearance diameter ]) = [ stress ] MPa
-90,293 | Carlito-Italic 10.6 #9a9a9a | [ verdict ]
-90,314 | Carlito-Bold 10.6 #000000 | Project-specific safety chain analysis note: [ Safety chain analysis note ]
-278,681 | Helvetica-Bold 10.0 #000000 | Safety chain mount
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,144 | Calibri-Bold 16.0 #4f81bd | 5.6 ANALYSIS 6 (ADR 62/02- 14.4) – ‘Drawbar’ Safety Chain Attachment
+118,163 | Calibri-Bold 16.0 #4f81bd | Points
+90,196 | Calibri 10.6 #000000 | The chain will be fitted on either side of the center line of the drawbar, which satisfies ADR62/02 - 14.4.1.
+90,217 | Calibri 10.6 #000000 | The longitudinal tension of 9.81 x ‘ATM’ kg is [ force ] N (vertical tension 0.5 x 9.81 x ‘ATM’ = [ force ] N). As
+90,229 | Calibri-Italic 10.6 #9a9a9a | [ Number of bolts carrying chain ] bolt(s) will be supporting the safety chain, the force per bolt is [ force ] N.
+90,242 | Calibri 10.6 #000000 | The plate thickness is [ Plate / RHS thickness ] mm.
+90,263 | Calibri 10.6 #000000 | The compressive (bearing) stress induced per bolt = longitudinal force per bolt / (thickness x hole clearance) =
+90,276 | Calibri-Italic 10.6 #9a9a9a | [ force ] / ([ Plate / RHS thickness ] x [ Hole clearance diameter ]) = [ stress ] MPa
+90,293 | Calibri-Italic 10.6 #9a9a9a | [ verdict ]
+90,314 | Calibri-Bold 10.6 #000000 | Project-specific safety chain analysis note: [ Safety chain analysis note ]
+278,681 | Calibri-Bold 10.0 #000000 | Safety chain mount
 [field] caption_29 (90, 682, 558, 698)
 [drawings] 3
 
 ===== PAGE 32  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 32/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 32/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,144 | Carlito-Bold 16.0 #4f81bd | 5.7 ANALYSIS 7 - Coupling
-90,176 | Carlito-Regular 10.6 #000000 | The pulling force at 1.5G (1.5 x 9.81 x ‘ATM’ kg) is [ force ] N. As there are [ Number of coupling bolts ] bolts,
-90,189 | Carlito-Regular 10.6 #000000 | this force per bolt is [ force ] / [ Number of coupling bolts ] = [ force ] N. The thickness of the coupling plate is
-90,202 | Carlito-Italic 10.6 #9a9a9a | [ Coupling plate thickness ] mm and the bolt size is [ Bolt size ].
-90,223 | Carlito-Regular 10.6 #000000 | The compressive stress induced per bolt = [ force ] N / (coupling plate thickness x hole clearance) = [ force ] /
-90,236 | Carlito-Regular 10.6 #000000 | ([ Coupling plate thickness ] x [ Hole clearance diameter ]) = [ stress ] MPa
-90,252 | Carlito-Italic 10.6 #9a9a9a | [ verdict ]
-90,273 | Carlito-Bold 10.6 #000000 | Project-specific coupling analysis note: [ Coupling analysis note ]
-90,528 | Carlito-Regular 10.6 #000000 | Note: Bolt grade is assumed to be [ Bolt grade ].
-248,501 | Helvetica-Bold 10.0 #000000 | Coupling mount (bolt locations)
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,144 | Calibri-Bold 16.0 #4f81bd | 5.7 ANALYSIS 7 - Coupling
+90,176 | Calibri 10.6 #000000 | The pulling force at 1.5G (1.5 x 9.81 x ‘ATM’ kg) is [ force ] N. As there are [ Number of coupling bolts ] bolts,
+90,189 | Calibri 10.6 #000000 | this force per bolt is [ force ] / [ Number of coupling bolts ] = [ force ] N. The thickness of the coupling plate is
+90,202 | Calibri-Italic 10.6 #9a9a9a | [ Coupling plate thickness ] mm and the bolt size is [ Bolt size ].
+90,223 | Calibri 10.6 #000000 | The compressive stress induced per bolt = [ force ] N / (coupling plate thickness x hole clearance) = [ force ] /
+90,236 | Calibri 10.6 #000000 | ([ Coupling plate thickness ] x [ Hole clearance diameter ]) = [ stress ] MPa
+90,252 | Calibri-Italic 10.6 #9a9a9a | [ verdict ]
+90,273 | Calibri-Bold 10.6 #000000 | Project-specific coupling analysis note: [ Coupling analysis note ]
+90,528 | Calibri 10.6 #000000 | Note: Bolt grade is assumed to be [ Bolt grade ].
+248,501 | Calibri-Bold 10.0 #000000 | Coupling mount (bolt locations)
 [field] caption_37 (90, 502, 558, 518)
 [drawings] 3
 
 ===== PAGE 33  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 33/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 33/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,144 | Carlito-Bold 10.6 #000000 | Ply in bearing (AS 4100:2020 Clause 9.3.2.4)
-90,159 | Carlito-Regular 10.6 #000000 | Diameter of the bolt = df = [ d_f ] mm
-90,175 | Carlito-Regular 10.6 #000000 | Thickness of the ply = tp = [ t_p ] mm
-90,190 | Carlito-Regular 10.6 #000000 | Tensile strength of the ply = fup = [ f_up ] MPa
-90,206 | Carlito-Regular 10.6 #000000 | Edge distance in the direction of loading, ae = [ a_e ] mm
-90,221 | Carlito-Regular 10.6 #000000 | Capacity factor = φ = 0.9
-198,252 | Carlito-Regular 10.6 #000000 | Vb = 3.2 df tp fup
-198,268 | Carlito-Regular 10.6 #000000 | Vb = 3.2 × [ d_f ] × [ t_p ] × [ f_up ]
-198,283 | Carlito-Regular 10.6 #000000 | Vb = [ V_b1 ] N = [ V_b1 ] kN
-198,314 | Carlito-Regular 10.6 #000000 | Vb = ae tp fup
-198,330 | Carlito-Regular 10.6 #000000 | Vb = [ a_e ] × [ t_p ] × [ f_up ]
-198,345 | Carlito-Regular 10.6 #000000 | Vb = [ V_b2 ] N = [ V_b2 ] kN
-90,376 | Carlito-Regular 10.6 #000000 | Design bearing capacity,
-198,392 | Carlito-Regular 10.6 #000000 | φVb = 0.9 × [ governing V_b ] kN
-198,407 | Carlito-Regular 10.6 #000000 | φVb = [ φV_b ] kN
-90,438 | Carlito-Regular 10.6 #000000 | Applied bearing force, Vb* = [ V_b* ] kN
-90,454 | Carlito-Regular 10.6 #000000 | Capacity Check, Vb* ≤ φVb
-162,469 | Carlito-Italic 10.6 #9a9a9a | [ V_b* ] ≤ [ φV_b ]
-90,500 | Carlito-Italic 10.6 #9a9a9a | [ Bearing check verdict ]
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,144 | Calibri-Bold 10.6 #000000 | Ply in bearing (AS 4100:2020 Clause 9.3.2.4)
+90,159 | Calibri 10.6 #000000 | Diameter of the bolt = df = [ d_f ] mm
+90,175 | Calibri 10.6 #000000 | Thickness of the ply = tp = [ t_p ] mm
+90,190 | Calibri 10.6 #000000 | Tensile strength of the ply = fup = [ f_up ] MPa
+90,206 | Calibri 10.6 #000000 | Edge distance in the direction of loading, ae = [ a_e ] mm
+90,221 | Calibri 10.6 #000000 | Capacity factor = φ = 0.9
+198,252 | Calibri 10.6 #000000 | Vb = 3.2 df tp fup
+198,268 | Calibri 10.6 #000000 | Vb = 3.2 × [ d_f ] × [ t_p ] × [ f_up ]
+198,283 | Calibri 10.6 #000000 | Vb = [ V_b1 ] N = [ V_b1 ] kN
+198,314 | Calibri 10.6 #000000 | Vb = ae tp fup
+198,330 | Calibri 10.6 #000000 | Vb = [ a_e ] × [ t_p ] × [ f_up ]
+198,345 | Calibri 10.6 #000000 | Vb = [ V_b2 ] N = [ V_b2 ] kN
+90,376 | Calibri 10.6 #000000 | Design bearing capacity,
+198,392 | Calibri 10.6 #000000 | φVb = 0.9 × [ governing V_b ] kN
+198,407 | Calibri 10.6 #000000 | φVb = [ φV_b ] kN
+90,438 | Calibri 10.6 #000000 | Applied bearing force, Vb* = [ V_b* ] kN
+90,454 | Calibri 10.6 #000000 | Capacity Check, Vb* ≤ φVb
+162,469 | Calibri-Italic 10.6 #9a9a9a | [ V_b* ] ≤ [ φV_b ]
+90,500 | Calibri-Italic 10.6 #9a9a9a | [ Bearing check verdict ]
 [drawings] 2
 
 ===== PAGE 34  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 34/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 34/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,144 | Carlito-Bold 18.0 #4f81bd | 6.
-122,144 | Carlito-Bold 18.0 #4f81bd | CONCLUSION
-90,178 | Carlito-Regular 10.6 #000000 | The structural assessment of the [ ATM ] kg ATM trailer was carried out in accordance with the requirements
-90,191 | Carlito-Regular 10.6 #000000 | of ADR 62/02 and AS 4100:2020.
-90,212 | Carlito-Bold 10.6 #000000 | This assessment assumes that the trailer is in a new condition with no material degradation, manufacturing
-90,225 | Carlito-Bold 10.6 #000000 | defects, or damage. Exposure to environmental and service-related effects, such as corrosion, wear, or
-90,238 | Carlito-Regular 10.6 #000000 | mechanical damage, may significantly reduce the structural capacity of the trailer and its ability to safely
-90,251 | Carlito-Regular 10.6 #000000 | support the rated ATM.
-90,272 | Carlito-Regular 10.6 #000000 | The assessment included static and dynamic load cases in accordance with ADR 62/02 to evaluate the
-90,285 | Carlito-Regular 10.6 #000000 | structural response of the trailer, including stress distribution, fatigue performance, and the effects of braking.
-90,298 | Carlito-Regular 10.6 #000000 | The applied loading and boundary conditions were selected to represent the actual loading conditions of the
-90,310 | Carlito-Regular 10.6 #000000 | trailer, including load transfer through the coupling connection and suspension mounting locations.
-90,331 | Carlito-Regular 10.6 #000000 | The results demonstrate that the assessed components satisfy the applicable strength and fatigue
-90,344 | Carlito-Regular 10.6 #000000 | requirements of ADR 62/02 and AS 4100:2020 for a [ ATM ] kg ATM trailer.
-90,365 | Carlito-Bold 12.0 #4f81bd | Project conclusion
-90,384 | Carlito-Italic 10.6 #9a9a9a | [ Project conclusion ]
-90,411 | Carlito-Regular 10.6 #000000 | This assessment is limited to the standards and requirements specified in Chapter 2 – Summary of Compliance.
-90,432 | Carlito-Regular 10.6 #000000 | The periodic inspection and maintenance should be undertaken, and a structural safety reassessment should
-90,445 | Carlito-Regular 10.6 #000000 | be conducted if material degradation or damage is identified to ensure continued compliance with the
-90,458 | Carlito-Regular 10.6 #000000 | applicable design requirements.
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,144 | Calibri-Bold 18.0 #4f81bd | 6.
+122,144 | Calibri-Bold 18.0 #4f81bd | CONCLUSION
+90,178 | Calibri 10.6 #000000 | The structural assessment of the [ ATM ] kg ATM trailer was carried out in accordance with the requirements
+90,191 | Calibri 10.6 #000000 | of ADR 62/02 and AS 4100:2020.
+90,212 | Calibri-Bold 10.6 #000000 | This assessment assumes that the trailer is in a new condition with no material degradation, manufacturing
+90,225 | Calibri-Bold 10.6 #000000 | defects, or damage. Exposure to environmental and service-related effects, such as corrosion, wear, or
+90,238 | Calibri 10.6 #000000 | mechanical damage, may significantly reduce the structural capacity of the trailer and its ability to safely
+90,251 | Calibri 10.6 #000000 | support the rated ATM.
+90,272 | Calibri 10.6 #000000 | The assessment included static and dynamic load cases in accordance with ADR 62/02 to evaluate the
+90,285 | Calibri 10.6 #000000 | structural response of the trailer, including stress distribution, fatigue performance, and the effects of braking.
+90,298 | Calibri 10.6 #000000 | The applied loading and boundary conditions were selected to represent the actual loading conditions of the
+90,310 | Calibri 10.6 #000000 | trailer, including load transfer through the coupling connection and suspension mounting locations.
+90,331 | Calibri 10.6 #000000 | The results demonstrate that the assessed components satisfy the applicable strength and fatigue
+90,344 | Calibri 10.6 #000000 | requirements of ADR 62/02 and AS 4100:2020 for a [ ATM ] kg ATM trailer.
+90,365 | Calibri-Bold 12.0 #4f81bd | Project conclusion
+90,384 | Calibri-Italic 10.6 #9a9a9a | [ Project conclusion ]
+90,411 | Calibri 10.6 #000000 | This assessment is limited to the standards and requirements specified in Chapter 2 – Summary of Compliance.
+90,432 | Calibri 10.6 #000000 | The periodic inspection and maintenance should be undertaken, and a structural safety reassessment should
+90,445 | Calibri 10.6 #000000 | be conducted if material degradation or damage is identified to ensure continued compliance with the
+90,458 | Calibri 10.6 #000000 | applicable design requirements.
 [drawings] 2
 
 ===== PAGE 35  612x792 =====
-23,348 | DejaVuSans 10.4 #ffffff | CSA Engineering
-12,648 | DejaVuSans 11.5 #ffffff | 35/35
-90,753 | Carlito-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
+23,348 | Verdana 10.4 #ffffff | CSA Engineering
+12,648 | Verdana 11.5 #ffffff | 35/35
+90,753 | Calibri-Italic 10.6 #9a9a9a | [ RAE No. ] | All Trades Trailer | [ Project name ] | Certification Report
 [image] (90, 42, 231, 118)
-359,45 | DejaVuSans 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
-359,59 | DejaVuSans 10.7 #000000 | E: info@csaengineering.com.au
-359,73 | DejaVuSans 10.7 #000000 | P: +61 452 292 355
-359,87 | DejaVuSans 10.7 #000000 | www.csaengineering.com.au
-90,144 | Carlito-Bold 18.0 #4f81bd | 7.
-122,144 | Carlito-Bold 18.0 #4f81bd | Reference
-90,178 | Carlito-Regular 10.6 #000000 | 1. Vehicle Standard – Australian Design Rules 62/02 – Mechanical Connections Between Vehicles – 2007.
-90,207 | Carlito-Regular 10.6 #000000 | 2. AS 4100-2020: Steel Structures.
-90,236 | Carlito-Regular 10.6 #000000 | 3. Material properties:
-97,251 | Carlito-Italic 10.6 #9a9a9a | [ Material datasheet URL ]
+359,45 | Verdana 10.7 #000000 | 8/8 Christensen Road, Stapylton Qld 4207.
+359,59 | Verdana 10.7 #000000 | E: info@csaengineering.com.au
+359,73 | Verdana 10.7 #000000 | P: +61 452 292 355
+359,87 | Verdana 10.7 #000000 | www.csaengineering.com.au
+90,144 | Calibri-Bold 18.0 #4f81bd | 7.
+122,144 | Calibri-Bold 18.0 #4f81bd | Reference
+90,178 | Calibri 10.6 #000000 | 1. Vehicle Standard – Australian Design Rules 62/02 – Mechanical Connections Between Vehicles – 2007.
+90,207 | Calibri 10.6 #000000 | 2. AS 4100-2020: Steel Structures.
+90,236 | Calibri 10.6 #000000 | 3. Material properties:
+97,251 | Calibri-Italic 10.6 #9a9a9a | [ Material datasheet URL ]
 [drawings] 3

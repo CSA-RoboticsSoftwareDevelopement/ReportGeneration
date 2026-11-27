@@ -48,6 +48,21 @@ else:
     FONT, FONT_B, FONT_I, FONT_BI = "Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique"
 
 
+def _register_cover_title_font():
+    dirs = [os.path.join(HERE, "assets", "fonts"), r"C:\Windows\Fonts",
+            "/usr/share/fonts/truetype/msttcorefonts", "/Library/Fonts"]
+    names = ("verdanab.ttf", "Verdana_Bold.ttf", "Verdana Bold.ttf")
+    path = next((os.path.join(directory, name) for directory in dirs for name in names
+                 if os.path.isfile(os.path.join(directory, name))), None)
+    if not path:
+        return FONT_B
+    pdfmetrics.registerFont(TTFont("CoverTitle-Bold", path))
+    return "CoverTitle-Bold"
+
+
+COVER_TITLE_FONT = _register_cover_title_font()
+
+
 # ----------------------------------------------------------------- schema
 def F(id, label, type="text", default="", opts=None, unit=""):
     return dict(id=id, label=label, type=type, default=default, opts=opts or [], unit=unit)
@@ -300,12 +315,15 @@ class NumCanvas(rl_canvas.Canvas):
         if os.path.isfile(LOGO):
             c.drawImage(LOGO, 76, H - 100, 106, 58, mask="auto", preserveAspectRatio=True, anchor="w")
         c.setFillColor(colors.black)
-        x, base = 198, H - 82
-        for wi, word in enumerate("CERTIFICATE OF CONFORMITY".split(" ")):
-            if wi: x += 8
-            for k, ch in enumerate(word):
-                size = 24 if k == 0 else 18
-                c.setFont("Helvetica-Bold", size); c.drawString(x, base, ch); x += c.stringWidth(ch, "Helvetica-Bold", size)
+        title = "CERTIFICATE OF CONFORMITY"
+        right_margin = 32
+        title_width = sum(c.stringWidth(ch, COVER_TITLE_FONT, 36 if i == 0 else 22) for i, ch in enumerate(title))
+        x, base = W - right_margin - title_width, H - 82
+        for i, ch in enumerate(title):
+            size = 36 if i == 0 else 22
+            c.setFont(COVER_TITLE_FONT, size)
+            c.drawString(x, base, ch)
+            x += c.stringWidth(ch, COVER_TITLE_FONT, size)
         for k, t in enumerate(["Composite Structures Australia Pty Ltd", "www.csaengineering.com.au", "info@csaengineering.com.au",
                                "8/8 Christensen Road, Stapylton Qld 4207.", "P: +61 452 292 355"]):
             c._text(90, 638 + k * 12.75, t, FONT, 10.6)
@@ -333,9 +351,9 @@ class NumCanvas(rl_canvas.Canvas):
         x = FX
         for k, (txt, filled) in enumerate(self.meta.get("footer", [])):
             if k:
-                c.setFillColor(colors.HexColor("#333333")); c.setFont(FONT_I, 10.6); c.drawString(x, 29.5, " | "); x += c.stringWidth(" | ", FONT_I, 10.6)
-            c.setFillColor(colors.HexColor("#333333") if filled else colors.HexColor("#9A9A9A")); c.setFont(FONT_I, 10.6)
-            c.drawString(x, 29.5, txt); x += c.stringWidth(txt, FONT_I, 10.6)
+                c.setFillColor(colors.black); c.setFont(FONT, 10.6); c.drawString(x, 29.5, " | "); x += c.stringWidth(" | ", FONT, 10.6)
+            c.setFillColor(colors.black if filled else colors.HexColor("#9A9A9A")); c.setFont(FONT, 10.6)
+            c.drawString(x, 29.5, txt); x += c.stringWidth(txt, FONT, 10.6)
 
 
 # ----------------------------------------------------------------- context
@@ -554,8 +572,12 @@ def sec_background(c):
     imgs = c.slot("bg_front", "3D Isometric Model in Autodesk Inventor - Front", 85) + c.slot("bg_back", "3D Isometric Model in Autodesk Inventor - Back", 85)
     return out + ([PageBreak()] + imgs if imgs else []) + [PageBreak()]
 
-CONF_FILL = {"full compliance": "#C6E0B4", "fully compliance": "#C6E0B4", "partial compliance": "#FFE699",
-             "client scope": "#BDD7EE", "not compliant": "#F4B6B6"}
+CONF_FILL = {
+    "full compliant": "#32CD32", "full compliance": "#32CD32", "fully compliant": "#32CD32",
+    "partial compliant": "#FFD700", "partial compliance": "#FFD700",
+    "client scope": "#4A90E2",
+    "not compliant": "#F4B6B6",
+}
 
 def sec_summary(c):
     s = c.s
@@ -575,7 +597,8 @@ def sec_summary(c):
         for i, item in enumerate(standards):
             rows.append([Paragraph(str(i + 1), s["cellc"]), Paragraph(escape(item["standard"]).replace("\n", "<br/>"), s["cell"]),
                          Paragraph(escape(item["requirement"]).replace("\n", "<br/>"), s["cell"]), Paragraph(escape(item["conformity"]), s["cellc"])])
-            fill = CONF_FILL.get(item["conformity"].lower())
+            conformity_key = " ".join(item["conformity"].split()).casefold()
+            fill = CONF_FILL.get(conformity_key)
             if fill:
                 fills.append(("BACKGROUND", (3, i + 1), (3, i + 1), colors.HexColor(fill)))
     else:

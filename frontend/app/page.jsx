@@ -890,8 +890,77 @@ function ClausePicker({ clauses, selectedIds, disabled, onChange }) {
 /*  Summary of compliance                                              */
 /* ------------------------------------------------------------------ */
 
+const DEFAULT_COMPLIANCE_ROWS = [
+  {
+    standard: "ADR 62/02 –14.2.1.1.1\nStatic Design Load",
+    requirement: "Longitudinal Tension and Compression For trailers up to 23.5 tons ‘ATM’, (N) 1.5 x 9.81 x ‘ATM’ (kg)",
+    manual: { code: "ADR 62/02", edition_year: "2007", standard_title: "Static Design Load", clause_no: "14.2.1.1.1", clause_title: "Longitudinal Tension and Compression", requirement_text: "For trailers up to 23.5 tons ‘ATM’, (N) 1.5 x 9.81 x ‘ATM’ (kg)" },
+  },
+  {
+    standard: "ADR 62/02 –14.2.1.2.1\nStatic Design Load",
+    requirement: "Transverse Thrust For trailers up to 4.5 tons ‘ATM’, (N) 0.5 x 9.81 x ‘ATM’ (kg).",
+    manual: { code: "ADR 62/02", edition_year: "2007", standard_title: "Static Design Load", clause_no: "14.2.1.2.1", clause_title: "Transverse Thrust", requirement_text: "For trailers up to 4.5 tons ‘ATM’, (N) 0.5 x 9.81 x ‘ATM’ (kg)." },
+  },
+  {
+    standard: "ADR 62/02 –14.2.1.3.1\nStatic Design Load",
+    requirement: "Vertical Tension and Compression For trailers up to 4.5 tons ‘ATM’, (N) 0.5 x 9.81 x ‘ATM’ (kg).",
+    manual: { code: "ADR 62/02", edition_year: "2007", standard_title: "Static Design Load", clause_no: "14.2.1.3.1", clause_title: "Vertical Tension and Compression", requirement_text: "For trailers up to 4.5 tons ‘ATM’, (N) 0.5 x 9.81 x ‘ATM’ (kg)." },
+  },
+  {
+    standard: "ADR 62/02 –14.2.2.2\nStatic Design Load",
+    requirement: "‘Drawbars’– Dynamic Testing ‘Drawbars’ for trailers over 3.5 ATM,\nHorizontal oscillating force - 0.6 x ‘Coupling’ ‘D-value’ (kN)\nVertical Alternating force - 0.6 x ‘Coupling’ ‘V-value’ (kN) asynchronously for at least 2 million cycles.",
+    manual: { code: "ADR 62/02", edition_year: "2007", standard_title: "Static Design Load", clause_no: "14.2.2.2", clause_title: "‘Drawbars’– Dynamic Testing ‘Drawbars’ for trailers over 3.5 ATM", requirement_text: "Horizontal oscillating force - 0.6 x ‘Coupling’ ‘D-value’ (kN)\nVertical Alternating force - 0.6 x ‘Coupling’ ‘V-value’ (kN) asynchronously for at least 2 million cycles." },
+  },
+  {
+    standard: "AS 4100-2020",
+    requirement: "The structural strength of the trailer apart from ADR62/02",
+    manual: { code: "AS 4100-2020", edition_year: "2020", standard_title: "", clause_no: "", clause_title: "The structural strength of the trailer apart from ADR62/02", requirement_text: "" },
+  },
+  {
+    standard: "ADR 62/02 – 14.4",
+    requirement: "‘Drawbar’ Safety Chain Attachment Points Longitudinal tension (N) = 9.81 x ‘ATM’ (kg); and vertical tension (N) = 0.5 x 9.81 x ‘ATM’ (kg).",
+    manual: { code: "ADR 62/02", edition_year: "2007", standard_title: "", clause_no: "14.4", clause_title: "‘Drawbar’ Safety Chain Attachment Points", requirement_text: "Longitudinal tension (N) = 9.81 x ‘ATM’ (kg); and vertical tension (N) = 0.5 x 9.81 x ‘ATM’ (kg)." },
+  },
+  {
+    standard: "AS 4100-2020",
+    requirement: "Coupling attachment points– Coupling plate bolt holes strength",
+    manual: { code: "AS 4100-2020", edition_year: "2020", standard_title: "", clause_no: "", clause_title: "Coupling attachment points– Coupling plate bolt holes strength", requirement_text: "" },
+  },
+];
+
+const createDefaultComplianceRows = () => DEFAULT_COMPLIANCE_ROWS.map((row) => ({
+  id: crypto.randomUUID(), source: "manual", conformity: "Full Compliant",
+  standard: row.standard, requirement: row.requirement, manual: { ...row.manual },
+}));
+
+const COMPLIANCE_COLORS = {
+  "full compliant": "#32CD32",
+  "partial compliant": "#FFD700",
+  "client scope": "#4A90E2",
+  "full compliance": "#32CD32",
+  "partial compliance": "#FFD700",
+};
+
+const normalizeComplianceRows = (rows) => {
+  if (!Array.isArray(rows) || !rows.some((row) => String(row.standard || row.requirement || "").trim() || row.picked?.length)) {
+    return createDefaultComplianceRows();
+  }
+  return rows.map((row) => ({
+    ...row,
+    conformity: row.conformity === "Full Compliance" ? "Full Compliant"
+      : row.conformity === "Partial Compliance" ? "Partial Compliant" : row.conformity || "Full Compliant",
+  }));
+};
+
+const hasCustomComplianceRows = (rows) => rows.length > 0 && (
+  rows.length !== DEFAULT_COMPLIANCE_ROWS.length || rows.some((row, index) => {
+    const base = DEFAULT_COMPLIANCE_ROWS[index];
+    return !base || row.standard !== base.standard || row.requirement !== base.requirement || row.conformity !== "Full Compliant";
+  })
+);
+
 const newComplianceRow = () => ({
-  id: crypto.randomUUID(), source: "library", conformity: "Full Compliance",
+  id: crypto.randomUUID(), source: "library", conformity: "Full Compliant",
   standardId: "", clauseId: "", clauses: [], standard: "", requirement: "",
   manual: { code: "", edition_year: "", standard_title: "", clause_no: "", clause_title: "", requirement_text: "" },
 });
@@ -941,10 +1010,11 @@ function ComplianceEditor({ rows, setRows, catalog, request }) {
         body: JSON.stringify(manual),
       });
       const payload = await response.json();
+      const standardRef = payload.clause.summary_standard || [manual.code, manual.clause_no].filter(Boolean).join(" - ");
       update(rowId, {
         standardId: payload.standard.id,
         clauseId: payload.clause.id,
-        standard: payload.clause.summary_standard || [manual.code, manual.clause_no].filter(Boolean).join(" - "),
+        standard: [standardRef, manual.standard_title].filter(Boolean).join("\n"),
         requirement: payload.clause.summary_requirement || [manual.clause_title, manual.requirement_text].filter(Boolean).join("\n"),
         saveStatus: "Saved to the standards library.",
       });
@@ -955,9 +1025,11 @@ function ComplianceEditor({ rows, setRows, catalog, request }) {
 
   const manualUpdate = (row, key, value) => {
     const manual = { ...row.manual, [key]: value };
+    const standardRef = [manual.code && manual.clause_no ? `${manual.code} - ${manual.clause_no}` : manual.code || manual.clause_no, manual.standard_title]
+      .filter(Boolean).join("\n");
     update(row.id, {
       manual,
-      standard: [manual.code, manual.clause_no].filter(Boolean).join(" - "),
+      standard: standardRef,
       requirement: [manual.clause_title, manual.requirement_text].filter(Boolean).join("\n"),
       saveStatus: "Complete code, edition, standard title, clause number and clause title to save.",
       saveError: false,
@@ -1035,11 +1107,11 @@ function ComplianceEditor({ rows, setRows, catalog, request }) {
               )}
 
               <Labeled label="Conformity" className="sm:col-span-2 xl:col-span-1">
-                <select className={INPUT} value={row.conformity} onChange={(e) => update(row.id, { conformity: e.target.value })}>
-                  <option>Full Compliance</option>
-                  <option>Partial Compliance</option>
-                  <option>Not Compliant</option>
-                  <option>Not Assessed</option>
+                <select className={INPUT} style={COMPLIANCE_COLORS[String(row.conformity || "").toLowerCase()] ? { backgroundColor: COMPLIANCE_COLORS[String(row.conformity).toLowerCase()], color: "#081f35" } : undefined} value={row.conformity} onChange={(e) => update(row.id, { conformity: e.target.value })}>
+                  {!['Full Compliant', 'Partial Compliant', 'Client Scope'].includes(row.conformity) ? <option disabled>{row.conformity}</option> : null}
+                  <option>Full Compliant</option>
+                  <option>Partial Compliant</option>
+                  <option>Client Scope</option>
                 </select>
               </Labeled>
             </div>
@@ -1934,6 +2006,7 @@ export default function ReportGenix() {
   const raeTimer = useRef(null);
   const [syncTick, setSyncTick] = useState(0);
   const syncedReports = useRef(new Set());   // report ids that exist on the server
+  const invalidReportIds = useRef(new Set()); // deleted or stale session ids must never be autosaved back
   const syncedImages = useRef({});           // { [reportId]: { current: {imageId: File}, original: {...} } }
   const lastSaved = useRef({});              // { [reportId]: change key }
   const hydratedRef = useRef("");
@@ -2064,9 +2137,7 @@ export default function ReportGenix() {
     );
     try { window.localStorage.setItem("rg-bodies-clean-v2", "1"); } catch { /* ignore */ }
 
-    const savedStandards = Array.isArray(saved.standards) ? saved.standards : [];
-    // Keep the first blank Summary of Compliance row available in every draft.
-    setStandards(savedStandards.length ? savedStandards : [newComplianceRow()]);
+    setStandards(normalizeComplianceRows(saved.standards));
     // A saved draft may pre-date a new standard section (for example the
     // Report Index).  Common sections are part of every report, so merge them
     // into an old selection rather than silently building the old template.
@@ -2857,10 +2928,20 @@ export default function ReportGenix() {
     return () => { dead = true; };
   }, [userKey, csrf, request]);
 
+  // The session draft can outlive its report. Clear that stale selection before
+  // the autosave effects below get a chance to recreate the deleted server row.
+  useEffect(() => {
+    if (!reportsLoaded || !activeReportId || reports.some((report) => report.id === activeReportId)) return;
+    invalidReportIds.current.add(activeReportId);
+    resetWorkspace();
+  }, [reportsLoaded, reports, activeReportId]);
+
   /* Keep the current report's card up to date (only when something really changed). */
   useEffect(() => {
     if (!schema || !reportsLoaded || !user) return;
-    const hasContent = [data.rae_no, data.project_name, data.report_title].some((v) => String(v ?? "").trim()) || standards.length > 0;
+    if (activeReportId && invalidReportIds.current.has(activeReportId)) return;
+    const hasComplianceContent = hasCustomComplianceRows(standards);
+    const hasContent = [data.rae_no, data.project_name, data.report_title].some((v) => String(v ?? "").trim()) || hasComplianceContent;
     if (!hasContent) return;
     const snapshot = { data, standards, selected, layout, materialMode, selectedMaterialId, materialMeta, extraImages, removedSchemaImages };
     const sig = JSON.stringify(snapshot);
@@ -3020,12 +3101,14 @@ export default function ReportGenix() {
 
   const createReport = () => {
     resetWorkspace();
+    const initialStandards = createDefaultComplianceRows();
+    setStandards(initialStandards);
     const blank = Object.fromEntries(
       schema.general.map((f) => [f.id, f.default || (f.type === "date" ? new Date().toISOString().slice(0, 10) : "")])
     );
     if (user?.initials) blank.prepared_by = user.initials;
     writeDraft({
-      data: blank, standards: [], selected: schema.sections.map((s) => s.id), layout,
+      data: blank, standards: initialStandards, selected: schema.sections.map((s) => s.id), layout,
       materialMode: "library", selectedMaterialId: "", materialMeta: { material_type: "", category: "steel", source_standard_id: "", notes: "" },
       activeReportId: "", extraImages: {}, removedSchemaImages: {},
     });
@@ -3036,13 +3119,14 @@ export default function ReportGenix() {
     if (!reports.find((r) => r.id === id)) return;
     try {
       if (id !== activeReportId) {
+        invalidReportIds.current.delete(id);
         const { full, files: f, originals: o } = await loadServerMedia(id);
         const s = full.snapshot || {};
         const mat = { material_type: "", category: "steel", source_standard_id: "", notes: "" };
         hydratedRef.current = id;
         pendingId.current = "";
         setData(s.data || {});
-        setStandards(s.standards || []);
+        setStandards(normalizeComplianceRows(s.standards));
         setSelected(s.selected || schema.sections.map((x) => x.id));
         setLayout(s.layout || layout);
         setMaterialMode(s.materialMode === "manual" ? "manual" : "library");
@@ -3096,6 +3180,7 @@ export default function ReportGenix() {
     try {
       if (syncedReports.current.has(id)) await request(`/api/report-store/reports/${id}`, { method: "DELETE" });
       syncedReports.current.delete(id);
+      invalidReportIds.current.add(id);
       delete syncedImages.current[id];
       setReports((cur) => cur.filter((r) => r.id !== id));
       if (id === activeReportId) resetWorkspace();
@@ -3270,6 +3355,21 @@ export default function ReportGenix() {
                 <Link href="/dashboard" className={navClass(route === "dashboard")}>Dashboard</Link>
                 <button onClick={() => setTourOpen(true)} className={navClass(false)}>Help</button>
               </div>
+              <button
+                data-tour="profile"
+                onClick={openProfile}
+                className="group flex min-w-0 items-center gap-2 rounded-lg border border-[#2f5b75] bg-[#0e3250] px-2.5 py-2 text-xs text-[#c8dfe1] transition duration-200 hover:-translate-y-px hover:border-[#f84f63]/70 hover:bg-[#16415f] focus:outline-none focus:border-[#f84f63] sm:gap-3 sm:px-4 sm:text-sm"
+                aria-label="Profile"
+              >
+                {user.avatar_url ? (
+                  <img src={user.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                ) : (
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f84f63] text-xs font-bold text-[#0a1f36]">
+                    {user.initials || initials(user.full_name || user.email)}
+                  </span>
+                )}
+                <span className="hidden max-w-[160px] truncate sm:inline">{user.full_name || user.email}</span>
+              </button>
               <ActionButton variant="ghost" onClick={() => downloadTemplate("pdf")} className="hidden !px-4 !py-2 sm:inline-flex">Blank PDF</ActionButton>
               <ActionButton variant="ghost" onClick={logout} className="shrink-0 !px-3 !py-2 sm:!px-4">Sign out</ActionButton>
             </div>
