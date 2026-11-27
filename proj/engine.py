@@ -490,7 +490,9 @@ def _std_codes(c):
 
 def _std_line(code):
     known = KNOWN_STD.get(re.sub(r"\s", "", code).upper())
-    return escape(f"{code}: {known}" if known else code)
+    if known:
+        return f"<b>{escape(code)}:</b> {escape(known)}"
+    return f"<b>{escape(code)}</b>"
 
 def _join(items):
     return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
@@ -526,16 +528,17 @@ def deform_text(c, n):
 # ----------------------------------------------------------------- section builders
 def sec_cert(c):
     s = c.s
-    b = lambda t: Paragraph(t, s["p1b"])
+    kv = lambda label, value: Paragraph(f"<b>{label}</b> {value}", s["p1"])
     out = [Paragraph(f'RAE No: {c.v("rae_no")}', s["raeno"]),
-           b(f'Name and address of Applicant: {c.v("applicant")}'), b(f'Project Name: {c.v("project_name")}'),
-           b(f'Certification No: {c.v("cert_no")}'), b("Product Classification: Trailer Certification"),
-           b("Certification was carried within following scope"), b("Australian Standards:")]
+           kv('Name and address of Applicant:', c.v("applicant")), kv('Project Name:', c.v("project_name")),
+           kv('Certification No:', c.v("cert_no")), kv('Product Classification:', 'Trailer Certification'),
+           Paragraph("<b>Certification was carried within following scope</b>", s["p1"]),
+           Paragraph("<b>Australian Standards:</b>", s["p1"])]
     codes = [] if c.tpl else _std_codes(c)
-    items = [escape(x) for x in codes] or [c.ph("Enter standards in Summary of Compliance")]
+    items = [_std_line(x) for x in codes] or [c.ph("Enter standards in Summary of Compliance")]
     out += [Paragraph(t, s["bul1"], bulletText="•") for t in items]
     out += [Spacer(1, 16), Paragraph("The assessment process has been carried out in accordance with the individual rules and conditions agreed with the applicant.", s["p1"]),
-            b("Valid till: 5 Years From issue date (Yearly Inspection required)"), Spacer(1, 18)]
+            Paragraph("<b>Valid till: 5 Years From issue date (Yearly Inspection required)</b>", s["p1"]), Spacer(1, 18)]
     hdr = [Paragraph(x, s["celb"]) for x in ["Revision", "Date", "Revision Details", "Prepared By", "Checked By"]]
     row = [Paragraph(c.v(k), s["cellc"]) for k in ["rev", "rev_date", "rev_details", "prepared_by", "checked_by"]]
     out.append(c.tbl([hdr, row], [52, 63, 195, 83, 75], pad=6))
